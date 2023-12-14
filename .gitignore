@@ -1,0 +1,21 @@
+node_modules
+.idea
+.vscode
+.git
+coverage/**
+coverage.json
+typechain-types
+artifacts
+dist
+
+#Hardhat files
+cache
+.openzeppelin
+
+scripts/play!/cache/
+/scripts/**/play.ts
+/scripts/**/*.local
+.DS_Store
+solstat_report.md
+yarn-error.log
+soljson-*
