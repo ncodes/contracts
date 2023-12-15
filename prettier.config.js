@@ -12,7 +12,7 @@ module.exports = {
       },
     },
     {
-      files: "scripts/*.ts",
+      files: "scripts/**/*.ts",
       options: {
         printWidth: 120,
         tabWidth: 4,

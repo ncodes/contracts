@@ -6,10 +6,12 @@ import "@typechain/hardhat";
 import * as dotenv from "dotenv";
 import "hardhat-contract-sizer";
 import "hardhat-gas-reporter";
+import {removeConsoleLog} from "hardhat-preprocessor";
 import {HardhatUserConfig, task} from "hardhat/config";
 import path from "path";
 import "solidity-coverage";
 import "./tasks";
+
 const args = require("subarg")(process.argv.slice(2));
 const net = args.network || "localhost";
 
@@ -26,6 +28,9 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 const deployKey = process.env.DEPLOY_KEY;
 
 module.exports = {
+    preprocess: {
+        eachLine: removeConsoleLog((hre) => hre.network.name !== "hardhat" && hre.network.name !== "localhost"),
+    },
     networks: {
         hardhat: {
             // forking: {
