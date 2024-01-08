@@ -7,24 +7,19 @@ import * as dotenv from "dotenv";
 import "hardhat-contract-sizer";
 import "hardhat-gas-reporter";
 import {removeConsoleLog} from "hardhat-preprocessor";
-import {HardhatUserConfig, task} from "hardhat/config";
+import {HardhatUserConfig} from "hardhat/config";
 import path from "path";
 import "solidity-coverage";
 import "./tasks";
 
-const args = require("subarg")(process.argv.slice(2));
-const net = args.network || "localhost";
+// Get network (default to localhost)
+const net = process.env.HARDHAT_NETWORK || "localhost";
 
+// Load environment variables for the network
 dotenv.config({path: path.join(__dirname, `scripts/${net}/.env`)});
-dotenv.config({path: path.join(__dirname, `scripts/${net}/.env.local`)});
+dotenv.config({path: path.join(__dirname, `scripts/.env.local`)});
 
-task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
-    const accounts = await hre.ethers.getSigners();
-    for (const account of accounts) {
-        console.log(account.address);
-    }
-});
-
+// Get deployer key
 const deployKey = process.env.DEPLOY_KEY;
 
 module.exports = {

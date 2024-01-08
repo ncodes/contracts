@@ -1,11 +1,11 @@
 import {ethers, waffle} from "hardhat";
+import {AuxLib} from "./../../typechain-types/AuxLib";
 import {LiquidityLib} from "./../../typechain-types/LiquidityLib";
 import {MarketAuxLib} from "./../../typechain-types/MarketAuxLib";
 const {deployMockContract} = waffle;
 
 import {
     AssetRegistry,
-    AuxLib,
     BadgeManager,
     Core,
     ENERGON,
@@ -29,6 +29,7 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {MockContract} from "ethereum-waffle";
 import {BigNumber, constants, Contract} from "ethers";
 import * as CoreArtifact from "../../artifacts/contracts/core/Core.sol/Core.json";
+import {DeployedContracts} from "../../types/deploy";
 import {makeMarketID, toBN} from "../../utils/utils";
 const {getContractFactory} = ethers;
 
@@ -53,64 +54,70 @@ function logLibAddress(libs: MakeCoreLibsResult) {
     }
 }
 
-export async function makeLibs(deployed: {[key: string]: string} = {}, log?: (message?: any, ...optionalParams: any[]) => void): Promise<MakeCoreLibsResult> {
+export async function makeLibs(deployed: DeployedContracts = {}, log?: (message?: any, ...optionalParams: any[]) => void): Promise<MakeCoreLibsResult> {
     let MarketAuxLib: Contract;
     if (!deployed.MarketAuxLib) {
         MarketAuxLib = await (await getContractFactory("MarketAuxLib")).deploy();
-        deployed.MarketAuxLib = MarketAuxLib.address;
-        log?.("  * Deployed MarketAuxLib", MarketAuxLib.address);
+        const r = await MarketAuxLib.deployTransaction.wait();
+        deployed.MarketAuxLib = {address: MarketAuxLib.address, isLib: true, gasUsed: r.gasUsed.toNumber()};
+        log?.("  * Deployed MarketAuxLib", MarketAuxLib.address, `GasUsed: ${r.gasUsed.toNumber()}`);
     } else {
-        MarketAuxLib = await ethers.getContractAt("MarketAuxLib", deployed.MarketAuxLib);
+        MarketAuxLib = await ethers.getContractAt("MarketAuxLib", deployed.MarketAuxLib.address);
         log?.("  * Attaching to MarketAuxLib at", MarketAuxLib.address);
     }
 
     let AuxLib: Contract;
     if (!deployed.AuxLib) {
         AuxLib = await (await getContractFactory("AuxLib", {libraries: {MarketAuxLib: MarketAuxLib.address}})).deploy();
-        deployed.AuxLib = AuxLib.address;
-        log?.("  * Deployed AuxLib", AuxLib.address);
+        const r = await AuxLib.deployTransaction.wait();
+        deployed.AuxLib = {address: AuxLib.address, isLib: true, gasUsed: r.gasUsed.toNumber()};
+        log?.("  * Deployed AuxLib", AuxLib.address, `GasUsed: ${r.gasUsed.toNumber()}`);
     } else {
-        AuxLib = await ethers.getContractAt("AuxLib", deployed.AuxLib);
+        AuxLib = await ethers.getContractAt("AuxLib", deployed.AuxLib.address);
         log?.("  * Attaching to AuxLib at", AuxLib.address);
     }
 
     let LiquidityLib: Contract;
     if (!deployed.LiquidityLib) {
         LiquidityLib = await (await getContractFactory("LiquidityLib", {libraries: {AuxLib: AuxLib.address, MarketAuxLib: MarketAuxLib.address}})).deploy();
-        deployed.LiquidityLib = LiquidityLib.address;
-        log?.("  * Deployed LiquidityLib", LiquidityLib.address);
+        const r = await LiquidityLib.deployTransaction.wait();
+        deployed.LiquidityLib = {address: LiquidityLib.address, isLib: true, gasUsed: r.gasUsed.toNumber()};
+        log?.("  * Deployed LiquidityLib", deployed.LiquidityLib.address, `GasUsed: ${r.gasUsed.toNumber()}`);
     } else {
-        LiquidityLib = await ethers.getContractAt("LiquidityLib", deployed.LiquidityLib);
+        LiquidityLib = await ethers.getContractAt("LiquidityLib", deployed.LiquidityLib.address);
         log?.("  * Attaching to LiquidityLib at", LiquidityLib.address);
     }
 
     let OrderLib: Contract;
     if (!deployed.OrderLib) {
         OrderLib = await (await getContractFactory("OrderLib", {libraries: {AuxLib: AuxLib.address, LiquidityLib: LiquidityLib.address, MarketAuxLib: MarketAuxLib.address}})).deploy();
-        deployed.OrderLib = OrderLib.address;
-        log?.("  * Deployed OrderLib", OrderLib.address);
+        const r = await OrderLib.deployTransaction.wait();
+        deployed.OrderLib = {address: OrderLib.address, isLib: true, gasUsed: r.gasUsed.toNumber()};
+        log?.("  * Deployed OrderLib", OrderLib.address, `GasUsed: ${r.gasUsed.toNumber()}`);
     } else {
-        OrderLib = await ethers.getContractAt("OrderLib", deployed.OrderLib);
+        OrderLib = await ethers.getContractAt("OrderLib", deployed.OrderLib.address);
         log?.("  * Attaching to OrderLib at", OrderLib.address);
     }
 
     let FeeLib: Contract;
     if (!deployed.FeeLib) {
         FeeLib = await (await getContractFactory("FeeLib", {libraries: {AuxLib: AuxLib.address, MarketAuxLib: MarketAuxLib.address}})).deploy();
-        deployed.FeeLib = FeeLib.address;
-        log?.("  * Deployed FeeLib", FeeLib.address);
+        const r = await FeeLib.deployTransaction.wait();
+        deployed.FeeLib = {address: FeeLib.address, isLib: true, gasUsed: r.gasUsed.toNumber()};
+        log?.("  * Deployed FeeLib", FeeLib.address, `GasUsed: ${r.gasUsed.toNumber()}`);
     } else {
-        FeeLib = await ethers.getContractAt("FeeLib", deployed.FeeLib);
+        FeeLib = await ethers.getContractAt("FeeLib", deployed.FeeLib.address);
         log?.("  * Attaching to FeeLib at", FeeLib.address);
     }
 
     let OrderReleaseLib: Contract;
     if (!deployed.OrderReleaseLib) {
         OrderReleaseLib = await (await getContractFactory("OrderReleaseLib", {libraries: {AuxLib: AuxLib.address, MarketAuxLib: MarketAuxLib.address, FeeLib: FeeLib.address}})).deploy();
-        deployed.OrderReleaseLib = OrderReleaseLib.address;
-        log?.("  * Deployed OrderReleaseLib", OrderReleaseLib.address);
+        const r = await OrderReleaseLib.deployTransaction.wait();
+        deployed.OrderReleaseLib = {address: OrderReleaseLib.address, isLib: true, gasUsed: r.gasUsed.toNumber()};
+        log?.("  * Deployed OrderReleaseLib", OrderReleaseLib.address, `GasUsed: ${r.gasUsed.toNumber()}`);
     } else {
-        OrderReleaseLib = await ethers.getContractAt("OrderReleaseLib", deployed.OrderReleaseLib);
+        OrderReleaseLib = await ethers.getContractAt("OrderReleaseLib", deployed.OrderReleaseLib.address);
         log?.("  * Attaching to OrderReleaseLib at", OrderReleaseLib.address);
     }
 
@@ -121,10 +128,11 @@ export async function makeLibs(deployed: {[key: string]: string} = {}, log?: (me
                 libraries: {AuxLib: AuxLib.address, OrderLib: OrderLib.address, MarketAuxLib: MarketAuxLib.address, LiquidityLib: LiquidityLib.address, FeeLib: FeeLib.address},
             })
         ).deploy();
-        deployed.SwapNonFungibleLib = SwapNonFungibleLib.address;
-        log?.("  * Deployed SwapNonFungibleLib", SwapNonFungibleLib.address);
+        const r = await SwapNonFungibleLib.deployTransaction.wait();
+        deployed.SwapNonFungibleLib = {address: SwapNonFungibleLib.address, isLib: true, gasUsed: r.gasUsed.toNumber()};
+        log?.("  * Deployed SwapNonFungibleLib", SwapNonFungibleLib.address, `GasUsed: ${r.gasUsed.toNumber()}`);
     } else {
-        SwapNonFungibleLib = await ethers.getContractAt("SwapNonFungibleLib", deployed.SwapNonFungibleLib);
+        SwapNonFungibleLib = await ethers.getContractAt("SwapNonFungibleLib", deployed.SwapNonFungibleLib.address);
         log?.("  * Attaching to SwapNonFungibleLib at", SwapNonFungibleLib.address);
     }
 
@@ -141,10 +149,11 @@ export async function makeLibs(deployed: {[key: string]: string} = {}, log?: (me
                 },
             })
         ).deploy();
-        deployed.SwapFungibleLib = SwapFungibleLib.address;
-        log?.("  * Deployed SwapFungibleLib", SwapFungibleLib.address);
+        const r = await SwapFungibleLib.deployTransaction.wait();
+        deployed.SwapFungibleLib = {address: SwapFungibleLib.address, isLib: true, gasUsed: r.gasUsed.toNumber()};
+        log?.("  * Deployed SwapFungibleLib", SwapFungibleLib.address, `GasUsed: ${r.gasUsed.toNumber()}`);
     } else {
-        SwapFungibleLib = await ethers.getContractAt("SwapFungibleLib", deployed.SwapFungibleLib);
+        SwapFungibleLib = await ethers.getContractAt("SwapFungibleLib", deployed.SwapFungibleLib.address);
         log?.("  * Attaching to SwapFungibleLib at", SwapFungibleLib.address);
     }
 
@@ -161,20 +170,22 @@ export async function makeLibs(deployed: {[key: string]: string} = {}, log?: (me
                 },
             })
         ).deploy();
-        deployed.SwapLib = SwapLib.address;
-        log?.("  * Deployed SwapLib", SwapLib.address);
+        const r = await SwapLib.deployTransaction.wait();
+        deployed.SwapLib = {address: SwapLib.address, isLib: true, gasUsed: r.gasUsed.toNumber()};
+        log?.("  * Deployed SwapLib", SwapLib.address, `GasUsed: ${r.gasUsed.toNumber()}`);
     } else {
-        SwapLib = await ethers.getContractAt("SwapLib", deployed.SwapLib);
+        SwapLib = await ethers.getContractAt("SwapLib", deployed.SwapLib.address);
         log?.("  * Attaching to SwapLib at", SwapLib.address);
     }
 
     let WithdrawLib: Contract;
     if (!deployed.WithdrawLib) {
         WithdrawLib = await (await getContractFactory("WithdrawLib", {libraries: {}})).deploy();
-        deployed.WithdrawLib = WithdrawLib.address;
-        log?.("  * Deployed WithdrawLib", WithdrawLib.address);
+        const r = await WithdrawLib.deployTransaction.wait();
+        deployed.WithdrawLib = {address: WithdrawLib.address, isLib: true, gasUsed: r.gasUsed.toNumber()};
+        log?.("  * Deployed WithdrawLib", WithdrawLib.address, `GasUsed: ${r.gasUsed.toNumber()}`);
     } else {
-        WithdrawLib = await ethers.getContractAt("WithdrawLib", deployed.WithdrawLib);
+        WithdrawLib = await ethers.getContractAt("WithdrawLib", deployed.WithdrawLib.address);
         log?.("  * Attaching to WithdrawLib at", WithdrawLib.address);
     }
 
@@ -185,30 +196,33 @@ export async function makeLibs(deployed: {[key: string]: string} = {}, log?: (me
                 libraries: {AuxLib: AuxLib.address, MarketAuxLib: MarketAuxLib.address, SwapFungibleLib: SwapFungibleLib.address, SwapNonFungibleLib: SwapNonFungibleLib.address},
             })
         ).deploy();
-        deployed.OfferLib = OfferLib.address;
-        log?.("  * Deployed OfferLib", OfferLib.address);
+        const r = await OfferLib.deployTransaction.wait();
+        deployed.OfferLib = {address: OfferLib.address, isLib: true, gasUsed: r.gasUsed.toNumber()};
+        log?.("  * Deployed OfferLib", OfferLib.address, `GasUsed: ${r.gasUsed.toNumber()}`);
     } else {
-        OfferLib = await ethers.getContractAt("OfferLib", deployed.OfferLib);
+        OfferLib = await ethers.getContractAt("OfferLib", deployed.OfferLib.address);
         log?.("  * Attaching to OfferLib at", OfferLib.address);
     }
 
     let FungibleLiquidityLib: Contract;
     if (!deployed.FungibleLiquidityLib) {
         FungibleLiquidityLib = await (await getContractFactory("FungibleLiquidityLib", {libraries: {AuxLib: AuxLib.address, MarketAuxLib: MarketAuxLib.address}})).deploy();
-        deployed.FungibleLiquidityLib = FungibleLiquidityLib.address;
-        log?.("  * Deployed FungibleLiquidityLib", FungibleLiquidityLib.address);
+        const r = await FungibleLiquidityLib.deployTransaction.wait();
+        deployed.FungibleLiquidityLib = {address: FungibleLiquidityLib.address, isLib: true, gasUsed: r.gasUsed.toNumber()};
+        log?.("  * Deployed FungibleLiquidityLib", FungibleLiquidityLib.address, `GasUsed: ${r.gasUsed.toNumber()}`);
     } else {
-        FungibleLiquidityLib = await ethers.getContractAt("FungibleLiquidityLib", deployed.FungibleLiquidityLib);
+        FungibleLiquidityLib = await ethers.getContractAt("FungibleLiquidityLib", deployed.FungibleLiquidityLib.address);
         log?.("  * Attaching to FungibleLiquidityLib at", FungibleLiquidityLib.address);
     }
 
     let NonFungibleLiquidityLib: Contract;
     if (!deployed.NonFungibleLiquidityLib) {
         NonFungibleLiquidityLib = await (await getContractFactory("NonFungibleLiquidityLib", {libraries: {AuxLib: AuxLib.address, MarketAuxLib: MarketAuxLib.address}})).deploy();
-        deployed.NonFungibleLiquidityLib = NonFungibleLiquidityLib.address;
-        log?.("  * Deployed NonFungibleLiquidityLib", NonFungibleLiquidityLib.address);
+        const r = await NonFungibleLiquidityLib.deployTransaction.wait();
+        deployed.NonFungibleLiquidityLib = {address: NonFungibleLiquidityLib.address, isLib: true, gasUsed: r.gasUsed.toNumber()};
+        log?.("  * Deployed NonFungibleLiquidityLib", NonFungibleLiquidityLib.address, `GasUsed: ${r.gasUsed.toNumber()}`);
     } else {
-        NonFungibleLiquidityLib = await ethers.getContractAt("NonFungibleLiquidityLib", deployed.NonFungibleLiquidityLib);
+        NonFungibleLiquidityLib = await ethers.getContractAt("NonFungibleLiquidityLib", deployed.NonFungibleLiquidityLib.address);
         log?.("  * Attaching to NonFungibleLiquidityLib at", NonFungibleLiquidityLib.address);
     }
 
@@ -301,9 +315,7 @@ export async function initCoreTestSuite() {
     tokenDec = toBN(10).pow(await token.decimals());
 
     const libs = await makeLibs();
-    let marketCoreFact = await getContractFactory("MarketCore", {
-        libraries: {},
-    });
+    let marketCoreFact = await getContractFactory("MarketCore", {libraries: {}});
     mc = (await marketCoreFact.deploy(0)) as MarketCore;
 
     let coreFact = await getContractFactory("Core", {

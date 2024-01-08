@@ -6,6 +6,8 @@ import {toBN} from "../utils/utils";
 export enum Network {
     Ethereum = "ethereum",
     Goerli = "goerli",
+    Sepolia = "sepolia",
+    Localhost = "localhost",
 }
 
 interface ContractParams {

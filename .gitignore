@@ -15,6 +15,7 @@ cache
 scripts/play!/cache/
 /scripts/**/play.ts
 /scripts/**/*.local
+/scripts/**/backup-*.json
 .DS_Store
 solstat_report.md
 yarn-error.log
