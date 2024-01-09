@@ -29,7 +29,7 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {MockContract} from "ethereum-waffle";
 import {BigNumber, constants, Contract} from "ethers";
 import * as CoreArtifact from "../../artifacts/contracts/core/Core.sol/Core.json";
-import {DeployedContracts} from "../../types/deploy";
+import {DeployedContracts} from "../../types/types";
 import {makeMarketID, toBN} from "../../utils/utils";
 const {getContractFactory} = ethers;
 

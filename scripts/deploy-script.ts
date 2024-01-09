@@ -22,7 +22,7 @@ import {Core} from "../typechain-types/Core";
 import {Operator} from "../typechain-types/Operator";
 import {TOKEN} from "../typechain-types/TOKEN";
 import {WETH9} from "../typechain-types/WETH9";
-import {Deployments} from "../types/deploy";
+import {Deployments} from "../types/types";
 import {AddressZero} from "../utils/utils";
 import {Network, getParams} from "./params";
 
@@ -236,7 +236,7 @@ async function deployCore() {
         ],
         async (contract, attached) => {
             core = contract;
-            if (contract) return;
+            if (attached) return;
 
             await runStep(1, "Setting protocol fee", async () => {
                 call(core, deployer, (c) => {
@@ -379,7 +379,7 @@ async function deployDisputeManager() {
         [p2p.address, marketCore.address, core.address, mediatorMgr.address, params.predictDur, params.evidenceDur],
         async (contract, attached) => {
             disputeMgr = contract;
-            if (contract) return;
+            if (attached) return;
 
             await runStep(1, "Set Core's dispute manager", async () => {
                 call(core, deployer, (c) => {
@@ -439,7 +439,7 @@ async function deployNFT() {
         ["NFT", "NFT", "ipfs://abc/", 10000, 0, AddressZero, AddressZero, AddressZero, AddressZero],
         async (contract, attached) => {
             nft = contract;
-            if (contract) return;
+            if (attached) return;
 
             await runStep(1, "Setting NFT address and discount on Core contract", async () => {
                 call(core, deployer, (c) => {
