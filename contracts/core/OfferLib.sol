@@ -51,11 +51,11 @@ library OfferLib {
         uint256 operator;
     }
 
-    function checkOffer(
-        StructsLib.State storage s1,
-        StructsLib.State2 storage s2,
-        CheckOfferSlot memory slot
-    ) internal view {
+    /// @dev Check offer parameters
+    /// @param s1 Storage struct.
+    /// @param s2 Storage struct 2.
+    /// @param slot The parameters needed to check the offer.
+    function checkOffer(StructsLib.State storage s1, StructsLib.State2 storage s2, CheckOfferSlot memory slot) internal view {
         require(AuxLib.hasNonZeroLiquidity(s1, slot.marketId, slot.provider, slot.lid), "OC: ZERO_LIQ");
         require(slot.deadline > block.timestamp, "OC: PAST_DEADLINE");
         Structs.Liquidity storage liq = s1.liquidity[slot.marketId][slot.provider][slot.lid];
@@ -76,7 +76,7 @@ library OfferLib {
 
         // Ensure sender has enough quote token to make offer
         if (mkt.quote.isERC20()) {
-            uint256 cost = (slot.amount * slot.price) / 10**IERC20(mkt.quote.addr).decimals();
+            uint256 cost = (slot.amount * slot.price) / 10 ** IERC20(mkt.quote.addr).decimals();
             require(IERC20(mkt.quote.addr).balanceOf(msg.sender) >= cost, "OC: LOW_BAL");
         }
 
@@ -91,6 +91,17 @@ library OfferLib {
     }
 
     /// @dev Create an offer
+    /// @param s1 Storage struct.
+    /// @param s2 Storage struct 2.
+    /// @param marketId The market ID
+    /// @param provider The liquidity provider
+    /// @param recipient The recipient of the liquidity
+    /// @param lid The liquidity ID
+    /// @param amount The amount of liquidity to offer
+    /// @param price The price of the liquidity
+    /// @param ids The IDs of the NFTs to offer if quote is NFT
+    /// @param expireDur The duration of the offer
+    /// @param operator The ID of the operator that pushed the offer
     function createOffer(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
@@ -147,6 +158,13 @@ library OfferLib {
     }
 
     /// @dev Update an offer
+    /// @param s1 Storage struct.
+    /// @param s2 Storage struct 2.
+    /// @param offerId The offer ID
+    /// @param amount The amount of liquidity to offer
+    /// @param price The price of the liquidity
+    /// @param ids The IDs of the NFTs to offer if quote is NFT
+    /// @param expireDur The duration of the offer
     function updateOffer(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
@@ -188,11 +206,10 @@ library OfferLib {
     }
 
     /// @dev Accept an offer
-    function acceptOffer(
-        StructsLib.State2 storage s2,
-        uint256 offerId,
-        uint256 delay
-    ) public {
+    /// @param s2 Storage struct 2.
+    /// @param offerId The offer ID
+    /// @param delay The delay before the offer can be executed
+    function acceptOffer(StructsLib.State2 storage s2, uint256 offerId, uint256 delay) public {
         require(offerId < s2.offers.length, "OC: UNKNOWN_OFFER");
         Structs.Offer storage offer = s2.offers[offerId];
         require(offer.provider == msg.sender, "OC: NOT_PROVIDER");
@@ -206,6 +223,8 @@ library OfferLib {
     }
 
     /// @dev Unaccept an offer
+    /// @param s2 Storage struct 2.
+    /// @param offerId The offer ID
     function unacceptOffer(StructsLib.State2 storage s2, uint256 offerId) public {
         require(offerId < s2.offers.length, "OC: UNKNOWN_OFFER");
         Structs.Offer storage offer = s2.offers[offerId];
@@ -218,6 +237,8 @@ library OfferLib {
     }
 
     /// @dev Cancel an offer
+    /// @param s2 Storage struct 2.
+    /// @param offerId The offer ID
     function cancelOffer(StructsLib.State2 storage s2, uint256 offerId) public {
         require(offerId < s2.offers.length, "OC: UNKNOWN_OFFER");
         Structs.Offer storage offer = s2.offers[offerId];
@@ -230,6 +251,9 @@ library OfferLib {
     }
 
     /// @dev Execute an offer
+    /// @param s1 Storage struct.
+    /// @param s2 Storage struct 2.
+    /// @param offerId The offer ID
     function executeOffer(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,

@@ -29,9 +29,13 @@ library LiquidityLib {
     event UpdatedLiquiditySwapBadges(address marketId, address provider, uint256 lid, string[2][] badges);
 
     /// @dev Returns matching want IDs.
+    /// @param ids The IDs to search
+    /// @param wantOrIds The IDs to match at least one of
+    /// If wantOrIds is not empty, at least one entry must be included in ids.
+    /// @param wantAndIds The IDs to match all of
     /// If wantAndIds and wantOrIds are empty, return entries in ids.
     /// If wantAndIds is not empty, all entries must be included in ids.
-    /// If wantOrIds is not empty, at least one entry must be included in ids.
+    /// @return matchIds The matching IDs
     function findMatchInWantIds(
         uint256[] memory ids,
         mapping(uint256 => bool) storage intIdx,
@@ -73,6 +77,12 @@ library LiquidityLib {
         return (orFound) ? matchIds : new uint256[](0);
     }
 
+    /// @dev Update the count of open disputes for a liquidity
+    /// @param state State object
+    /// @param marketId The market ID
+    /// @param provider The address of the liquidity provider
+    /// @param lid The liquidity ID
+    /// @param incr True to increment, false to decrement
     function updateOpenDisputesCount(
         StructsLib.State storage state,
         address marketId,
@@ -135,7 +145,12 @@ library LiquidityLib {
         emit TogglePause(mid, msg.sender, lid, state.liquidity[mid][msg.sender][lid].paused);
     }
 
-    /// @notice Set swap badges
+    /// @dev Set swap badges for a liquidity
+    /// @param state The State object
+    /// @param state2 The State2 object
+    /// @param mid The market ID
+    /// @param lid The liquidity ID
+    /// @param badges The badges to set
     function setSwapBadgeForLiquidity(
         StructsLib.State storage state,
         StructsLib.State2 storage state2,

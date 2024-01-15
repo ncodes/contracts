@@ -30,6 +30,10 @@ library SwapNonFungibleLib {
 
     /// @dev Swap quote asset for a non-fungible base asset.
     /// Covers NFT/ERC20, NFT/SYNTH, NFT/NFT
+    /// @param s1 Storage state.
+    /// @param s2 Storage state 2.
+    /// @param sp The parameters needed to swap.
+    /// @param market The market object for the market being swapped on.
     function swap(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
@@ -62,6 +66,11 @@ library SwapNonFungibleLib {
     }
 
     /// @dev Handle NFT/NFT swap (Instant)
+    /// @param s1 Storage state.
+    /// @param s2 Storage state 2.
+    /// @param sp The parameters needed to swap.
+    /// @param mkt The market object for the market being swapped on.
+    /// @param liq The liquidity object.
     function swapNFT(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
@@ -158,6 +167,11 @@ library SwapNonFungibleLib {
     }
 
     /// @dev Handle NFT/ERC20 swap (Instant)
+    /// @param s1 Storage state.
+    /// @param s2 Storage state 2.
+    /// @param sp The parameters needed to swap.
+    /// @param mkt The market object for the market being swapped on.
+    /// @param liq The liquidity object.
     function swapERC20(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,

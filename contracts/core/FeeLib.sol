@@ -44,7 +44,9 @@ library FeeLib {
     using MarketAuxLib for Structs.Asset;
     using MarketAuxLib for Structs.Market;
 
-    // @notice Compute fee for all swap types.
+    /// @dev Compute fee for all swap types.
+    /// @param p The parameters needed to compute the fee.
+    /// @return feeInfo The fee information.
     function computeFee(ComputeFeeParams memory p) public view returns (FeeInfo memory) {
         FeeInfo memory feeInfo;
 
@@ -57,8 +59,8 @@ library FeeLib {
             // If sender has NFT, apply NFT fee discount
             uint256 denom = 10000;
             if (p.nft != address(0) && AuxLib.hasNativeNFT(p.nft, p.taker)) {
-                feeInfo.feeBp = feeInfo.feeBp * 10**2 - ((p.nftDiscountBp * feeInfo.feeBp * 10**2) / denom);
-                feeInfo.mktFeeBp = feeInfo.mktFeeBp * 10**2 - ((p.nftDiscountBp * feeInfo.mktFeeBp * 10**2) / denom);
+                feeInfo.feeBp = feeInfo.feeBp * 10 ** 2 - ((p.nftDiscountBp * feeInfo.feeBp * 10 ** 2) / denom);
+                feeInfo.mktFeeBp = feeInfo.mktFeeBp * 10 ** 2 - ((p.nftDiscountBp * feeInfo.mktFeeBp * 10 ** 2) / denom);
                 denom = 1000000;
             }
 
@@ -72,7 +74,7 @@ library FeeLib {
         // ERC20/SYNTH & SYNTH/ERC20 fee calculation.
         if (p.mkt.isFungible() && p.mkt.hasERC20()) {
             Structs.Asset memory asset = p.mkt.base.isOnchain() ? p.mkt.base : p.mkt.quote;
-            feeInfo.cost = (p.amount * p.price) / ((p.mkt.quote.isSynth()) ? 10**18 : 10**IERC20(p.mkt.quote.addr).decimals());
+            feeInfo.cost = (p.amount * p.price) / ((p.mkt.quote.isSynth()) ? 10 ** 18 : 10 ** IERC20(p.mkt.quote.addr).decimals());
             feeInfo.mktFeeBp = p.mkt.commission;
             (feeInfo.feeBp, , ) = AuxLib.getFeeInfo(p.assetReg, asset, p.synthSwapFeeBp);
 
@@ -80,8 +82,8 @@ library FeeLib {
             // If provider's asset is synthetic (off-chain) and has the native NFT, apply discount.
             uint256 denom = 10000;
             if (AuxLib.hasNativeNFT(p.nft, (p.mkt.quote.isSynth()) ? p.taker : p.provider)) {
-                feeInfo.mktFeeBp = feeInfo.mktFeeBp * 10**2 - ((p.nftDiscountBp * feeInfo.mktFeeBp * 10**2) / denom);
-                feeInfo.feeBp = feeInfo.feeBp * 10**2 - ((p.nftDiscountBp * feeInfo.feeBp * 10**2) / denom);
+                feeInfo.mktFeeBp = feeInfo.mktFeeBp * 10 ** 2 - ((p.nftDiscountBp * feeInfo.mktFeeBp * 10 ** 2) / denom);
+                feeInfo.feeBp = feeInfo.feeBp * 10 ** 2 - ((p.nftDiscountBp * feeInfo.feeBp * 10 ** 2) / denom);
                 denom = 1000000;
             }
 
@@ -105,8 +107,8 @@ library FeeLib {
             // If sender has NFT, apply NFT fee discount
             uint256 denom = 10000;
             if (p.nft != address(0) && AuxLib.hasNativeNFT(p.nft, p.taker)) {
-                feeInfo.feeBp = feeInfo.feeBp * 10**2 - ((p.nftDiscountBp * feeInfo.feeBp * 10**2) / denom);
-                feeInfo.mktFeeBp = feeInfo.mktFeeBp * 10**2 - ((p.nftDiscountBp * feeInfo.mktFeeBp * 10**2) / denom);
+                feeInfo.feeBp = feeInfo.feeBp * 10 ** 2 - ((p.nftDiscountBp * feeInfo.feeBp * 10 ** 2) / denom);
+                feeInfo.mktFeeBp = feeInfo.mktFeeBp * 10 ** 2 - ((p.nftDiscountBp * feeInfo.mktFeeBp * 10 ** 2) / denom);
                 denom = 1000000;
             }
 
@@ -123,8 +125,8 @@ library FeeLib {
             feeInfo.mktCreatorFeeRate = p.liq.mktCreatorFeeRate;
 
             // Calculate fees
-            feeInfo.protoFee = (feeInfo.protoFeeRate * p.amount) / 10**18;
-            feeInfo.mktCreatorFee = (feeInfo.mktCreatorFeeRate * p.amount) / 10**18;
+            feeInfo.protoFee = (feeInfo.protoFeeRate * p.amount) / 10 ** 18;
+            feeInfo.mktCreatorFee = (feeInfo.mktCreatorFeeRate * p.amount) / 10 ** 18;
             feeInfo.totalFees = feeInfo.mktCreatorFee + feeInfo.protoFee;
             return feeInfo;
         }
@@ -137,8 +139,8 @@ library FeeLib {
             // If provider has NFT, apply NFT fee discount
             uint256 denom = 10000;
             if (p.nft != address(0) && AuxLib.hasNativeNFT(p.nft, p.provider)) {
-                feeInfo.feeBp = feeInfo.feeBp * 10**2 - ((p.nftDiscountBp * feeInfo.feeBp * 10**2) / denom);
-                feeInfo.mktFeeBp = feeInfo.mktFeeBp * 10**2 - ((p.nftDiscountBp * feeInfo.mktFeeBp * 10**2) / denom);
+                feeInfo.feeBp = feeInfo.feeBp * 10 ** 2 - ((p.nftDiscountBp * feeInfo.feeBp * 10 ** 2) / denom);
+                feeInfo.mktFeeBp = feeInfo.mktFeeBp * 10 ** 2 - ((p.nftDiscountBp * feeInfo.mktFeeBp * 10 ** 2) / denom);
                 denom = 1000000;
             }
 

@@ -30,6 +30,11 @@ library OrderLib {
     event FinalizedByManagerSig(address manager, address finalizer, uint256 orderId, bool released);
 
     /// @notice Create order for ERC20/SYNTH, SYNTH/ERC20, SYNTH/SYNTH, SYNTH/NFT & NFT/SYNTH
+    /// @param s1 The State object
+    /// @param s2 The State2 object
+    /// @param sp The swap parameters
+    /// @param mkt The market object
+    /// @param liq The liquidity object
     function createOrder(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
@@ -62,7 +67,7 @@ library OrderLib {
         // When quote is ERC20, transfer quote into contract
         if (mkt.quote.isERC20()) {
             IERC20 qAsset = IERC20(mkt.quote.addr);
-            uint256 cost = (sp.amount * o.price) / 10**qAsset.decimals();
+            uint256 cost = (sp.amount * o.price) / 10 ** qAsset.decimals();
             qAsset.transferFrom(msg.sender, address(this), cost);
         }
 
@@ -137,13 +142,7 @@ library OrderLib {
     /// @param id is the unique order ID
     /// @param byDispute Indicates that the method is called by the dispute manager.
     /// @param byManager Indicates that the method is called by the market manager via a manager signature.
-    function cancelOrder(
-        StructsLib.State storage s1,
-        IMarketCore marketCore,
-        uint256 id,
-        bool byDispute,
-        bool byManager
-    ) public {
+    function cancelOrder(StructsLib.State storage s1, IMarketCore marketCore, uint256 id, bool byDispute, bool byManager) public {
         Structs.Order storage o = s1.orders[id];
         Structs.Market memory mkt = marketCore.getMarket(o.marketId);
         require(
@@ -161,7 +160,7 @@ library OrderLib {
             marketCore.setCounters(o.marketId, false, false, true, mkt.numLiquidity + o.amount);
             if (mkt.quote.isERC20()) {
                 IERC20 qAsset = IERC20(mkt.quote.addr);
-                uint256 cost = (o.amount * o.price) / 10**qAsset.decimals();
+                uint256 cost = (o.amount * o.price) / 10 ** qAsset.decimals();
                 qAsset.transfer(o.taker, cost);
             }
         }
@@ -202,11 +201,7 @@ library OrderLib {
     /// @param s1 State object
     /// @param marketCore The MarketCore contract address
     /// @param id The order ID.
-    function markOrderAsPaid(
-        StructsLib.State storage s1,
-        IMarketCore marketCore,
-        uint256 id
-    ) public {
+    function markOrderAsPaid(StructsLib.State storage s1, IMarketCore marketCore, uint256 id) public {
         require(AuxLib.hasOrder(s1, id), "OC: UNKNOWN_ORDER");
         Structs.Order storage o = s1.orders[id];
         require(!o.released && !o.cancelled && !o.paid, "OC: NOT_ACTIVE");
@@ -221,11 +216,7 @@ library OrderLib {
     /// @param s1 State object
     /// @param marketCore The MarketCore contract address
     /// @param id The order ID or index.
-    function markAsDisputed(
-        StructsLib.State storage s1,
-        IMarketCore marketCore,
-        uint256 id
-    ) public {
+    function markAsDisputed(StructsLib.State storage s1, IMarketCore marketCore, uint256 id) public {
         Structs.Order storage o = s1.orders[id];
         o.disputed = true;
         Structs.Market memory m = marketCore.getMarket(o.marketId);
@@ -238,6 +229,7 @@ library OrderLib {
     /// @param id The order ID
     /// @param release Indicates whether the order should be released or cancelled
     /// @param expireAt Indicates the timestamp when the signature is to expire.
+    /// @param signature The signature created by the manager
     function verifyMarketManagerSig(
         address signer,
         uint256 id,

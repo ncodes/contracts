@@ -20,11 +20,7 @@ library SwapLib {
     /// @param state The State object
     /// @param state2 The State2 object
     /// @param sp The swap parameters
-    function swapQuoteForBase(
-        StructsLib.State storage state,
-        StructsLib.State2 storage state2,
-        StructsLib.SwapSlot memory sp
-    ) public {
+    function swapQuoteForBase(StructsLib.State storage state, StructsLib.State2 storage state2, StructsLib.SwapSlot memory sp) public {
         require(state2.marketCore.isSwapPermitted(sp.addrs.marketId, msg.sender));
         Structs.Market memory market = state2.marketCore.getMarket(sp.addrs.marketId);
         require(!market.perms.offerOnly, "OC: OFFER_ONLY");
@@ -35,6 +31,11 @@ library SwapLib {
     }
 
     /// @dev Create order for ERC20/SYNTH, SYNTH/ERC20, SYNTH/SYNTH & SYNTH/NFT
+    /// @param state The State object
+    /// @param state2 The State2 object
+    /// @param sp The swap parameters
+    /// @param market The market object
+    /// @param liq The liquidity object
     function createOrder(
         StructsLib.State storage state,
         StructsLib.State2 storage state2,
@@ -50,12 +51,7 @@ library SwapLib {
     /// @param state2 The State2 object
     /// @param oid The order ID.
     /// @param byDispute Indicates that the method is called by the dispute manager.
-    function releaseOrder(
-        StructsLib.State storage state,
-        StructsLib.State2 storage state2,
-        uint256 oid,
-        bool byDispute
-    ) public {
+    function releaseOrder(StructsLib.State storage state, StructsLib.State2 storage state2, uint256 oid, bool byDispute) public {
         OrderReleaseLib.releaseOrder(state, state2, oid, byDispute, false);
     }
 
@@ -82,12 +78,7 @@ library SwapLib {
     /// @param marketCore The MarketCore contract address
     /// @param id is the unique order ID
     /// @param byDispute Indicates that the method is called by the dispute manager.
-    function cancelOrder(
-        StructsLib.State storage state,
-        IMarketCore marketCore,
-        uint256 id,
-        bool byDispute
-    ) public {
+    function cancelOrder(StructsLib.State storage state, IMarketCore marketCore, uint256 id, bool byDispute) public {
         OrderLib.cancelOrder(state, marketCore, id, byDispute, false);
     }
 
@@ -114,11 +105,7 @@ library SwapLib {
     /// @param state State object
     /// @param marketCore The MarketCore contract address
     /// @param id The order ID.
-    function markOrderAsPaid(
-        StructsLib.State storage state,
-        IMarketCore marketCore,
-        uint256 id
-    ) public {
+    function markOrderAsPaid(StructsLib.State storage state, IMarketCore marketCore, uint256 id) public {
         OrderLib.markOrderAsPaid(state, marketCore, id);
     }
 
@@ -126,11 +113,7 @@ library SwapLib {
     /// @param state State object
     /// @param marketCore The MarketCore contract address
     /// @param id The order ID or index.
-    function markAsDisputed(
-        StructsLib.State storage state,
-        IMarketCore marketCore,
-        uint256 id
-    ) public {
+    function markAsDisputed(StructsLib.State storage state, IMarketCore marketCore, uint256 id) public {
         OrderLib.markAsDisputed(state, marketCore, id);
     }
 
@@ -146,13 +129,12 @@ library SwapLib {
     }
 
     /// @dev Check if sender has the required swap badges set by the liquidity provider
-    function checkProviderSwapBadges(
-        StructsLib.State2 storage s2,
-        address marketId,
-        uint256 lid,
-        address providerAddr
-    ) internal view {
-        string[2][] memory reqSwapBadges = s2.reqSwapBadges[marketId][providerAddr][lid];
+    /// @param s2 A state object
+    /// @param marketId The market ID
+    /// @param lid The liquidity ID
+    /// @param provider The provider address
+    function checkProviderSwapBadges(StructsLib.State2 storage s2, address marketId, uint256 lid, address provider) internal view {
+        string[2][] memory reqSwapBadges = s2.reqSwapBadges[marketId][provider][lid];
         if (reqSwapBadges.length > 0) {
             uint256 len = reqSwapBadges.length;
             for (uint256 i = 0; i < len; i++) {

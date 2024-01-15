@@ -57,13 +57,7 @@ library OrderReleaseLib {
     /// @param oid The order ID.
     /// @param byDispute Indicates that the method is called by the dispute manager.
     /// @param byManager Indicates that the method is called by the market manager via a manager signature.
-    function releaseOrder(
-        StructsLib.State storage s1,
-        StructsLib.State2 storage s2,
-        uint256 oid,
-        bool byDispute,
-        bool byManager
-    ) public {
+    function releaseOrder(StructsLib.State storage s1, StructsLib.State2 storage s2, uint256 oid, bool byDispute, bool byManager) public {
         Structs.Order storage o = s1.orders[oid];
         require(!o.cancelled && !o.released, "OC: ALREADY_FINALIZED");
         Structs.Market memory mkt = s2.marketCore.getMarket(o.marketId);
@@ -116,6 +110,11 @@ library OrderReleaseLib {
         );
     }
 
+    /// @dev Release asset for SYNTH/NFT
+    /// @param s1 The State object
+    /// @param s2 The State2 object
+    /// @param o The order object
+    /// @param mkt The market object
     function releaseForSynthToNFT(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
@@ -138,6 +137,11 @@ library OrderReleaseLib {
         bool isOperator;
     }
 
+    /// @dev Release asset for NFT/SYNTH
+    /// @param s1 The State object
+    /// @param s2 The State2 object
+    /// @param o The order object
+    /// @param mkt The market object
     function releaseForNFTToSynth(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
@@ -212,6 +216,11 @@ library OrderReleaseLib {
         uint256 mktCreatorFee;
     }
 
+    /// @dev Release asset for SYNTH/SYNTH & SYNTH/NFT
+    /// @param s1 The State object
+    /// @param s2 The State2 object
+    /// @param o The order object
+    /// @param mkt The market object
     function releaseForSynthToSynthOrNFT(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
@@ -268,8 +277,8 @@ library OrderReleaseLib {
         s2.feePurse.transferFrom(o.provider, s1.inventor, (feeInfo.protoFee * totalFeeBps) / 10000);
 
         // Lock fee for the remaining liquidity
-        liq.protoFeePurseId = s2.feePurse.lock(o.provider, (feeInfo.protoFeeRate * feeInfo.remaining) / 10**18);
-        liq.mktCreatorFeePurseId = s2.feePurse.lock(o.provider, (feeInfo.mktCreatorFeeRate * feeInfo.remaining) / 10**18);
+        liq.protoFeePurseId = s2.feePurse.lock(o.provider, (feeInfo.protoFeeRate * feeInfo.remaining) / 10 ** 18);
+        liq.mktCreatorFeePurseId = s2.feePurse.lock(o.provider, (feeInfo.mktCreatorFeeRate * feeInfo.remaining) / 10 ** 18);
 
         return mkt.base;
     }
@@ -339,6 +348,7 @@ library OrderReleaseLib {
     /// @param id The order ID
     /// @param release Indicates whether the order should be released or cancelled
     /// @param expireAt Indicates the timestamp when the signature is to expire.
+    /// @param signature The signature created by the manager
     function verifyMarketManagerSig(
         address signer,
         uint256 id,

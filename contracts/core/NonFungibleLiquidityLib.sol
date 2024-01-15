@@ -39,6 +39,9 @@ library NonFungibleLiquidityLib {
 
     /// @dev Create or update non-fungible liquidity.
     /// Covers NFT/ERC20, NFT/SYNTH, NFT/NFT
+    /// @param s1 Storage struct.
+    /// @param s2 Storage struct 2.
+    /// @param slot The parameters needed to create or update liquidity.
     function updateNonFungibleLiquidity(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,

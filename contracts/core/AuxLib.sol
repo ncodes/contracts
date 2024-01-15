@@ -12,27 +12,40 @@ library AuxLib {
     using MarketAuxLib for Structs.Asset;
 
     /// @dev Checks if an address of a token can share in fees
+    /// @param state2 State2 object
+    /// @param addr The address to check
+    /// @return bool True if the token can share in fees
     function isShareable(StructsLib.State2 storage state2, address addr) external view returns (bool) {
         return state2.assetReg.get(addr).sharable;
     }
 
     /// Checks if an address is a verified token
+    /// @param state2 State2 object
+    /// @param addr The address to check
+    /// @return bool True if the token is verified
     function isVerified(StructsLib.State2 storage state2, address addr) external view returns (bool) {
         return state2.assetReg.get(addr).verified;
     }
 
     /// @dev Checks if an address is marked as a stable token
+    /// @param state2 State2 object
+    /// @param addr The address to check
+    /// @return bool True if the token is stable asset
     function isStable(StructsLib.State2 storage state2, address addr) external view returns (bool) {
         return state2.assetReg.get(addr).stable;
     }
 
-    /// @dev Checks if both addresses are stables
+    /// @dev Checks if a market is composed of two stable tokens
+    /// @param assetReg Asset registry contract
+    /// @param m Market object
+    /// @return bool True if both tokens are stable
     function isStable(IAssetRegistry assetReg, Structs.Market memory m) external view returns (bool) {
         return assetReg.get(m.base.addr).stable && assetReg.get(m.quote.addr).stable;
     }
 
     /// @dev Checks if at order at index id exist
     /// @param id The order ID or index.
+    /// @return bool True if the order exist
     function hasOrder(StructsLib.State storage state, uint256 id) public view returns (bool) {
         return id < state.orders.length && state.orders[id].marketId != address(0);
     }
@@ -47,6 +60,7 @@ library AuxLib {
     /// @param state State object
     /// @param id The order ID.
     /// @param addr The address to check if permitted to create dispute.
+    /// @return bool True if addr can create a dispute
     function canCreateDispute(
         StructsLib.State storage state,
         StructsLib.State2 storage state2,
@@ -62,16 +76,25 @@ library AuxLib {
         return true;
     }
 
+    /// @dev Checks whether a market is permissioned.
+    /// A market is permissioned if its PUT or SWAP permission is set to true.
+    /// @param market Market object
     function isPerm(Structs.Market memory market) public pure returns (bool) {
         return market.perms.put || market.perms.swap;
     }
 
     /// @dev Checks whether a liquidity is empty
+    /// @param liq Liquidity object
     function isLiquidityEmpty(Structs.Liquidity memory liq) public pure returns (bool) {
         return liq.amount == 0 && liq.ids.length == 0;
     }
 
     /// @dev Check whether a liquidity exists
+    /// @param state State object
+    /// @param mid The market ID
+    /// @param provider The address of the liquidity provider
+    /// @param lid The liquidity ID
+    /// @return bool True if the liquidity exists
     function isLiquidityExist(
         StructsLib.State storage state,
         address mid,
@@ -81,7 +104,12 @@ library AuxLib {
         return state.liquidity[mid][provider].length > lid;
     }
 
-    /// @dev Checks whether a liquidity exists and is non-zero (not empty)
+    /// @dev Checks whether a liquidity exists and has non-zero (not empty) liquidity
+    /// @param state State object
+    /// @param mid The market ID
+    /// @param provider The address of the liquidity provider
+    /// @param lid The liquidity ID
+    /// @return bool True if the liquidity exists and has non-zero liquidity
     function hasNonZeroLiquidity(
         StructsLib.State storage state,
         address mid,
@@ -94,6 +122,8 @@ library AuxLib {
     }
 
     /// @dev Checks if an uint256 array has unique values
+    /// @param arr The array to check
+    /// @return bool True if the array has unique values
     function isUnique(uint256[] memory arr) public pure returns (bool) {
         if (arr.length == 0) return true;
         for (uint256 i = 0; i < arr.length - 1; i++) {
@@ -105,21 +135,31 @@ library AuxLib {
     }
 
     /// @dev Checks whether arr length is not more than 16
+    /// @param arr The array to check
+    /// @return bool True if the array length is not more than 16
     function isMaxLen16(uint256[] memory arr) public pure returns (bool) {
         return arr.length <= 16;
     }
 
     /// @dev Checks whether addr is zero
+    /// @param addr The address to check
+    /// @return bool True if the address is zero
     function isZero(address addr) public pure returns (bool) {
         return addr == address(0);
     }
 
     /// @dev Return _default if _target is zero, otherwise _target is returned
+    /// @param _target The preferred value if not zero
+    /// @param _default The fallback value if _target is zero
     function setOrDef(address _target, address _default) public pure returns (address) {
         return (_target != address(0)) ? _target : _default;
     }
 
     /// @dev Get fee to be charged from the given asset
+    /// @param assetReg Asset registry contract
+    /// @param asset Asset object
+    /// @param defaultBp Default fee basis point if asset registry does not have fee info 
+    /// for the given asset
     /// @return feeBp Fee basis point
     /// @return fixedFee Fee basis point
     /// @return curRate Fee basis point
@@ -142,10 +182,17 @@ library AuxLib {
     }
 
     /// @dev Check if addr owns a native NFT
+    /// @param nft The address of the NFT
+    /// @param addr The address to check
+    /// @return bool True if addr owns a native NFT
     function hasNativeNFT(address nft, address addr) public view returns (bool) {
         return nft != address(0) && IERC721Strip(nft).balanceOf(addr) > 0;
     }
 
+    /// Check parameters for a SWAP operation involving a fungible base asset
+    /// @param sp SwapSlot object
+    /// @param mkt Market object
+    /// @param liq Liquidity object
     function checkFungibleSwapParams(
         StructsLib.SwapSlot memory sp,
         Structs.Market memory mkt,
@@ -166,6 +213,10 @@ library AuxLib {
         require(sp.offerId > 0 || sp.maxPrice == 0 || sp.maxPrice >= liq.price, "OC: MAX_PRICE_TOO_LOW");
     }
 
+    /// @dev Check parameters for a SWAP operation involving a non-fungible base asset
+    /// @param sp SwapSlot object
+    /// @param mkt Market object
+    /// @param liq Liquidity object
     function checkNonFungibleSwapParams(
         StructsLib.SwapSlot memory sp,
         Structs.Market memory mkt,

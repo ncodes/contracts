@@ -41,7 +41,10 @@ library FungibleLiquidityLib {
     );
 
     /// @dev Create or update fungible liquidity.
-    /// Covers ERC20/ERC20, ERC20/SYNTH, ERC20/NFT, SYNTH/ERC20, SYNTH/SYNTH, SYNTH/NFT
+    ///      Covers ERC20/ERC20, ERC20/SYNTH, ERC20/NFT, SYNTH/ERC20, SYNTH/SYNTH, SYNTH/NFT
+    /// @param s1 Storage struct.
+    /// @param s2 Storage struct 2.
+    /// @param slot The parameters needed to create or update liquidity.
     function updateFungibleLiquidity(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,

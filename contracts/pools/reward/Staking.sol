@@ -74,7 +74,8 @@ contract Staking is Ownable, Pausable, ReentrancyGuard, Writable {
         return rewardPerTokenStored + (((lastTimeRewardApplicable() - lastUpdateTime) * rewardRate * 1e18) / _totalSupply);
     }
 
-    /// @notice Get the amount earned by the sender
+    /// @notice Get the amount earned by an account
+    /// @param account The address of the account
     function earned(address account) public view returns (uint256) {
         return ((_balances[account] * (rewardPerToken() - userRewardPerTokenPaid[account])) / 1e18) + rewards[account];
     }
@@ -85,6 +86,7 @@ contract Staking is Ownable, Pausable, ReentrancyGuard, Writable {
     }
 
     /// @notice Withdraw the sender's reward
+    /// @param _amount The amount to withdraw
     function withdrawReward(uint256 _amount) external nonReentrant canWithdraw updateReward(msg.sender) {
         uint256 reward = rewards[msg.sender];
         require(reward >= _amount, "RP: INSUFFICIENT_BALANCE");
@@ -94,6 +96,8 @@ contract Staking is Ownable, Pausable, ReentrancyGuard, Writable {
     }
 
     /// @notice Recover ERC20 tokens mistakenly sent (excluding LP tokens).
+    /// @param tokenAddress The address of the token to recover.
+    /// @param tokenAmount The amount of tokens to recover.
     function recoverERC20(address tokenAddress, uint256 tokenAmount) external nonReentrant onlyOwner {
         IERC20(tokenAddress).transfer(owner(), tokenAmount);
         emit Recovered(tokenAddress, tokenAmount);

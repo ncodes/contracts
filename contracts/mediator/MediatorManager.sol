@@ -145,6 +145,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     }
 
     /// @notice Set address of randomness provider
+    /// @param provider The address of the randomness provider
     function setRandomnessProvider(address provider) external onlyOwner {
         randomness = IRandomness(provider);
         emit UpdatedRandomnessProvider(provider);
@@ -172,6 +173,13 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     }
 
     /// @notice Set ticket parameters
+    /// @param _baseTicketPrice The base ticket price
+    /// @param _windowDur The window duration for ticket purchase
+    /// @param _ticketsPerWindow The number of tickets per window
+    /// @param _baseTicketSupply The base ticket supply
+    /// @param _priceSupplyDeltaBP The base point used for (in|de)creasing ticket supply and price between windows
+    /// @param _minInactiveWindowBeforeReset The number of consecutive inactive windows before ticket price reset
+    /// @param _soldOutBP The base point used to determine a sold out window
     function setTicketMarketParams(
         uint256 _baseTicketPrice,
         uint256 _windowDur,
@@ -200,12 +208,14 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     }
 
     /// @notice Set the dispute manager
+    /// @param _disputeManager The dispute manager address
     function setDisputeManager(address _disputeManager) external onlyOwner {
         disputeManager = _disputeManager;
         emit UpdatedDisputeManager(_disputeManager);
     }
 
     /// @notice Set the market core
+    /// @param _marketCore The market core address
     function setMarketCore(address _marketCore) external onlyOwner {
         marketCore = IMarketCore(_marketCore);
         emit UpdatedMarketCore(_marketCore);
@@ -237,6 +247,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     }
 
     /// @notice Determine if a window was sold out
+    /// @param win The window to check
     function isSoldOut(Structs.PurchaseWindow memory win) internal view returns (bool) {
         return win.numPurchases >= ((win.supply * soldOutBP) / 10000);
     }
@@ -387,11 +398,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     /// @param marketId The market ID of the market to draft from.'
     /// @param orderID The order ID
     /// @param disputeID The dispute ID
-    function draft(
-        address marketId,
-        uint256 orderID,
-        uint256 disputeID
-    ) external isDisputeMgr returns (Structs.Ticket memory) {
+    function draft(address marketId, uint256 orderID, uint256 disputeID) external isDisputeMgr returns (Structs.Ticket memory) {
         Structs.Market memory mkt = marketCore.getMarket(marketId);
 
         // Make sure market selected pool has tickets
@@ -417,12 +424,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     /// @param ticketId The ticket ID.
     /// @param voted Indicates whether the mediator voted during the draft.
     /// @param winSide Indicated whether the mediator was on the winning side if they voted.
-    function undraft(
-        address ticketOwner,
-        uint256 ticketId,
-        bool voted,
-        bool winSide
-    ) external isDisputeMgr returns (uint256) {
+    function undraft(address ticketOwner, uint256 ticketId, bool voted, bool winSide) external isDisputeMgr returns (uint256) {
         // Mark ticket as undrafted
         Structs.Ticket storage t = tickets[ticketOwner][ticketId];
         t.drafted = false;

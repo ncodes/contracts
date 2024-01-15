@@ -34,7 +34,7 @@ library LiqAuxLib {
         (, uint256 fixedFee, ) = AuxLib.getFeeInfo(s2.assetReg, mkt.base, 0);
         uint256 fixedFeeInternal = mkt.base.isSynth() ? s1.ints.fixedSynthSwapFee : s1.ints.fixedNFTSwapFee;
         uint256 fee = amount * ((fixedFee > 0) ? fixedFee : fixedFeeInternal);
-        fee = mkt.base.isSynth() ? fee / 10**18 : fee;
+        fee = mkt.base.isSynth() ? fee / 10 ** 18 : fee;
 
         if (fee > 0 && AuxLib.hasNativeNFT(s2.nft, msg.sender) && s2.ints.nftDiscountBp > 0) {
             fee = fee - (fee * s2.ints.nftDiscountBp) / 10000;
@@ -49,18 +49,14 @@ library LiqAuxLib {
         // Update fee rate of liquidity
         uint256 curLiqAmt = mkt.base.isSynth() ? liq.amount : liq.ids.length;
         uint256 curLocked = s2.feePurse.getLocked(liq.protoFeePurseId);
-        liq.protoFeeRate = (mkt.base.isSynth() ? (curLocked * 10**18) : curLocked) / curLiqAmt;
+        liq.protoFeeRate = (mkt.base.isSynth() ? (curLocked * 10 ** 18) : curLocked) / curLiqAmt;
     }
 
     /// @dev Calculate and unlock liquidity fee for protocol in a non-ERC20 market
     /// @param s2 A state object
     /// @param mkt The market object
     /// @param liq The liquidity object
-    function unlockFeeForProtocol(
-        StructsLib.State2 storage s2,
-        Structs.Market memory mkt,
-        Structs.Liquidity storage liq
-    ) internal {
+    function unlockFeeForProtocol(StructsLib.State2 storage s2, Structs.Market memory mkt, Structs.Liquidity storage liq) internal {
         uint256 remaining = mkt.base.isSynth() ? liq.amount : liq.ids.length;
 
         if (remaining == 0) {
@@ -72,12 +68,12 @@ library LiqAuxLib {
 
         s2.feePurse.unlock(msg.sender, liq.protoFeePurseId);
         uint256 newAmtToLck = liq.protoFeeRate * remaining;
-        newAmtToLck = mkt.base.isSynth() ? newAmtToLck / 10**18 : newAmtToLck;
+        newAmtToLck = mkt.base.isSynth() ? newAmtToLck / 10 ** 18 : newAmtToLck;
         liq.protoFeePurseId = (newAmtToLck > 0) ? s2.feePurse.lock(msg.sender, newAmtToLck) : 0;
 
         // Update fee rate of liquidity
         uint256 curLocked = s2.feePurse.getLocked(liq.protoFeePurseId);
-        liq.protoFeeRate = (mkt.base.isSynth() ? (curLocked * 10**18) : curLocked) / remaining;
+        liq.protoFeeRate = (mkt.base.isSynth() ? (curLocked * 10 ** 18) : curLocked) / remaining;
     }
 
     /// @dev Calculate and lock liquidity fee for market creator in non-ERC20 market
@@ -92,7 +88,7 @@ library LiqAuxLib {
         uint256 amount
     ) internal {
         uint256 fee = amount * mkt.commission;
-        fee = mkt.base.isSynth() ? fee / 10**18 : fee;
+        fee = mkt.base.isSynth() ? fee / 10 ** 18 : fee;
 
         if (fee > 0 && AuxLib.hasNativeNFT(s2.nft, msg.sender) && s2.ints.nftDiscountBp > 0) {
             fee = fee - (fee * s2.ints.nftDiscountBp) / 10000;
@@ -107,18 +103,14 @@ library LiqAuxLib {
         // Update fee rate of liquidity
         uint256 curLiqAmt = mkt.base.isSynth() ? liq.amount : liq.ids.length;
         uint256 curLocked = s2.feePurse.getLocked(liq.mktCreatorFeePurseId);
-        liq.mktCreatorFeeRate = (mkt.base.isSynth() ? (curLocked * 10**18) : curLocked) / curLiqAmt;
+        liq.mktCreatorFeeRate = (mkt.base.isSynth() ? (curLocked * 10 ** 18) : curLocked) / curLiqAmt;
     }
 
     /// @dev Calculate and unlock liquidity fee for market creator in a non-ERC20 market
     /// @param s2 A state object
     /// @param mkt The market object
     /// @param liq The liquidity object
-    function unlockFeeForMarketCreator(
-        StructsLib.State2 storage s2,
-        Structs.Market memory mkt,
-        Structs.Liquidity storage liq
-    ) internal {
+    function unlockFeeForMarketCreator(StructsLib.State2 storage s2, Structs.Market memory mkt, Structs.Liquidity storage liq) internal {
         uint256 remaining = mkt.base.isSynth() ? liq.amount : liq.ids.length;
 
         if (remaining == 0) {
@@ -130,15 +122,17 @@ library LiqAuxLib {
 
         s2.feePurse.unlock(msg.sender, liq.mktCreatorFeePurseId);
         uint256 newAmtToLck = liq.mktCreatorFeeRate * remaining;
-        newAmtToLck = mkt.base.isSynth() ? newAmtToLck / 10**18 : newAmtToLck;
+        newAmtToLck = mkt.base.isSynth() ? newAmtToLck / 10 ** 18 : newAmtToLck;
         liq.mktCreatorFeePurseId = (newAmtToLck > 0) ? s2.feePurse.lock(msg.sender, newAmtToLck) : 0;
 
         // Update fee rate of liquidity
         uint256 curLocked = s2.feePurse.getLocked(liq.mktCreatorFeePurseId);
-        liq.mktCreatorFeeRate = (mkt.base.isSynth() ? (curLocked * 10**18) : curLocked) / remaining;
+        liq.mktCreatorFeeRate = (mkt.base.isSynth() ? (curLocked * 10 ** 18) : curLocked) / remaining;
     }
 
     /// @dev Check if sender has the required badges for the market's liquidity providers
+    /// @param s2 A state object
+    /// @param marketId The market ID
     function checkMarketPutBadges(StructsLib.State2 storage s2, address marketId) internal view {
         (string[2][] memory reqPutBadges, ) = s2.marketCore.getReqBadges(marketId);
         if (reqPutBadges.length > 0) {

@@ -89,25 +89,25 @@ contract MarketCore is Writable {
     }
 
     /// @notice Set the badge contract address
+    /// @param addr The badge contract address
     function setBadgeMgr(address addr) public onlyOwner {
         badge = IBadge(addr);
         emit UpdatedBadgeAddr(addr);
     }
 
     /// @notice Change default dispute delay time
+    /// @param val The new default dispute delay time
     function setDefaultDisputeDelayDuration(uint256 val) external onlyOwner {
         defaultDisputeDelayDur = val;
         emit UpdatedDefaultDisputeDelayDur(val);
     }
 
     /// @notice Update market counters
-    function setCounters(
-        address id,
-        bool numOrders,
-        bool numDisputes,
-        bool numLiquidity,
-        uint256 value
-    ) external onlyWriter {
+    /// @param id The market ID
+    /// @param numOrders Whether to update the number of orders
+    /// @param numDisputes Whether to update the number of disputes
+    /// @param numLiquidity Whether to update the number of liquidity
+    function setCounters(address id, bool numOrders, bool numDisputes, bool numLiquidity, uint256 value) external onlyWriter {
         if (numOrders) markets[id].numOrders = value;
         if (numDisputes) markets[id].numDisputes = value;
         if (numLiquidity) markets[id].numLiquidity = value;
@@ -157,12 +157,15 @@ contract MarketCore is Writable {
     }
 
     /// @notice Transfer ownership of market to another address
+    /// @param id The market ID
+    /// @param newOwner The new owner address
     function transferOwnership(address id, address newOwner) external marketMustExist(id) isMarketCreator(id) isNotRenounced(id) {
         emit TransferredOwnership(id, msg.sender, newOwner);
         markets[id].creator = newOwner;
     }
 
     /// @notice Renounce ownership of market
+    /// @param id The market ID
     function renounceOwnership(address id) external marketMustExist(id) isMarketCreator(id) isNotRenounced(id) {
         renouncedMarkets[id] = true;
         emit RenouncedMarket(id, msg.sender);
@@ -284,6 +287,8 @@ contract MarketCore is Writable {
     }
 
     /// @notice Update a market
+    /// @param id The market ID
+    /// @param upd The updated market object
     function setMarket(address id, Structs.Market memory upd) external onlyWriter {
         markets[id] = upd;
     }

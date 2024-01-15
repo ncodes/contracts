@@ -5,6 +5,8 @@ pragma solidity ^0.8.13;
 contract DummyRandomness {
     uint256 public randomNumber;
 
+    /// @dev Set a fake random number.
+    /// @param _randomNumber The random number to set.
     function setRandomNumber(uint256 _randomNumber) public {
         randomNumber = _randomNumber;
     }
@@ -15,6 +17,7 @@ contract DummyRandomness {
     }
 
     /// @dev Get random number between 0 and n (n is non-inclusive).
+    /// @param n The upper bound of the random number.
     function randomN(uint256 n) external view returns (uint256) {
         return this.random() % n;
     }

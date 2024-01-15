@@ -31,11 +31,7 @@ contract Randomness is VRFConsumerBaseV2, ConfirmedOwner {
     event RequestFulfilled(uint256 requestId, uint256[] randomWords);
     event UpdatedRequestInterval(uint256 val);
 
-    constructor(
-        bytes32 _keyHash,
-        address _coordinator,
-        uint64 _subId
-    ) VRFConsumerBaseV2(_coordinator) ConfirmedOwner(msg.sender) {
+    constructor(bytes32 _keyHash, address _coordinator, uint64 _subId) VRFConsumerBaseV2(_coordinator) ConfirmedOwner(msg.sender) {
         keyHash = _keyHash;
         coordinator = VRFCoordinatorV2Interface(_coordinator);
         subId = _subId;
@@ -61,6 +57,9 @@ contract Randomness is VRFConsumerBaseV2, ConfirmedOwner {
         _requestRandomWords();
     }
 
+    /// @dev The function called when the VRF coordinator has fulfilled a randomness request
+    /// @param _requestId The ID of the request fulfilled by the oracle
+    /// @param _randomWords The random words produced by the oracle
     function fulfillRandomWords(uint256 _requestId, uint256[] memory _randomWords) internal override {
         require(requests[_requestId].exists, "RAND: request not found");
         requests[_requestId].fulfilled = true;
@@ -68,14 +67,17 @@ contract Randomness is VRFConsumerBaseV2, ConfirmedOwner {
         emit RequestFulfilled(_requestId, _randomWords);
     }
 
+    /// @dev Get the status of a request
+    /// @param _requestId The ID of the request
     function getRequestStatus(uint256 _requestId) external view returns (bool fulfilled, uint256[] memory randomWords) {
         require(requests[_requestId].exists, "RAND: request not found");
         RequestStatus memory request = requests[_requestId];
         return (request.fulfilled, request.randomWords);
     }
 
+    /// @dev Get a fallback random number.
     function fallbackNum() internal view returns (uint256) {
-        return uint256(keccak256(abi.encodePacked(block.difficulty, block.timestamp)));
+        return uint256(keccak256(abi.encodePacked(blockhash(block.number - 1), block.timestamp)));
     }
 
     /// @dev Get a random number.
@@ -99,6 +101,7 @@ contract Randomness is VRFConsumerBaseV2, ConfirmedOwner {
     }
 
     /// @dev Get random number between 0 and n (n is non-inclusive).
+    /// @param n The upper bound of the random number.
     function randomN(uint256 n) external returns (uint256) {
         return this.random() % n;
     }

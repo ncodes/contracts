@@ -5,7 +5,6 @@ import "../common/MathLib.sol";
 import "../common/Structs.sol";
 import "../mediator/interfaces/IMediatorManager.sol";
 import "../core/interfaces/ICore.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../market/interfaces/IMarketCore.sol";
 import "../token/interfaces/IERC20.sol";
 import "../common/Ownable.sol";
@@ -47,7 +46,7 @@ struct Prediction {
 
 /// @title Dispute Manager
 /// @dev DisputeManager is responsible for managing disputes.
-contract DisputeManager is Ownable, ReentrancyGuard {
+contract DisputeManager is Ownable {
     IERC20 public token;
     IMarketCore public marketCore;
     ICore public core;
@@ -92,14 +91,7 @@ contract DisputeManager is Ownable, ReentrancyGuard {
     event UpdatedEvidenceDur(uint256 val);
 
     /// @notice Initialize the contract.
-    constructor(
-        address _token,
-        address _marketCore,
-        address _core,
-        address _medMgrAddr,
-        uint256 _predictDur,
-        uint256 _evidenceDur
-    ) {
+    constructor(address _token, address _marketCore, address _core, address _medMgrAddr, uint256 _predictDur, uint256 _evidenceDur) {
         token = IERC20(_token);
         marketCore = IMarketCore(_marketCore);
         core = ICore(_core);
@@ -110,12 +102,14 @@ contract DisputeManager is Ownable, ReentrancyGuard {
     }
 
     /// @notice Set MarketCore contract address
+    /// @param addr The address of the market core contract.
     function setMarketCore(address addr) external onlyOwner {
         marketCore = IMarketCore(addr);
         emit UpdatedMarketCore(addr);
     }
 
     /// @notice Set Core contract address
+    /// @param addr The address of the core contract.
     function setCore(address addr) external onlyOwner {
         core = ICore(addr);
         emit UpdatedCore(addr);
@@ -150,6 +144,8 @@ contract DisputeManager is Ownable, ReentrancyGuard {
     }
 
     /// @notice Return _default if _target is zero, otherwise _target is returned
+    /// @param _target The target value
+    /// @param _default The default or fallback value
     function setOrDef(uint256 _target, uint256 _default) internal pure returns (uint256) {
         return (_target != 0) ? _target : _default;
     }
@@ -157,7 +153,7 @@ contract DisputeManager is Ownable, ReentrancyGuard {
     /// @notice Create a dispute.
     /// @param orderId The order Id
     /// @param wantRelease Whether a release outcome is preferred
-    function createDispute(uint256 orderId, bool wantRelease) external nonReentrant {
+    function createDispute(uint256 orderId, bool wantRelease) external {
         require(core.canCreateDispute(orderId, msg.sender), "DM: NOT_ALLOWED");
 
         // If there is an existing dispute, allow new dispute
@@ -201,7 +197,8 @@ contract DisputeManager is Ownable, ReentrancyGuard {
     }
 
     /// @notice Draft a mediator to an order's dispute
-    function draftMediator(uint256 orderId) external nonReentrant {
+    /// @param orderId The order Id
+    function draftMediator(uint256 orderId) external {
         require(disputes[orderId].length > 0, "DM: NO_DISPUTE");
         Dispute storage dispute = disputes[orderId][disputes[orderId].length - 1];
 
@@ -234,6 +231,8 @@ contract DisputeManager is Ownable, ReentrancyGuard {
 
     /// @notice Check if the sender is one of the drafted tickets owners.
     /// If yes, it is allowed to vote
+    /// @param dispute The target dispute object.
+    /// @param ticketIdx The ticket index to check with
     function isDraftee(Dispute memory dispute, uint256 ticketIdx) internal view returns (bool) {
         uint256 len = dispute.ticketOwners.length;
         for (uint256 i = 0; i < len; i++) {
@@ -243,49 +242,40 @@ contract DisputeManager is Ownable, ReentrancyGuard {
     }
 
     /// @notice Commit a dispute prediction.
-    /// @param orderId The order Id.
-    /// @param ticketIdx The ticket index to commit with
+    /// @param _orderId The order Id.
+    /// @param _ticketIdx The ticket index to commit with
     /// @param _hash The mediator's hashed prediction.
-    function commitVote(
-        uint256 orderId,
-        uint256 ticketIdx,
-        bytes32 _hash
-    ) external {
-        require(!core.getOrder(orderId).released, "DM: ORDER_RELEASED");
+    function commitVote(uint256 _orderId, uint256 _ticketIdx, bytes32 _hash) external {
+        require(!core.getOrder(_orderId).released, "DM: ORDER_RELEASED");
         require(!seenCommits[_hash], "DM: COMMIT_SEEN");
-        uint256 lstDispIdx = disputes[orderId].length - 1;
-        Dispute memory dispute = disputes[orderId][lstDispIdx];
-        require(isDraftee(dispute, ticketIdx), "DM: NOT_DRAFTED");
-        require(predictions[orderId][lstDispIdx][msg.sender][ticketIdx].committed == 0, "DM: PREV_COMMITTED");
+        uint256 lstDispIdx = disputes[_orderId].length - 1;
+        Dispute memory dispute = disputes[_orderId][lstDispIdx];
+        require(isDraftee(dispute, _ticketIdx), "DM: NOT_DRAFTED");
+        require(predictions[_orderId][lstDispIdx][msg.sender][_ticketIdx].committed == 0, "DM: PREV_COMMITTED");
         require(dispute.evidenceEndAt > 0 && block.timestamp > dispute.evidenceEndAt, "DM: NOT_READY");
         require(dispute.commitEndAt > block.timestamp, "DM: COMMIT_OVER");
-        predictions[orderId][lstDispIdx][msg.sender][ticketIdx] = Prediction(false, _hash, 0);
+        predictions[_orderId][lstDispIdx][msg.sender][_ticketIdx] = Prediction(false, _hash, 0);
         seenCommits[_hash] = true;
-        emit Committed(dispute.marketId, orderId, lstDispIdx, msg.sender, ticketIdx, _hash);
+        emit Committed(dispute.marketId, _orderId, lstDispIdx, msg.sender, _ticketIdx, _hash);
     }
 
     /// @notice Reveal a committed prediction
-    /// @param orderId The order Id.
-    /// @param ticketIdx The ticket index to reveal with
-    /// @param vote The plain vote that was hashed in the commit phase.
-    /// @param _hash The hash of the plain vote.
-    function revealVote(
-        uint256 orderId,
-        uint256 ticketIdx,
-        string memory vote,
-        bytes32 _hash
-    ) external {
-        require(!core.getOrder(orderId).released, "DM: ORDER_RELEASED");
-        uint256 lstDispIdx = disputes[orderId].length - 1;
-        Prediction storage prediction = predictions[orderId][lstDispIdx][msg.sender][ticketIdx];
+    /// @param _orderId The order Id.
+    /// @param _ticketIdx The ticket index to reveal with
+    /// @param _vote The plain _vote that was hashed in the commit phase.
+    /// @param _hash The hash of the plain _vote.
+    function revealVote(uint256 _orderId, uint256 _ticketIdx, string memory _vote, bytes32 _hash) external {
+        require(!core.getOrder(_orderId).released, "DM: ORDER_RELEASED");
+        uint256 lstDispIdx = disputes[_orderId].length - 1;
+        Prediction storage prediction = predictions[_orderId][lstDispIdx][msg.sender][_ticketIdx];
         require(prediction.committed != 0, "DM: NO_COMMIT");
         require(!prediction.revealed, "DM: ALREADY_REVEALED");
-        Dispute storage dispute = disputes[orderId][lstDispIdx];
+        Dispute storage dispute = disputes[_orderId][lstDispIdx];
         require(block.timestamp > dispute.commitEndAt, "DM: NOT_READY");
         require(block.timestamp < dispute.predictEndAt, "DM: REVEAL_OVER");
-        require(keccak256(abi.encodePacked(vote, msg.sender)) == _hash, "DM: HASH_MISMATCH");
+        require(keccak256(abi.encodePacked(_vote, msg.sender)) == _hash, "DM: HASH_MISMATCH");
         require(_hash == prediction.committed, "DM: COMMIT_HASH_MISMATCH");
-        bytes1 choice = bytes(vote)[0];
+        bytes1 choice = bytes(_vote)[0];
         if (choice == "0") {
             dispute.nCancel++;
         } else if (choice == "1") {
@@ -295,7 +285,7 @@ contract DisputeManager is Ownable, ReentrancyGuard {
         }
         prediction.revealed = true;
         prediction.vote = choice;
-        emit Revealed(dispute.marketId, orderId, lstDispIdx, msg.sender, ticketIdx, choice);
+        emit Revealed(dispute.marketId, _orderId, lstDispIdx, msg.sender, _ticketIdx, choice);
     }
 
     /// @notice Get winning vote
@@ -309,7 +299,8 @@ contract DisputeManager is Ownable, ReentrancyGuard {
 
     /// @notice Execute the decision of a dispute
     /// @param orderId The order Id
-    function executeDecision(uint256 orderId, uint256 dispIdx) external nonReentrant {
+    /// @param dispIdx The dispute index
+    function executeDecision(uint256 orderId, uint256 dispIdx) external {
         require(dispIdx + 1 <= disputes[orderId].length, "DM: NO_DISPUTE");
 
         // Dispute must not have been executed
@@ -344,7 +335,7 @@ contract DisputeManager is Ownable, ReentrancyGuard {
     /// @notice Undraft a mediator from a dispute
     /// @param orderId The order Id
     /// @param dispIdx The dispute index
-    function undraftMediator(uint256 orderId, uint256 dispIdx) external nonReentrant {
+    function undraftMediator(uint256 orderId, uint256 dispIdx) external {
         require(dispIdx + 1 <= disputes[orderId].length, "DM: NO_DISPUTE");
 
         // Ensure dispute has been executed or abandoned
@@ -393,7 +384,7 @@ contract DisputeManager is Ownable, ReentrancyGuard {
     }
 
     /// @notice Withdraw reward from non-mediation activities.
-    function withdrawReward() external nonReentrant {
+    function withdrawReward() external {
         require(rewards[msg.sender] > 0, "DM: ZERO_BAL");
         uint256 amt = rewards[msg.sender];
         rewards[msg.sender] = 0;

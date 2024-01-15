@@ -30,6 +30,7 @@ contract Operator is Ownable {
     }
 
     /// @notice Update operator bond amount
+    /// @param val New bond amount
     function setBond(uint256 val) public onlyOwner {
         bond = val;
         checkpoint++;
@@ -37,6 +38,7 @@ contract Operator is Ownable {
     }
 
     /// @notice Update operator bond token
+    /// @param addr New bond token address
     function setBondToken(address addr) public onlyOwner {
         bondToken = IERC20(addr);
         emit UpdatedBondToken(addr);
@@ -52,7 +54,7 @@ contract Operator is Ownable {
         emit AddedOperator(msg.sender, lastNewOperatorId, bond);
     }
 
-    /// @notice Unregister as an operator
+    /// @notice Unregister as an operator. The bond is returned.
     function unregister() public {
         require(operators[msg.sender].exists, "OP: OPERATOR_NEXISTS");
         uint256 opBond = operators[msg.sender].bond;
@@ -63,21 +65,25 @@ contract Operator is Ownable {
     }
 
     /// @notice Check if an address belongs to an active operator
+    /// @param addr The address of the operator
     function isOperator(address addr) public view returns (bool) {
         return operators[addr].exists && operators[addr].checkpoint == checkpoint;
     }
 
     /// @notice Check if an operation ID belongs to an active operator
+    /// @param id The ID of the operator
     function isOperator(uint256 id) public view returns (bool) {
         return operators[operatorById[id]].exists && operators[operatorById[id]].checkpoint == checkpoint;
     }
 
     /// @notice Get an operator's address by ID
+    /// @param id The ID of the operator
     function getOperator(uint256 id) public view returns (address) {
         return operatorById[id];
     }
 
     /// @notice Get an operator's ID by address
+    /// @param addr The address of the operator
     function getId(address addr) public view returns (uint256) {
         return operators[addr].id;
     }

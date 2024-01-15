@@ -160,6 +160,13 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
         _;
     }
 
+    /// @notice Constructor
+    /// @param _marketCore The address of the market core contract
+    /// @param _token The address of the native token contract
+    /// @param _minTimeToPay The minimum time off-chain payers have to make payment
+    /// @param _orderGraceDur The grace period after which an order can be cancelled off-chain payment is not made
+    /// @param _maxOpenOrders The maximum number of open orders allowed per liquidity provider
+    /// @param _maxOpenDisputes The maximum number of open disputes allowed per liquidity provider
     constructor(
         address _marketCore,
         address _token,
@@ -183,59 +190,66 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     }
 
     /// @notice Set asset registry
+    /// @param addr The address of the asset registry contract
     function setAssetRegistry(address addr) external onlyOwner onlyOwner {
         state2.assetReg = IAssetRegistry(addr);
         emit UpdatedAssetRegistry(addr);
     }
 
     /// @notice Set default time to pay
+    /// @param val The new value
     function setMinTimeToPay(uint256 val) external onlyOwner {
         state.minTimeToPay = val;
         emit UpdatedMinTimeToPay(val);
     }
 
     /// @notice Set order grace period duration
+    /// @param val The new value
     function setOrderGraceDur(uint256 val) external onlyOwner {
         state.orderGraceDur = val;
         emit UpdatedOrderGraceDur(val);
     }
 
     /// @notice Set max open orders
+    /// @param val The new value
     function setMaxOpenOrders(uint256 val) external onlyOwner {
         state.ints.maxOpenOrders = val;
         emit UpdatedMaxOpenOrders(val);
     }
 
     /// @notice Set max open disputes
+    /// @param val The new value
     function setMaxOpenDisputes(uint256 val) external onlyOwner {
         state.ints.maxOpenDisputes = val;
         emit UpdatedMaxOpenDisputes(val);
     }
 
     /// @notice Updated the dispute manager contract
+    /// @param addr The new address
     function setDisputeManager(address addr) external onlyOwner {
         state2.disputeManager = addr;
         emit UpdatedDisputeManager(addr);
     }
 
     /// @notice Updated the Operator contract
+    /// @param addr The new address
     function setOperator(address addr) external onlyOwner {
         state2.operatorMgr = IOperator(addr);
         emit UpdatedOperator(addr);
     }
 
     /// @notice Updated the NFT contract
+    /// @param addr The new address
     function setNFT(address addr) external onlyOwner {
         state2.nft = addr;
         emit UpdatedNFT(addr);
     }
 
     /// @notice Set native AMM information
-    function setAmmInfo(
-        address swapRouter,
-        address ethErc20Addr,
-        uint256 poolFee
-    ) external onlyOwner {
+    /// @param swapRouter The address of the swap router
+    /// @param ethErc20Addr The address of the ETH ERC20 token
+    /// @param poolFee The fee tier of ETH pool on the native AMM DEX
+    function setAmmInfo(address swapRouter, address ethErc20Addr, uint256 poolFee) external onlyOwner {
         state2.ammEth = ethErc20Addr;
         state2.ints.ammEthPoolFee = poolFee;
         state.ammSwapRouter = swapRouter;
@@ -243,40 +257,44 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     }
 
     /// @notice Set AMM pool info a given input address
-    function setAmmPoolInfo(
-        address input,
-        address out,
-        uint256 poolFee
-    ) external onlyOwner {
+    /// @param input The input token address
+    /// @param out The output token address
+    /// @param poolFee The fee tier of the pool
+    function setAmmPoolInfo(address input, address out, uint256 poolFee) external onlyOwner {
         state2.ammSwapPool[input] = StructsLib.AmmSwapPoolInfo(out, poolFee);
         emit UpdatedAMMPoolInfo(input, out, poolFee);
     }
 
     /// @notice Updated the FeePurse contract
+    /// @param val The new address
     function setFeePurse(address val) external onlyOwner {
         state2.feePurse = IFeePurse(val);
         emit UpdatedFeePurse(val);
     }
 
     /// @notice Updated the Badge contract
+    /// @param val The new address
     function setBadgeMgr(address val) external onlyOwner {
         state2.badge = IBadge(val);
         emit UpdatedBadge(val);
     }
 
     /// @notice Set market core address
+    /// @param addr The new address
     function setMarketCore(address addr) external onlyOwner {
         state2.marketCore = IMarketCore(addr);
         emit UpdatedMarketCore(addr);
     }
 
     /// @notice Set fee rewarder contract address
+    /// @param addr The new address
     function setFeePool(address addr) external onlyOwner {
         state2.feePool = IFeePool(addr);
         emit UpdatedFeePool(addr);
     }
 
     /// @notice Updated the protocol inventor
+    /// @param addr The new address
     function setInventor(address addr) external onlyInventor {
         state.inventor = addr;
         emit UpdatedInventor(addr);
@@ -290,7 +308,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     }
 
     /// @notice Set NFT holder discount
-    /// @param bp - The base point
+    /// @param bp - The new base point
     function setDiscountForNFTHolder(uint256 bp) external onlyOwner {
         state2.ints.nftDiscountBp = bp;
         emit NFTDiscountUpdated(bp);
@@ -300,11 +318,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     /// @param inventorBP The base point for inventor
     /// @param sharedBP The base point for shared with holders
     /// @param operatorBP The base point for operators
-    function setProtoFeeSplit(
-        uint256 inventorBP,
-        uint256 sharedBP,
-        uint256 operatorBP
-    ) public onlyOwner {
+    function setProtoFeeSplit(uint256 inventorBP, uint256 sharedBP, uint256 operatorBP) public onlyOwner {
         require(inventorBP >= 3000, "OC: INV_BP_TOO_LOW");
         require(inventorBP + sharedBP + operatorBP == 10000, "OC: UNBALANCED");
         state.feeBPs[0] = inventorBP;
@@ -319,6 +333,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     }
 
     /// Checks if an address is a verified token
+    /// @param addr The address to check
     function isVerified(address addr) public view returns (bool) {
         return AuxLib.isVerified(state2, addr);
     }
@@ -355,10 +370,10 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     }
 
     /// @notice Returns the balance of fees earned by an address.
-    /// @param owner The owner address
-    /// @param asset The asset whose balance is returned
-    function feeBalanceOf(address owner, address asset) external view returns (uint256) {
-        return state.feeBalance[owner][asset];
+    /// @param _owner The owner address
+    /// @param _asset The asset whose balance is returned
+    function feeBalanceOf(address _owner, address _asset) external view returns (uint256) {
+        return state.feeBalance[_owner][_asset];
     }
 
     /// @notice Returns the balance of fees earned by the protocol
@@ -414,13 +429,13 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
         SwapLib.swapQuoteForBase(state, state2, StructsLib.SwapSlot(lid, amount, maxPrice, ids, 0, operator, addrs));
     }
 
-    // @notice Compute swap fee
-    // @param mid The market ID
-    // @param provider The address of the base asset liquidity provider.
-    // @param lid The liquidity ID
-    // @param taker The address of the recipient
-    // @param orderAmt The quantity of base asset to be swapped.
-    // @param orderPrice The maximum price to pay for amount.
+    /// @notice Compute swap fee
+    /// @param mid The market ID
+    /// @param provider The address of the base asset liquidity provider.
+    /// @param lid The liquidity ID
+    /// @param taker The address of the recipient
+    /// @param orderAmt The quantity of base asset to be swapped.
+    /// @param orderPrice The maximum price to pay for amount.
     function computeSwapFee(
         address mid,
         address provider,
@@ -428,16 +443,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
         address taker,
         uint256 orderAmt,
         uint256 orderPrice
-    )
-        public
-        view
-        returns (
-            uint256,
-            uint256,
-            uint256,
-            uint256
-        )
-    {
+    ) public view returns (uint256, uint256, uint256, uint256) {
         Structs.Market memory mkt = state2.marketCore.getMarket(mid);
         Structs.Liquidity memory liq = state.liquidity[mid][provider][lid];
         FeeInfo memory info = FeeLib.computeFee(
@@ -479,11 +485,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     /// @param id The order ID
     /// @param expireAt The expire time of the signature
     /// @param signature The signature created by the manager
-    function releaseOrderByManagerSig(
-        uint256 id,
-        uint256 expireAt,
-        bytes calldata signature
-    ) external nonReentrant {
+    function releaseOrderByManagerSig(uint256 id, uint256 expireAt, bytes calldata signature) external nonReentrant {
         require(id <= state.orders.length - 1, "OC: UNKNOWN_ORDER");
         SwapLib.releaseOrderByManagerSig(state, state2, id, expireAt, signature);
     }
@@ -499,11 +501,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     /// @param id The order ID
     /// @param expireAt The expire time of the signature
     /// @param signature The signature created by the manager
-    function cancelOrderByManagerSig(
-        uint256 id,
-        uint256 expireAt,
-        bytes calldata signature
-    ) external nonReentrant {
+    function cancelOrderByManagerSig(uint256 id, uint256 expireAt, bytes calldata signature) external nonReentrant {
         require(id <= state.orders.length - 1, "OC: UNKNOWN_ORDER");
         SwapLib.cancelOrderByManagerSig(state, state2, id, expireAt, signature);
     }
@@ -584,22 +582,20 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
         WithdrawLib.withdrawOperatorBalance(state, state2, _token);
     }
 
-    /// @notice Return liquidity of an address in a market
-    function getLiquidity(
-        address mid,
-        address owner,
-        uint256 lid
-    ) external view returns (Structs.Liquidity memory) {
-        return state.liquidity[mid][owner][lid];
+    /// @notice Return liquidity object of an address in a market
+    /// @param _mid The market ID
+    /// @param _owner The address of the owner of the liquidity
+    /// @param _lid The liquidity ID
+    function getLiquidity(address _mid, address _owner, uint256 _lid) external view returns (Structs.Liquidity memory) {
+        return state.liquidity[_mid][_owner][_lid];
     }
 
     /// @notice Return liquidity of an address in a market
-    function hasLiquidity(
-        address mid,
-        address owner,
-        uint256 lid
-    ) external view returns (bool) {
-        return AuxLib.isLiquidityExist(state, mid, owner, lid);
+    /// @param _mid The market ID
+    /// @param _owner The address of the owner of the liquidity
+    /// @param _lid The liquidity ID
+    function hasLiquidity(address _mid, address _owner, uint256 _lid) external view returns (bool) {
+        return AuxLib.isLiquidityExist(state, _mid, _owner, _lid);
     }
 
     /// @notice Allow an address to manage sender's liquidity
@@ -609,7 +605,9 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
         LiquidityLib.setLiquidityManager(state, marketId, manager);
     }
 
-    /// @notice Get liquidity manager of a provider
+    /// @notice Get the liquidity manager address of a liquidity provider
+    /// @param marketId The market ID
+    /// @param provider The liquidity provider address
     function getLiquidityManager(address marketId, address provider) external view returns (address) {
         return state.liqManagers[provider][marketId];
     }
@@ -704,11 +702,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     /// @param marketId The market ID
     /// @param lid The liquidity ID
     /// @param badgeIds The badge IDs
-    function setSwapBadgeForLiquidity(
-        address marketId,
-        uint256 lid,
-        string[2][] memory badgeIds
-    ) external {
+    function setSwapBadgeForLiquidity(address marketId, uint256 lid, string[2][] memory badgeIds) external {
         LiquidityLib.setSwapBadgeForLiquidity(state, state2, marketId, lid, badgeIds);
     }
 
@@ -716,11 +710,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     /// @param marketId The market ID
     /// @param lid The liquidity ID
     /// @param addr The address
-    function getReqSwapBadges(
-        address marketId,
-        uint256 lid,
-        address addr
-    ) external view returns (string[2][] memory) {
+    function getReqSwapBadges(address marketId, uint256 lid, address addr) external view returns (string[2][] memory) {
         return state2.reqSwapBadges[marketId][addr][lid];
     }
 
@@ -729,29 +719,24 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     /// @param provider The provider address
     /// @param lid The liquidity ID
     /// @param incr If true, count is incremented, else decremented
-    function updateOpenDisputesCount(
-        address marketId,
-        address provider,
-        uint256 lid,
-        bool incr
-    ) public onlyDisputeManager {
+    function updateOpenDisputesCount(address marketId, address provider, uint256 lid, bool incr) public onlyDisputeManager {
         LiquidityLib.updateOpenDisputesCount(state, marketId, provider, lid, incr);
     }
 
     /// @notice Allows liquidity manager to update a provider's liquidity
-    /// @param marketId The market ID
-    /// @param owner The owner of the liquidity
-    /// @param lid The liquidity ID
-    /// @param price The new price of the liquidity
-    /// @param expireAt The transaction is reverted if current time >= expireAt
+    /// @param _marketId The market ID
+    /// @param _owner The owner of the liquidity
+    /// @param _lid The liquidity ID
+    /// @param _price The new _price of the liquidity
+    /// @param _expireAt The transaction is reverted if current time >= _expireAt
     function updateLiquidityPrice(
-        address marketId,
-        address owner,
-        uint256 lid,
-        uint256 price,
-        uint256 expireAt
-    ) external notExpired(expireAt) marketMustExist(marketId) {
-        LiquidityLib.updateLiquidityPrice(state, state2, marketId, owner, lid, price);
+        address _marketId,
+        address _owner,
+        uint256 _lid,
+        uint256 _price,
+        uint256 _expireAt
+    ) external notExpired(_expireAt) marketMustExist(_marketId) {
+        LiquidityLib.updateLiquidityPrice(state, state2, _marketId, _owner, _lid, _price);
     }
 
     /// @notice Create an offer
@@ -782,13 +767,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     /// @param price The offer price
     /// @param ids The IDs of non-fungible assets
     /// @param deadline The time when the offer expires.
-    function updateOffer(
-        uint256 offerId,
-        uint256 amount,
-        uint256 price,
-        uint256[] memory ids,
-        uint256 deadline
-    ) public {
+    function updateOffer(uint256 offerId, uint256 amount, uint256 price, uint256[] memory ids, uint256 deadline) public {
         OfferLib.updateOffer(state, state2, offerId, amount, price, ids, deadline);
     }
 
@@ -822,11 +801,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     /// @param marketId The market ID
     /// @param lid The liquidity ID
     /// @param expireAt The transaction is reverted if current time >= expireAt
-    function togglePause(
-        address marketId,
-        uint256 lid,
-        uint256 expireAt
-    ) public notExpired(expireAt) {
+    function togglePause(address marketId, uint256 lid, uint256 expireAt) public notExpired(expireAt) {
         LiquidityLib.togglePause(state, marketId, lid);
     }
 }

@@ -42,13 +42,17 @@ contract FeePurse is Writable {
     }
 
     /// @notice Deposit fee token
+    /// @param amt Amount to deposit
     function deposit(uint256 amt) external {
         balances[msg.sender] += amt;
         IERC20(feeToken).safeTransferFrom(msg.sender, address(this), amt);
         emit FeeDeposited(msg.sender, amt);
     }
 
-    /// @notice Lock some balance belonging to owner
+    /// @notice Lock some balance as deposit
+    /// @param owner Owner of the balance
+    /// @param amt Amount to lock
+    /// @return id ID of the locked deposit
     function lock(address owner, uint256 amt) external onlyWriter returns (uint256) {
         require(balances[owner] >= amt, "FP: LOW_BAL");
         balances[owner] -= amt;
@@ -59,6 +63,8 @@ contract FeePurse is Writable {
     }
 
     /// @notice Unlock balance belonging to owner
+    /// @param owner Owner of the balance
+    /// @param id ID of the locked deposit
     function unlock(address owner, uint256 id) external onlyWriter {
         if (id == 0) return;
         require(locked.length > id - 1, "FP: UNK_ID");
@@ -69,17 +75,18 @@ contract FeePurse is Writable {
     }
 
     /// @notice Transfer an amount from an account to another account.
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amt
-    ) external onlyWriter {
+    /// @param from The account to transfer from
+    /// @param to The account to transfer to
+    /// @param amt The amount to transfer
+    function transferFrom(address from, address to, uint256 amt) external onlyWriter {
         balances[from] -= amt;
         balances[to] += amt;
         emit AddBalance(from, to, amt);
     }
 
     /// @notice Withdraw deposit
+    /// @param amt Amount to withdraw
+    /// @param to Address to withdraw to
     function withdraw(uint256 amt, address to) external {
         require(balances[msg.sender] >= amt, "FP: LOW_BAL");
         to = (to == address(0)) ? msg.sender : to;
@@ -89,11 +96,10 @@ contract FeePurse is Writable {
     }
 
     /// @notice Withdraw deposit from an account
-    function withdrawFrom(
-        uint256 amt,
-        address from,
-        address to
-    ) external onlyWriter {
+    /// @param amt Amount to withdraw
+    /// @param from Address to withdraw from
+    /// @param to Address to withdraw to
+    function withdrawFrom(uint256 amt, address from, address to) external onlyWriter {
         require(balances[from] >= amt, "FP: LOW_BAL");
         balances[from] -= amt;
         IERC20(feeToken).safeTransfer(to, amt);

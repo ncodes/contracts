@@ -64,18 +64,21 @@ contract TokenPool is Ownable, Pausable, ReentrancyGuard {
     }
 
     /// @notice Set the fee rewarder contract
+    /// @param addr The fee rewarder contract address.
     function setFeePool(address addr) external onlyOwner {
         feePool = IFeePool(addr);
         emit UpdatedFeePool(addr);
     }
 
     /// @notice Set badge manager
+    /// @param addr The badge manager contract address.
     function setBadgeMgrManager(address addr) public onlyOwner {
         badge = IBadge(addr);
         emit UpdatedBadgeManager(addr);
     }
 
     /// @notice Set required badges
+    /// @param badges The required badges.
     function setRequiredBadges(string[2][] memory badges) public onlyOwner {
         requiredBadges = badges;
         emit UpdatedReqBadges(badges);
@@ -92,6 +95,7 @@ contract TokenPool is Ownable, Pausable, ReentrancyGuard {
     }
 
     /// @notice Check if an address is allowed to stake
+    /// @param addr The address to check.
     function canStake(address addr) public view returns (bool) {
         if (requiredBadges.length == 0) return true;
         for (uint256 i = 0; i < requiredBadges.length; i++) {
@@ -121,11 +125,7 @@ contract TokenPool is Ownable, Pausable, ReentrancyGuard {
     /// @param _amount The amount to add to the contract.
     /// @param _account The account that will transfer the stake.
     /// @param _owner The account that will be the beneficiary of the stake and its reward.
-    function _stake(
-        uint256 _amount,
-        address _account,
-        address _owner
-    ) internal {
+    function _stake(uint256 _amount, address _account, address _owner) internal {
         require(_amount > 0, "AMOUNT_REQ");
         require(canStake(_owner), "NOT_PERMITTED");
         _totalSupply += _amount;
@@ -159,6 +159,8 @@ contract TokenPool is Ownable, Pausable, ReentrancyGuard {
         emit VestStaked(_owner, _amount);
     }
 
+    /// @notice Withdraw stake from the contract
+    /// @param _amount The amount to withdraw from the contract.
     function _withdraw(uint256 _amount) internal {
         _totalSupply -= _amount;
         _balances[msg.sender] -= _amount;
@@ -183,6 +185,7 @@ contract TokenPool is Ownable, Pausable, ReentrancyGuard {
     }
 
     /// @notice Withdraw earned rewards
+    /// @param _amount The amount to withdraw.
     function withdrawReward(uint256 _amount) public nonReentrant updateReward(msg.sender) {
         uint256 reward = rewards[msg.sender];
         require(reward >= _amount, "INSUFFICIENT_BALANCE");
@@ -197,6 +200,7 @@ contract TokenPool is Ownable, Pausable, ReentrancyGuard {
     }
 
     /// @notice Return amount staked by an account
+    /// @param account The address of the account.
     function balanceOf(address account) public view returns (uint256) {
         return _balances[account];
     }
@@ -212,12 +216,17 @@ contract TokenPool is Ownable, Pausable, ReentrancyGuard {
     }
 
     /// @notice Recover ERC20 tokens mistakenly sent (excluding the staking token).
+    /// @param tokenAddress The address of the token to recover.
+    /// @param tokenAmount The amount to recover.
     function recoverERC20(address tokenAddress, uint256 tokenAmount) external nonReentrant onlyOwner {
         require(tokenAddress != address(stakingToken), "TP: INVALID_TOKEN_ADDRESS");
         IERC20(tokenAddress).transfer(owner(), tokenAmount);
         emit Recovered(tokenAddress, tokenAmount);
     }
 
+    /// @notice Notify the contract of a transfer of reward tokens.
+    /// @param _reward The amount of reward transferred.
+    /// @param _rewardsDuration The duration of the reward period.
     function notifyRewardAmount(uint256 _reward, uint256 _rewardsDuration) external onlyOwner updateReward(address(0)) {
         require(_reward > 0, "AMOUNT_REQ");
         if (_rewardsDuration > 0) rewardsDuration = _rewardsDuration;

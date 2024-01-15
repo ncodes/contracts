@@ -32,6 +32,10 @@ library SwapFungibleLib {
 
     /// @dev Swap quote asset for a fungible base asset.
     /// Covers ERC20/ERC20, ERC20/SYNTH, ERC20/NFT, SYNTH/ERC20, SYNTH/SYNTH, SYNTH/NFT
+    /// @param state Storage state.
+    /// @param state2 Storage state 2.
+    /// @param sp The parameters needed to swap.
+    /// @param mkt The market object for the market being swapped on.
     function swap(
         StructsLib.State storage state,
         StructsLib.State2 storage state2,
@@ -64,6 +68,11 @@ library SwapFungibleLib {
     }
 
     /// @dev Handle ERC20/ERC20 swap (Instant Swap)
+    /// @param s1 Storage state.
+    /// @param s2 Storage state 2.
+    /// @param sp The parameters needed to swap.
+    /// @param mkt The market object for the market being swapped on.
+    /// @param liq The liquidity object for the liquidity being swapped on.
     function swapERC20(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
@@ -75,7 +84,7 @@ library SwapFungibleLib {
         uint256 price = (sp.offerId > 0) ? sp.maxPrice : liq.price;
 
         // Compute cost of swapping for base. Ensure swapper's quote balance is sufficient.
-        uint256 cost = (sp.amount * price) / 10**IERC20(mkt.quote.addr).decimals();
+        uint256 cost = (sp.amount * price) / 10 ** IERC20(mkt.quote.addr).decimals();
         require(IERC20(mkt.quote.addr).balanceOf(msg.sender) >= cost, "OC: LOW_QUOTE_BAL");
 
         // Compute fee
@@ -145,6 +154,11 @@ library SwapFungibleLib {
     }
 
     /// @dev Handle ERC20/NFT swap (Instant Swap)
+    /// @param s1 Storage state.
+    /// @param s2 Storage state 2.
+    /// @param sp The parameters needed to swap.
+    /// @param mkt The market object for the market being swapped on.
+    /// @param liq The liquidity object for the liquidity being swapped on.
     function swapNFT(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,

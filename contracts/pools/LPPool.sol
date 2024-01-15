@@ -44,6 +44,7 @@ contract LPPool is Ownable, Pausable, ReentrancyGuard {
     }
 
     /// @dev Set pool token
+    /// @param addr New pool token address
     function setPoolToken(address addr) external onlyOwner {
         poolToken = IERC20(addr);
     }
@@ -69,6 +70,7 @@ contract LPPool is Ownable, Pausable, ReentrancyGuard {
     }
 
     /// @dev Get the amount earned by the sender
+    /// @param account The address of the account to check
     function earned(address account) public view returns (uint256) {
         return ((_balances[account] * (rewardPerToken() - userRewardPerTokenPaid[account])) / 1e18) + rewards[account];
     }
@@ -97,6 +99,7 @@ contract LPPool is Ownable, Pausable, ReentrancyGuard {
     }
 
     /// @dev Withdraw the sender's reward
+    /// @param _amount The amount to withdraw
     function withdrawReward(uint256 _amount) external nonReentrant updateReward(msg.sender) {
         uint256 reward = rewards[msg.sender];
         require(reward >= _amount, "LPP: INSUFFICIENT_BALANCE");
@@ -106,6 +109,8 @@ contract LPPool is Ownable, Pausable, ReentrancyGuard {
     }
 
     /// @dev Recover ERC20 tokens mistakenly sent (excluding LP tokens).
+    /// @param tokenAddress The address of the token to recover
+    /// @param tokenAmount The amount to recover
     function recoverERC20(address tokenAddress, uint256 tokenAmount) external nonReentrant onlyOwner {
         require(address(poolToken) != tokenAddress, "LPP: INVALID_TOKEN_ADDRESS");
         IERC20(tokenAddress).transfer(owner(), tokenAmount);
@@ -145,6 +150,7 @@ contract LPPool is Ownable, Pausable, ReentrancyGuard {
     }
 
     /// @dev Return amount locked by an account
+    /// @param account The address of the account
     function balanceOf(address account) external view returns (uint256) {
         return _balances[account];
     }
