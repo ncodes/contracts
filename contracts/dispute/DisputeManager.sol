@@ -71,9 +71,6 @@ contract DisputeManager is Ownable {
     /// @notice The duration within which evidences should be submitted
     uint256 public evidenceDur;
 
-    /// @notice The base point to calculate shared portion of a slashed ticket
-    uint256 public sharedSlashPortionBP;
-
     event DisputeCreated(uint256 orderId, address creator, uint256 index, bool wantRelease);
     event DraftedMediator(address marketId, uint256 poolId, uint256 orderId, uint256 ticketId, address mediator, address drafter);
     event Committed(address marketId, uint256 orderId, uint256 disputeId, address committer, uint256 ticketIdx, bytes32 hash);
@@ -98,7 +95,6 @@ contract DisputeManager is Ownable {
         mediatorMgr = IMediatorManager(_medMgrAddr);
         predictDur = _predictDur;
         evidenceDur = _evidenceDur;
-        sharedSlashPortionBP = 5000;
     }
 
     /// @notice Set MarketCore contract address
@@ -120,13 +116,6 @@ contract DisputeManager is Ownable {
     function setMediatorManager(address addr) external onlyOwner {
         mediatorMgr = IMediatorManager(addr);
         emit UpdatedMediatorManager(addr);
-    }
-
-    /// @notice Set the shared slash portion base point.
-    /// @param val The new value
-    function setSharedSlashPortion(uint256 val) external onlyOwner {
-        sharedSlashPortionBP = val;
-        emit UpdatedSharedSlashPortion(val);
     }
 
     /// @notice Set the prediction duration.
