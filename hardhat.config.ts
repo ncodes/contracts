@@ -44,6 +44,12 @@ module.exports = {
         sepolia: {
             url: `https://sepolia.infura.io/v3/${process.env.API_KEY}`,
             accounts: deployKey ? [process.env.DEPLOY_KEY] : undefined,
+            // gasPrice: 600000000000,
+            // gasData: {
+            //     maxFeePerGas: "200000000000",
+            //     maxPriorityFeePerGas: "200000000000",
+            //     type: 2,
+            // },
         },
     },
     etherscan: {

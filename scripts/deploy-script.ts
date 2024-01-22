@@ -1,3 +1,4 @@
+import {EthersError, getParsedEthersError} from "@enzoferey/ethers-error-parser";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {Contract, ContractTransaction, Signer, Wallet} from "ethers";
 import fs from "fs";
@@ -36,6 +37,12 @@ if (!step) {
     process.exit(1);
 }
 
+const provider = new ethers.providers.FallbackProvider([ethers.provider], 1);
+provider.getGasPrice = async () => (network.config as any).gasPrice;
+provider.getFeeData = (network.config as any).gasData
+    ? async () => (network.config as any).gasData
+    : provider.getFeeData;
+
 const params = getParams(network.name as Network);
 const deploymentDir = path.join(__dirname, "deployments", network.name);
 let txCount = 0;
@@ -66,14 +73,14 @@ let deployed: Deployments = {
 };
 
 async function deployMainnet() {
-    //   await deployBadgeManager();
-    return;
+    await deployBadgeManager();
     await deployP2PToken();
     await deployMarketCore();
     await deployCore();
     await deployAssetRegistry();
     await deployOperatorManager();
     await deployFeePurse();
+    await deployRandomness();
     await deployDummyRandomness();
     await deployMediatorManager();
     await deployDisputeManager();
@@ -115,38 +122,45 @@ async function main() {
 }
 
 async function deployBadgeManager() {
-    await deployOrAttach<BadgeManager>("BadgeManager", undefined, [], async (contract) => {
+    await deployOrAttach<BadgeManager>("BadgeManager", undefined, [], async (contract, attached) => {
         badgeMgr = contract;
+        if (attached) return;
 
         await runStep(1, "Create `instruction` badge issuer", async () => {
-            await call(badgeMgr, deployer, async (c) => {
-                return c.registerIssuer(params.instructionBadgeIssuer, "instruction", [], []);
-            });
+            try {
+                await callNoThrow(badgeMgr, deployer, async (c) => {
+                    return c.registerIssuer(params.instructionBadgeIssuer, "instruction", [], []);
+                });
+            } catch (e) {
+                if ((e as Error).message.includes("already_issuer")) {
+                    console.log("  * Skipping: `instruction` badge issuer already registered");
+                }
+            }
         });
 
         // TODO: Step 2
         // - Deposit gas into issue
         await runStep(2, "Create `pm/*` badge issuer and initial badges", async () => {
-            const issuer = new Wallet(params.paymentMethodBadgeIssuerKey, ethers.provider);
-            call(badgeMgr, issuer, (c) => {
+            const issuer = new Wallet(params.paymentMethodBadgeIssuerKey, provider);
+            await call(badgeMgr, deployer, (c) => {
                 return c.registerIssuer(issuer.address, "pm", [], []);
             });
-            call(badgeMgr, issuer, (c) => {
+            await call(badgeMgr, issuer, (c) => {
                 return c.registerPath("pm", "gtb", [], []);
             });
-            call(badgeMgr, issuer, (c) => {
+            await call(badgeMgr, issuer, (c) => {
                 return c.registerPath("pm", "bank_transfer", [], []);
             });
-            call(badgeMgr, issuer, (c) => {
+            await call(badgeMgr, issuer, (c) => {
                 return c.registerPath("pm", "first_bank", [], []);
             });
-            call(badgeMgr, issuer, (c) => {
+            await call(badgeMgr, issuer, (c) => {
                 return c.registerPath("pm", "zenith", [], []);
             });
-            call(badgeMgr, issuer, (c) => {
+            await call(badgeMgr, issuer, (c) => {
                 return c.registerPath("pm", "sterling_bank", [], []);
             });
-            call(badgeMgr, issuer, (c) => {
+            await call(badgeMgr, issuer, (c) => {
                 return c.registerPath("pm", "union_bank", [], []);
             });
         });
@@ -154,11 +168,11 @@ async function deployBadgeManager() {
         // TODO: Step 2:
         // - Deposit gas into issue
         await runStep(2, "Create `kyc/*` badge issuer and initial badges", async () => {
-            const issuer = new Wallet(params.kycBadgeIssuerKey, ethers.provider);
-            call(badgeMgr, issuer, (c) => {
+            const issuer = new Wallet(params.kycBadgeIssuerKey, provider);
+            await call(badgeMgr, deployer, (c) => {
                 return c.registerIssuer(issuer.address, "kyc", [], []);
             });
-            call(badgeMgr, issuer, (c) => {
+            await call(badgeMgr, issuer, (c) => {
                 return c.registerPath("kyc", "nga", [], []);
             });
         });
@@ -191,7 +205,7 @@ async function deployOperatorManager() {
             if (attached) return;
 
             await runStep(1, "Setting operator manager on core", async () => {
-                call(core, deployer, (c) => {
+                await call(core, deployer, (c) => {
                     return c.setOperator(operatorMgr.address);
                 });
             });
@@ -209,7 +223,7 @@ async function deployMarketCore() {
             if (attached) return;
 
             await runStep(1, "Setting badge manager", async () => {
-                call(marketCore, deployer, (c) => {
+                await call(marketCore, deployer, (c) => {
                     return c.setBadgeMgr(badgeMgr.address);
                 });
             });
@@ -239,37 +253,37 @@ async function deployCore() {
             if (attached) return;
 
             await runStep(1, "Setting protocol fee", async () => {
-                call(core, deployer, (c) => {
+                await call(core, deployer, (c) => {
                     return c.setProtoFee(12, 14, 10, 1, 1, 10);
                 });
             });
 
             await runStep(1, "Setting fee sharer config", async () => {
-                call(core, deployer, (c) => {
+                await call(core, deployer, (c) => {
                     return c.configureFeePool(params.transferToFeePoolInterval);
                 });
             });
 
             await runStep(1, "Setting protocol recipient", async () => {
-                call(core, deployer, (c) => {
+                await call(core, deployer, (c) => {
                     return c.setInventor(inventor.address);
                 });
             });
 
             await runStep(1, "Adding Core as P2P minter", async () => {
-                call(p2p, deployer, (c) => {
+                await call(p2p, deployer, (c) => {
                     return c.addMinters([core.address]);
                 });
             });
 
             await runStep(1, "Setting Core as MarketCore writer", async () => {
-                call(marketCore, deployer, (c) => {
+                await call(marketCore, deployer, (c) => {
                     return c.updateWriter(core.address, true);
                 });
             });
 
             await runStep(1, "Setting badge manager", async () => {
-                call(core, deployer, (c) => {
+                await call(core, deployer, (c) => {
                     return c.setBadgeMgr(badgeMgr.address);
                 });
             });
@@ -283,7 +297,7 @@ async function deployAssetRegistry() {
         if (attached) return;
 
         await runStep(1, "Setting asset registry on Core", async () => {
-            call(core, deployer, (c) => {
+            await call(core, deployer, (c) => {
                 return c.setAssetRegistry(assetReg.address);
             });
         });
@@ -296,11 +310,11 @@ async function deployFeePurse() {
         if (attached) return;
 
         await runStep(1, "Setting fee purse on Core", async () => {
-            call(core, deployer, (c) => {
+            await call(core, deployer, (c) => {
                 return c.setFeePurse(feePurse.address);
             });
 
-            call(feePurse, deployer, (c) => {
+            await call(feePurse, deployer, (c) => {
                 return c.updateWriter(core.address, true);
             });
         });
@@ -342,7 +356,7 @@ async function deployMediatorManager() {
             if (attached) return;
 
             await runStep(1, "Setting Ticket Params", async () => {
-                call(mediatorMgr, deployer, (c) => {
+                await call(mediatorMgr, deployer, (c) => {
                     return c.setTicketMarketParams(
                         params.baseTicketPrice,
                         params.ticketWindowDur,
@@ -356,7 +370,7 @@ async function deployMediatorManager() {
             });
 
             await runStep(1, "Adding ticket pool", async () => {
-                call(mediatorMgr, deployer, (c) => {
+                await call(mediatorMgr, deployer, (c) => {
                     return c.updateTicketPool(
                         0,
                         params.poolReqBond,
@@ -382,13 +396,13 @@ async function deployDisputeManager() {
             if (attached) return;
 
             await runStep(1, "Set Core's dispute manager", async () => {
-                call(core, deployer, (c) => {
+                await call(core, deployer, (c) => {
                     return c.setDisputeManager(disputeMgr.address);
                 });
             });
 
             await runStep(1, "Set mediator manager's dispute manager", async () => {
-                call(mediatorMgr, deployer, (c) => {
+                await call(mediatorMgr, deployer, (c) => {
                     return c.setDisputeManager(disputeMgr.address);
                 });
             });
@@ -415,11 +429,11 @@ async function deployTokenPoolAndFeePool() {
         if (attached) return;
 
         await runStep(1, "Setting FeePool on TokenPool contract", async () => {
-            call(tokenPool, deployer, (c) => {
+            await call(tokenPool, deployer, (c) => {
                 return c.setFeePool(feePool.address);
             });
 
-            call(core, deployer, (c) => {
+            await call(core, deployer, (c) => {
                 return c.setFeePool(feePool.address);
             });
         });
@@ -442,11 +456,11 @@ async function deployNFT() {
             if (attached) return;
 
             await runStep(1, "Setting NFT address and discount on Core contract", async () => {
-                call(core, deployer, (c) => {
+                await call(core, deployer, (c) => {
                     return c.setDiscountForNFTHolder(params.nftDiscountBP);
                 });
 
-                call(core, deployer, (c) => {
+                await call(core, deployer, (c) => {
                     return c.setNFT(nft.address);
                 });
             });
@@ -510,6 +524,7 @@ async function deployOrAttach<T extends Contract>(
     } else {
         console.log(`► Deploying ${deploymentName}`);
         const contract = (await factory.deploy(...args)) as T;
+        console.log(`  ⏲️  Pending deployment`, `Hash=${contract.deployTransaction.hash}`);
         const receipt = await contract.deployTransaction.wait();
         deployed.contracts[deploymentName] = {address: contract.address, gasUsed: receipt.gasUsed.toNumber()};
         console.log("🎉 Deployed:", `Address=${contract.address}`, `GasUsed=${receipt.gasUsed.toString()}`);
@@ -521,12 +536,13 @@ async function deployOrAttach<T extends Contract>(
  * Call a function on a contract
  * @param c The contract
  * @param signer The signer
- * @param func The function to call
+ * @param customFunc The function to call
  */
-async function call<T extends Contract>(c: T, signer: Signer | string, func: (contract: T) => any) {
+async function call<T extends Contract>(c: T, signer: Signer | string, customFunc: (contract: T) => any) {
     const _c = c.connect(signer);
     try {
-        const resp = (await func(_c.functions as T)) as ContractTransaction;
+        const resp = (await customFunc(_c.functions as T)) as ContractTransaction;
+        console.log(`  ⏲️  Pending tx`, `Hash=${resp?.hash}`);
         const receipt = resp ? await resp.wait() : undefined;
         txCount = resp ? txCount + 1 : txCount;
         console.log(
@@ -536,7 +552,30 @@ async function call<T extends Contract>(c: T, signer: Signer | string, func: (co
             `GasUsed=${receipt?.gasUsed?.toString() || ""}`,
         );
     } catch (error) {
-        throw new Error((error as any).data.message);
+        const parsedEthersError = getParsedEthersError(error as EthersError);
+        throw new Error(parsedEthersError.context);
+    }
+}
+
+/**
+ * Like call() but don't throw on error
+ */
+async function callNoThrow<T extends Contract>(c: T, signer: Signer | string, func: (contract: T) => any) {
+    const _c = c.connect(signer);
+    try {
+        const resp = (await func(_c.functions as T)) as ContractTransaction;
+        console.log(`  ⏲️  Pending tx`, `Hash=${resp?.hash}`);
+        const receipt = resp ? await resp.wait() : undefined;
+        txCount = resp ? txCount + 1 : txCount;
+        console.log(
+            "  🔥",
+            `Tx=${txCount}`,
+            `Hash=${receipt?.transactionHash}`,
+            `GasUsed=${receipt?.gasUsed?.toString() || ""}`,
+        );
+    } catch (error) {
+        const parsedEthersError = getParsedEthersError(error as EthersError);
+        return new Error(parsedEthersError.context);
     }
 }
 
