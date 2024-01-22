@@ -102,7 +102,7 @@ describe("Core - Liquidity", function () {
         permPut: boolean,
         permSwap: boolean,
         commission: BigNumberish,
-        mediatorPoolId: BigNumberish
+        mediatorPoolId: BigNumberish,
     ) {
         const mid = makeMarketID(creator.address, base, quote, baseType, quoteType);
         await mc.connect(creator).createMarket(base, quote, baseType, quoteType, permPut, permSwap, commission, mediatorPoolId);
@@ -813,7 +813,7 @@ describe("Core - Liquidity", function () {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, 0, false, false, 0, 0);
                     await baseAsset.connect(provider).approve(core.address, "100");
                     await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith(
-                        "ERC20: transfer amount exceeds balance"
+                        "ERC20: transfer amount exceeds balance",
                     );
                 });
             });
@@ -823,7 +823,7 @@ describe("Core - Liquidity", function () {
                     await baseAsset.approve(cAddr, "99");
                     mid = await createMarket(undefined, baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
                     await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith(
-                        "ERC20: insufficient allowance"
+                        "ERC20: insufficient allowance",
                     );
                 });
             });
@@ -834,7 +834,7 @@ describe("Core - Liquidity", function () {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
                     await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0, 0, 0])).to.emit(
                         core,
-                        "UpdatedFungibleLiquidity"
+                        "UpdatedFungibleLiquidity",
                     );
                     let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.amount.toNumber()).to.equal(100);
@@ -860,7 +860,7 @@ describe("Core - Liquidity", function () {
                         mid = await createMarket(undefined, baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
                         await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, swapper.address, [100, 100], [], [], [0, 0, 0, 0, 0])).to.emit(
                             core,
-                            "UpdatedFungibleLiquidity"
+                            "UpdatedFungibleLiquidity",
                         );
                         let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                         expect(liq.target).to.eql(swapper.address);
@@ -876,7 +876,7 @@ describe("Core - Liquidity", function () {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721, false, false, 0, 0);
                     await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], wantOrIds, wantAndIds, [0, 0, 0, 0, 0])).to.emit(
                         core,
-                        "UpdatedFungibleLiquidity"
+                        "UpdatedFungibleLiquidity",
                     );
                     let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.wantOrIds).to.eql(wantOrIds);
@@ -894,7 +894,7 @@ describe("Core - Liquidity", function () {
                     await mc.permitPut(mid, marketCreator.address);
                     await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0, 0, 0])).to.emit(
                         core,
-                        "UpdatedFungibleLiquidity"
+                        "UpdatedFungibleLiquidity",
                     );
                     let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.amount.toNumber()).to.equal(100);
@@ -1062,11 +1062,11 @@ describe("Core - Liquidity", function () {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721, false, false, 0, 0);
                     const wantOrIds = [1, 1];
                     await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], wantOrIds, [], [0, 0, 0, 0, 0])).to.be.revertedWith(
-                        "OC: WANT_IDS_NUNIQ"
+                        "OC: WANT_IDS_NUNIQ",
                     );
                     const wantAndIds = [1, 1];
                     await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], [], wantAndIds, [0, 0, 0, 0, 0])).to.be.revertedWith(
-                        "OC: WANT_IDS_NUNIQ"
+                        "OC: WANT_IDS_NUNIQ",
                     );
                 });
             });
@@ -1082,10 +1082,10 @@ describe("Core - Liquidity", function () {
                     }
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721, false, false, 0, 0);
                     await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], wantOrIds, [], [0, 0, 0, 0, 0])).to.be.revertedWith(
-                        "OC: WANT_IDS_HSIZE"
+                        "OC: WANT_IDS_HSIZE",
                     );
                     await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], [], wantAndIds, [0, 0, 0, 0, 0])).to.be.revertedWith(
-                        "OC: WANT_IDS_HSIZE"
+                        "OC: WANT_IDS_HSIZE",
                     );
                 });
             });
@@ -1577,7 +1577,7 @@ describe("Core - Liquidity", function () {
                     ["badge", "path"],
                     ["badge", "path"],
                     ["badge", "path"],
-                ])
+                ]),
             ).to.be.revertedWith("OC: TOO_MANY_BADGES");
         });
 
