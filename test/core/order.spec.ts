@@ -41,7 +41,8 @@ describe("Core - Order", function () {
     let instantNFTSwapFee: BigNumberish;
     let fixedNFTSwapFee: BigNumberish;
     let feePurse: FeePurse;
-    let disputeDelayDur: number;
+    let disputeDelayDur: BigNumber;
+    const chainId = 31337;
 
     let marketCreator: SignerWithAddress, provider: SignerWithAddress, swapper: SignerWithAddress, marketCreator2: SignerWithAddress, inventor: SignerWithAddress;
 
@@ -103,7 +104,7 @@ describe("Core - Order", function () {
         permPut: boolean,
         permSwap: boolean,
         commission: BigNumberish,
-        mediatorPoolId: BigNumberish
+        mediatorPoolId: BigNumberish,
     ) {
         const mid = makeMarketID(creator.address, base, quote, baseType, quoteType);
         await mc.connect(creator).createMarket(base, quote, baseType, quoteType, permPut, permSwap, commission, mediatorPoolId);
@@ -1181,7 +1182,7 @@ describe("Core - Order", function () {
             await expect(core.connect(swapper).markOrderAsPaid(orderID)).not.to.be.reverted;
 
             const expireAt = (await advanceBlockTime(2)) + 4;
-            const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint256", "bool", "uint256"], [orderID, true, expireAt]));
+            const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint", "uint256", "bool", "uint256"], [chainId, orderID, true, expireAt]));
             const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
             const signedMsg = await mgr.signMessage(msgHashBytes);
 
@@ -1523,7 +1524,7 @@ describe("Core - Order", function () {
             await mc.connect(marketCreator2).setManager(mid, mgr.address);
 
             const expireAt = (await advanceBlockTime(2)) + 4;
-            const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint256", "bool", "uint256"], [orderID, false, expireAt]));
+            const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint", "uint256", "bool", "uint256"], [chainId, orderID, false, expireAt]));
             const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
             const signedMsg = await mgr.signMessage(msgHashBytes);
 

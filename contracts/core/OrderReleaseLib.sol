@@ -7,6 +7,7 @@ import "../common/SafeERC20.sol";
 import "../common/SigLib.sol";
 import "./AuxLib.sol";
 import "./StructsLib.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../market/MarketAuxLib.sol";
 import "./LiquidityLib.sol";
 import "./FeeLib.sol";
@@ -355,9 +356,9 @@ library OrderReleaseLib {
         bool release,
         uint256 expireAt,
         bytes memory signature
-    ) internal pure returns (bool) {
+    ) internal view returns (bool) {
         if (address(0) == signer) return false;
-        bytes32 messageHash = keccak256(abi.encode(id, release, expireAt));
+        bytes32 messageHash = keccak256(abi.encode(block.chainid, id, release, expireAt));
         bytes32 ethSignedMessageHash = SigLib.getSignedMessageHash(messageHash);
         return SigLib.recoverSigner(ethSignedMessageHash, signature) == signer;
     }

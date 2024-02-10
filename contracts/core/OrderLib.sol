@@ -236,9 +236,9 @@ library OrderLib {
         bool release,
         uint256 expireAt,
         bytes memory signature
-    ) internal pure returns (bool) {
+    ) internal view returns (bool) {
         if (address(0) == signer) return false;
-        bytes32 messageHash = keccak256(abi.encode(id, release, expireAt));
+        bytes32 messageHash = keccak256(abi.encode(block.chainid, id, release, expireAt));
         bytes32 ethSignedMessageHash = SigLib.getSignedMessageHash(messageHash);
         return SigLib.recoverSigner(ethSignedMessageHash, signature) == signer;
     }

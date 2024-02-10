@@ -14,9 +14,9 @@ library BadgeLib {
         string[] memory metadataValues,
         uint256 sigExpireAt,
         bytes memory signature
-    ) internal pure returns (bool) {
+    ) internal view returns (bool) {
         if (address(0) == signer) return false;
-        bytes32 messageHash = keccak256(abi.encode(badge, path, addr, expireAt, metadataKeys, metadataValues, sigExpireAt));
+        bytes32 messageHash = keccak256(abi.encode(block.chainid, badge, path, addr, expireAt, metadataKeys, metadataValues, sigExpireAt));
         bytes32 ethSignedMessageHash = SigLib.getSignedMessageHash(messageHash);
         return SigLib.recoverSigner(ethSignedMessageHash, signature) == signer;
     }
@@ -28,9 +28,9 @@ library BadgeLib {
         address addr,
         uint256 expireAt,
         bytes memory signature
-    ) internal pure returns (bool) {
+    ) internal view returns (bool) {
         if (address(0) == signer) return false;
-        bytes32 messageHash = keccak256(abi.encode(badge, path, addr, expireAt));
+        bytes32 messageHash = keccak256(abi.encode(block.chainid, badge, path, addr, expireAt));
         bytes32 ethSignedMessageHash = SigLib.getSignedMessageHash(messageHash);
         return SigLib.recoverSigner(ethSignedMessageHash, signature) == signer;
     }
@@ -44,9 +44,9 @@ library BadgeLib {
         string memory value,
         uint256 expireAt,
         bytes memory signature
-    ) internal pure returns (bool) {
+    ) internal view returns (bool) {
         if (address(0) == signer) return false;
-        bytes32 messageHash = keccak256(abi.encode(badge, path, addr, key, value, expireAt));
+        bytes32 messageHash = keccak256(abi.encode(block.chainid, badge, path, addr, key, value, expireAt));
         bytes32 ethSignedMessageHash = SigLib.getSignedMessageHash(messageHash);
         return SigLib.recoverSigner(ethSignedMessageHash, signature) == signer;
     }
