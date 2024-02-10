@@ -4,6 +4,7 @@ import {MockContract} from "ethereum-waffle";
 import {BigNumber} from "ethers";
 import {getAddress} from "ethers/lib/utils";
 import {ethers, waffle} from "hardhat";
+import {it} from "mocha";
 import {BadgeManager, Core, MarketCore, MediatorManager, TOKEN} from "../typechain-types";
 import {advanceBlockTime, makeMarketID, toBN} from "../utils/utils";
 import {initCoreTestSuite} from "./helpers/helpers";
@@ -334,6 +335,13 @@ describe("MediatorManager", function () {
             await expect(c.join(1)).to.be.revertedWith("MM: UNKNOWN_TICKET");
         });
 
+        it("should revert when ticket has been blocked", async () => {
+            await token.approve(c.address, baseTicketPrice + bondAmt);
+            await c.purchaseTicket(0);
+            await c.toggleBlock(deployer.address, 0);
+            await expect(c.join(0)).to.be.revertedWith("MM: BLOCKED");
+        });
+
         it("should revert when ticket is not mature", async () => {
             await token.approve(c.address, baseTicketPrice + bondAmt);
             await c.purchaseTicket(0);
@@ -382,6 +390,13 @@ describe("MediatorManager", function () {
     describe(".cancelTicket", () => {
         it("should revert with reason=UNKNOWN_TICKET when ticket is unknown", async () => {
             await expect(c.cancelTicket(1)).to.be.revertedWith("MM: UNKNOWN_TICKET");
+        });
+
+        it("should revert when ticket has been blocked", async () => {
+            await token.approve(c.address, baseTicketPrice + bondAmt);
+            await c.purchaseTicket(0);
+            await c.toggleBlock(deployer.address, 0);
+            await expect(c.cancelTicket(0)).to.be.revertedWith("MM: BLOCKED");
         });
 
         it("should revert with reason=NOT_MATURE when ticket is unknown", async () => {
@@ -485,6 +500,13 @@ describe("MediatorManager", function () {
             await expect(c.drainTicket(1)).to.be.revertedWith("MM: UNKNOWN_TICKET");
         });
 
+        it("should revert when ticket has been blocked", async () => {
+            await token.approve(c.address, baseTicketPrice + bondAmt);
+            await c.purchaseTicket(0);
+            await c.toggleBlock(deployer.address, 0);
+            await expect(c.drainTicket(0)).to.be.revertedWith("MM: BLOCKED");
+        });
+
         it("should revert with reason=NOT_CANCELLED when ticket has not entered cancel state", async () => {
             await token.approve(c.address, baseTicketPrice + bondAmt);
             await c.purchaseTicket(0);
@@ -581,13 +603,17 @@ describe("MediatorManager", function () {
 
                 it("should mark selected ticket as `drafted`", async () => {
                     await randomness.mock.randomN.returns(1);
-                    await expect(c.draft(mid, 0, 0)).to.emit(c, "Drafted").withArgs(getAddress(mid), mediator.address, toBN(0), toBN(0), toBN(0), deployer.address);
+                    await expect(c.draft(mid, 0, 0))
+                        .to.emit(c, "Drafted")
+                        .withArgs(getAddress(mid), mediator.address, toBN(0), toBN(0), toBN(0), deployer.address);
                     const ticket2 = await c.tickets(mediator.address, 0);
                     expect(ticket2.drafted).to.be.true;
 
                     // draft again
                     await randomness.mock.randomN.returns(0);
-                    await expect(c.draft(mid, 0, 0)).to.emit(c, "Drafted").withArgs(getAddress(mid), deployer.address, toBN(0), toBN(0), toBN(0), deployer.address);
+                    await expect(c.draft(mid, 0, 0))
+                        .to.emit(c, "Drafted")
+                        .withArgs(getAddress(mid), deployer.address, toBN(0), toBN(0), toBN(0), deployer.address);
                     const ticket1 = await c.tickets(deployer.address, 0);
                     expect(ticket1.drafted).to.be.true;
 
@@ -616,7 +642,9 @@ describe("MediatorManager", function () {
                 await advanceBlockTime(ticketMatureDur);
                 await expect(c.join(0)).not.to.be.reverted;
                 await expect(c.draft(mid, 0, 0)).not.to.be.reverted;
-                await expect(c.undraft(deployer.address, 0, true, true)).to.emit(c, "Undrafted").withArgs(deployer.address, 0, false, deployer.address);
+                await expect(c.undraft(deployer.address, 0, true, true))
+                    .to.emit(c, "Undrafted")
+                    .withArgs(deployer.address, 0, false, deployer.address);
             });
 
             it("should be un-drafted", async () => {
@@ -624,11 +652,37 @@ describe("MediatorManager", function () {
                 expect(ticket.drafted).to.be.false;
             });
 
-            it("should be added back to the market ticket list", async () => {
+            it("should be added back to the pool", async () => {
                 const ticket = await c.tickets(deployer.address, 0);
                 const poolTicket = await c.poolTickets(0, ticket.poolIdx);
                 expect(poolTicket.owner).to.eql(deployer.address);
                 expect(poolTicket.idx).to.eql(ticket.idx);
+            });
+        });
+
+        describe("when mediator voted for the winning side but mediator ticket is blocked", () => {
+            beforeEach(async () => {
+                await c.purchaseTicket(0);
+                await advanceBlockTime(ticketMatureDur);
+                await expect(c.join(0)).not.to.be.reverted;
+                await expect(c.draft(mid, 0, 0)).not.to.be.reverted;
+                await c.toggleBlock(deployer.address, 0);
+                await expect(c.undraft(deployer.address, 0, true, true))
+                    .to.emit(c, "Undrafted")
+                    .withArgs(deployer.address, 0, false, deployer.address);
+            });
+
+            it("should be un-drafted", async () => {
+                const ticket = await c.tickets(deployer.address, 0);
+                expect(ticket.drafted).to.be.false;
+            });
+
+            it("should not be added back to the pool", async () => {
+                const ticket = await c.tickets(deployer.address, 0);
+                await expect(c.poolTickets(0, ticket.poolIdx)).to.be.reverted;
+                expect(ticket.poolIdx).to.eq(0);
+                expect(ticket.joined).to.be.false;
+                expect(ticket.cancelAt.isZero()).to.be.false;
             });
         });
 
@@ -642,7 +696,9 @@ describe("MediatorManager", function () {
                 await expect(c.join(0)).not.to.be.reverted;
                 await expect(c.draft(mid, 0, 0)).not.to.be.reverted;
                 timeUndraft = await advanceBlockTime(1);
-                await expect(c.undraft(deployer.address, 0, false, false)).to.emit(c, "TicketSlashed").withArgs(deployer.address, toBN(0), expectedSlashAmt, false, false);
+                await expect(c.undraft(deployer.address, 0, false, false))
+                    .to.emit(c, "TicketSlashed")
+                    .withArgs(deployer.address, toBN(0), expectedSlashAmt, false, false);
             });
 
             it("should be un-drafted", async () => {
@@ -702,7 +758,9 @@ describe("MediatorManager", function () {
                 await expect(c.join(0)).not.to.be.reverted;
                 await expect(c.draft(mid, 0, 0)).not.to.be.reverted;
                 timeUndraft = await advanceBlockTime(1);
-                await expect(c.undraft(deployer.address, 0, true, false)).to.emit(c, "TicketSlashed").withArgs(deployer.address, toBN(0), expectedSlashAmt, true, false);
+                await expect(c.undraft(deployer.address, 0, true, false))
+                    .to.emit(c, "TicketSlashed")
+                    .withArgs(deployer.address, toBN(0), expectedSlashAmt, true, false);
             });
 
             it("should be un-drafted", async () => {
@@ -750,6 +808,143 @@ describe("MediatorManager", function () {
                 const ticket = await c.tickets(deployer.address, 0);
                 await expect(c.poolTickets(ticket.poolId, ticket.poolIdx)).to.be.reverted;
             });
+        });
+    });
+
+    describe(".slash", () => {
+        beforeEach(async () => {
+            await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
+            await token.approve(c.address, baseTicketPrice + bondAmt);
+            await c.setDisputeManager(deployer.address);
+        });
+
+        it("should revert with reason='OWNABLE: NOT_OWNER' when caller is not ticket owner", async () => {
+            await expect(c.connect(provider).slash(provider.address, 0, 1)).to.be.revertedWith("OWNABLE: NOT_OWNER");
+        });
+
+        it("should revert with reason='MM: UNKNOWN_TICKET' when ticket is unknown", async () => {
+            await expect(c.slash(deployer.address, 0, 1)).to.be.revertedWith("MM: UNKNOWN_TICKET");
+        });
+
+        it("should revert with reason='MM: NOT_READY' when ticket has not joined a pool or is slashed", async () => {
+            await token.approve(c.address, baseTicketPrice + bondAmt);
+            await c.purchaseTicket(0);
+            await expect(c.slash(deployer.address, 0, 1)).to.be.revertedWith("MM: NOT_READY");
+        });
+
+        it("should revert with reason='MM: IS_DRAFTED' when ticket has not joined a pool", async () => {
+            await token.approve(c.address, baseTicketPrice + bondAmt);
+            await c.purchaseTicket(0);
+            await advanceBlockTime(ticketMatureDur);
+            await expect(c.join(0)).not.to.be.reverted;
+            await expect(c.draft(mid, 0, 0)).not.to.be.reverted;
+            await expect(c.slash(deployer.address, 0, 1)).to.be.revertedWith("MM: IS_DRAFTED");
+        });
+
+        it("should successfully slash ticket and update ticket correctly", async () => {
+            const totalBond = baseTicketPrice + bondAmt;
+            await token.approve(c.address, totalBond);
+            await c.purchaseTicket(0);
+            await advanceBlockTime(ticketMatureDur);
+            await expect(c.join(0)).not.to.be.reverted;
+
+            const curBal = await token.balanceOf(c.address);
+
+            await expect(c.slash(deployer.address, 0, 10))
+                .to.emit(c, "TicketSlashedByOwner")
+                .withArgs(deployer.address, toBN(0), toBN(10));
+
+            const ticket = await c.tickets(deployer.address, 0);
+            expect(ticket.bond.eq(totalBond - 10)).to.be.true;
+            expect(ticket.joined).to.be.false;
+            expect(ticket.poolIdx).to.eq(0);
+            expect(ticket.cancelAt.isZero()).to.be.false;
+            expect(ticket.blocked).to.be.false;
+            await expect(c.poolTickets(0, ticket.poolIdx)).to.be.reverted;
+
+            expect(await token.balanceOf(c.address)).to.eq(curBal.sub(10));
+        });
+
+        it("when ticket is already slashed, should successfully slash ticket and update ticket correctly", async () => {
+            const totalBond = baseTicketPrice + bondAmt;
+            await token.approve(c.address, totalBond);
+            await c.purchaseTicket(0);
+            await advanceBlockTime(ticketMatureDur);
+            await expect(c.join(0)).not.to.be.reverted;
+
+            // slash ticket
+            await expect(c.draft(mid, 0, 0)).not.to.be.reverted;
+            await expect(c.undraft(deployer.address, 0, false, false)).to.emit(c, "TicketSlashed");
+            let ticket = await c.tickets(deployer.address, 0);
+            expect(ticket.slashed).to.be.true;
+            const ticketBondAfterSlash = ticket.bond;
+            await expect(c.poolTickets(0, ticket.poolIdx)).to.be.reverted;
+
+            const curBal = await token.balanceOf(c.address);
+
+            await expect(c.slash(deployer.address, 0, 10))
+                .to.emit(c, "TicketSlashedByOwner")
+                .withArgs(deployer.address, toBN(0), toBN(10));
+
+            ticket = await c.tickets(deployer.address, 0);
+            expect(ticket.slashed).to.be.true;
+            expect(ticket.bond.eq(ticketBondAfterSlash.sub(10))).to.be.true;
+            expect(ticket.joined).to.be.false;
+            expect(ticket.poolIdx).to.eq(0);
+            expect(ticket.cancelAt.isZero()).to.be.false;
+            expect(ticket.blocked).to.be.false;
+            await expect(c.poolTickets(0, ticket.poolIdx)).to.be.reverted;
+
+            expect(await token.balanceOf(c.address)).to.eq(curBal.sub(10));
+        });
+
+        it("when ticket is blocked, should successfully slash ticket and update ticket correctly", async () => {
+            const totalBond = baseTicketPrice + bondAmt;
+            await token.approve(c.address, totalBond);
+            await c.purchaseTicket(0);
+            await advanceBlockTime(ticketMatureDur);
+            await expect(c.join(0)).not.to.be.reverted;
+
+            await c.toggleBlock(deployer.address, 0);
+
+            await expect(c.slash(deployer.address, 0, 10)).to.emit(c, "TicketSlashedByOwner");
+
+            const ticket = await c.tickets(deployer.address, 0);
+            expect(ticket.slashed).to.be.true;
+            expect(ticket.bond.eq(totalBond - 10)).to.be.true;
+            expect(ticket.joined).to.be.false;
+            expect(ticket.poolIdx).to.eq(0);
+            expect(ticket.cancelAt.isZero()).to.be.false;
+            expect(ticket.blocked).to.be.false;
+            await expect(c.poolTickets(0, ticket.poolIdx)).to.be.reverted;
+        });
+    });
+
+    describe("toggleBlock", () => {
+        it("should revert with reason=NOT_OWNER when caller is not owner", async () => {
+            await expect(c.connect(provider).toggleBlock(deployer.address, 0)).to.be.revertedWith("OWNABLE: NOT_OWNER");
+        });
+
+        it("should revert with reason=UNKNOWN_TICKET when ticket is unknown", async () => {
+            await expect(c.toggleBlock(deployer.address, 0)).to.be.revertedWith("MM: UNKNOWN_TICKET");
+        });
+
+        it("should successfully block and unblock ticket", async () => {
+            const totalBond = baseTicketPrice + bondAmt;
+            await token.approve(c.address, totalBond);
+            await c.purchaseTicket(0);
+            await advanceBlockTime(ticketMatureDur);
+            await expect(c.join(0)).not.to.be.reverted;
+
+            // block ticket
+            await expect(c.toggleBlock(deployer.address, 0)).to.emit(c, "TicketBlocked").withArgs(deployer.address, 0, true);
+            let ticket = await c.tickets(deployer.address, 0);
+            expect(ticket.blocked).to.be.true;
+
+            // unblock ticket
+            await expect(c.toggleBlock(deployer.address, 0)).to.emit(c, "TicketBlocked").withArgs(deployer.address, 0, false);
+            ticket = await c.tickets(deployer.address, 0);
+            expect(ticket.blocked).to.be.false;
         });
     });
 });

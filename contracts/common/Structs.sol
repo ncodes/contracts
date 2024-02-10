@@ -206,6 +206,8 @@ library Structs {
         uint256 joinBy;
         bool drafted;
         bool joined;
+        bool blocked;
+        bool slashed;
     }
 
     struct TicketPool {

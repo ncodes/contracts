@@ -69,12 +69,14 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     event Drafted(address marketId, address owner, uint256 ticketId, uint256 orderID, uint256 disputeID, address drafter);
     event Undrafted(address owner, uint256 ticketId, bool slashed, address undrafter);
     event TicketSlashed(address owner, uint256 ticketId, uint256 amount, bool voted, bool winSide);
+    event TicketSlashedByOwner(address owner, uint256 ticketId, uint256 amount);
     event UpdatedRandomnessProvider(address val);
     event UpdatedTicketCancelDuration(uint256 val);
     event UpdatedTicketMatureDuration(uint256 val);
     event UpdatedTicketExpireDuration(uint256 val);
     event UpdatedDisputeManager(address val);
     event UpdatedMarketCore(address val);
+    event TicketBlocked(address owner, uint256 id, bool blocked);
     event UpdatedTicketPool(
         uint256 poolId,
         uint256 reqBond,
@@ -239,11 +241,11 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     }
 
     /// @notice Get a ticket owned by the given owner address
-    /// @param owner The owner address
+    /// @param ticketOwner The ticketOwner address
     /// @param id The ticket ID
-    function getTicket(address owner, uint256 id) public view returns (Structs.Ticket memory) {
-        require(ticketExist(owner, id), "MM: UNKNOWN_TICKET");
-        return tickets[owner][id];
+    function getTicket(address ticketOwner, uint256 id) public view returns (Structs.Ticket memory) {
+        require(ticketExist(ticketOwner, id), "MM: UNKNOWN_TICKET");
+        return tickets[ticketOwner][id];
     }
 
     /// @notice Determine if a window was sold out
@@ -289,10 +291,10 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     }
 
     /// @notice Check if a ticket exists
-    /// @param owner The owner address
+    /// @param ticketOwner The owner address
     /// @param id The ticket ID
-    function ticketExist(address owner, uint256 id) internal view returns (bool) {
-        return tickets[owner].length >= id + 1 && tickets[owner][id].bond > 0;
+    function ticketExist(address ticketOwner, uint256 id) internal view returns (bool) {
+        return tickets[ticketOwner].length >= id + 1 && tickets[ticketOwner][id].bond > 0;
     }
 
     /// @notice Purchase mediator ticket
@@ -318,7 +320,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         address sdr = msg.sender;
         Structs.TicketPool memory pool = pools[poolId];
         uint256 totalBond = getTicketPrice() + pool.reqBond;
-        tickets[sdr].push(Structs.Ticket(sdr, tickets[sdr].length, poolId, totalBond, matureAt, 0, 0, joinBy, false, false));
+        tickets[sdr].push(Structs.Ticket(sdr, tickets[sdr].length, poolId, totalBond, matureAt, 0, 0, joinBy, false, false, false, false));
         ticketSold++;
 
         // Transfer bond to this contract
@@ -338,7 +340,8 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         require(!ticket.joined, "MM: ALREADY_JOINED");
         require(ticket.bond >= pools[ticket.poolId].reqBond, "MM: LOW_BOND");
 
-        // Make sure ticket is not expired, cancelled or immature
+        // Make sure ticket is not blocked, expired, cancelled or immature
+        require(!ticket.blocked, "MM: BLOCKED");
         require(ticket.matureAt <= block.timestamp, "MM: NOT_MATURE");
         require(ticket.joinBy > block.timestamp, "MM: EXPIRED");
         require(ticket.cancelAt == 0, "MM: CANCELLED");
@@ -352,11 +355,13 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         emit JoinedPool(sender, ticket.poolId, ticketId);
     }
 
-    /// @notice Request a ticket to enter `cancelling` state.
+    /// @notice Force a ticket to enter `cancelling` state.
+    /// Ticket must be mature and not drafted and not blocked.
     /// @param id The ticket ID
     function cancelTicket(uint256 id) external {
         require(ticketExist(msg.sender, id), "MM: UNKNOWN_TICKET");
         Structs.Ticket storage t = tickets[msg.sender][id];
+        require(!t.blocked, "MM: BLOCKED");
         require(t.cancelAt == 0, "MM: CANCELLING");
         require(t.matureAt <= block.timestamp, "MM: NOT_MATURE");
         require(!t.drafted, "MM: IS_DRAFTED");
@@ -370,12 +375,14 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         emit TicketCancelled(msg.sender, id);
     }
 
-    /// @notice Drain the bond from a cancelled ticket
+    /// @notice Drain the bond from a cancelled and unblocked ticket
     /// @param id The ticket ID
     function drainTicket(uint256 id) external nonReentrant {
         require(ticketExist(msg.sender, id), "MM: UNKNOWN_TICKET");
         Structs.Ticket storage t = tickets[msg.sender][id];
+        require(!t.blocked, "MM: BLOCKED");
         require(t.cancelAt > 0 && t.cancelAt <= block.timestamp, "MM: NOT_CANCELLED");
+        
         uint256 bond = t.bond;
         t.bond = 0;
         ticketSold--;
@@ -438,21 +445,69 @@ contract MediatorManager is Ownable, ReentrancyGuard {
 
         emit Undrafted(t.owner, t.idx, slashAmt > 0, tx.origin);
 
-        // If ticket is was slashed, calculate, deduct, burn slash amount and
+        // If ticket was slashed, calculate, deduct, burn slash amount and
         if (slashAmt > 0) {
+            slashAmt = t.bond < slashAmt ? t.bond : slashAmt;
             t.bond -= slashAmt;
             emit TicketSlashed(t.owner, t.idx, slashAmt, voted, winSide);
-            IERC20(token).burn(slashAmt);
             t.joined = false;
             t.poolIdx = 0;
             t.cancelAt = block.timestamp;
+            t.slashed = true;
+            IERC20(token).burn(slashAmt);
             return slashAmt;
         }
 
-        // Ticket must be added back in the pool
-        t.poolIdx = poolTickets[t.poolId].length;
-        poolTickets[t.poolId].push(Structs.PoolTicket(t.owner, t.idx));
+        // Ticket must be added back in the pool if it is not blocked, else remove it from the pool completely.
+        if (!t.blocked) {
+            t.poolIdx = poolTickets[t.poolId].length;
+            poolTickets[t.poolId].push(Structs.PoolTicket(t.owner, t.idx));
+        } else {
+            t.joined = false;
+            t.poolIdx = 0;
+            t.cancelAt = block.timestamp;
+        }
 
         return slashAmt;
+    }
+    
+    /// @notice Slash a ticket
+    /// The ticket must be joined to a pool or have been slashed.
+    /// The ticket must not have been drafted.
+    /// @param ticketOwner The ticket owner address
+    /// @param ticketId The ticket ID
+    /// @param amount The amount to slash by
+    function slash(address ticketOwner, uint256 ticketId, uint256 amount) external onlyOwner {
+        require(ticketExist(ticketOwner, ticketId), "MM: UNKNOWN_TICKET");
+        Structs.Ticket storage t = tickets[ticketOwner][ticketId];
+        require(t.joined || t.slashed, "MM: NOT_READY");
+        require(!t.drafted, "MM: IS_DRAFTED");
+        
+        // Deduct the bond from the ticket
+        if (t.bond < amount) amount = t.bond;
+        t.bond -= amount;
+        
+        // If ticket is joined, remove it from the pool, mark it as cancelled and unblock it
+        if (t.joined) removeTicketFromPool(t);
+        t.joined = false;
+        t.poolIdx = 0;
+        t.cancelAt = block.timestamp;
+        t.blocked = false;
+        t.slashed = true;
+        
+        // Burn the deducted amount
+        IERC20(token).burn(amount);
+        
+        emit TicketSlashedByOwner(ticketOwner, ticketId, amount);
+    }
+    
+    /// @notice Block or unblock a ticket. 
+    /// Useful for when an offending ticket is currently awaiting governance action to slash it.
+    /// Blocked ticket cannot join a pool, cannot be cancelled or drained, will not be added back to
+    /// the pool when undrafted.
+    function toggleBlock(address ticketOwner, uint256 ticketId) external onlyOwner {
+        require(ticketExist(ticketOwner, ticketId), "MM: UNKNOWN_TICKET");
+        tickets[ticketOwner][ticketId].blocked = !tickets[ticketOwner][ticketId].blocked;
+        emit TicketBlocked(ticketOwner, ticketId, tickets[ticketOwner][ticketId].blocked);
     }
 }
