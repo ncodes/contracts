@@ -14,15 +14,7 @@ library SigLib {
         return addr;
     }
 
-    function splitSignature(bytes memory sig)
-        internal
-        pure
-        returns (
-            bytes32 r,
-            bytes32 s,
-            uint8 v
-        )
-    {
+    function splitSignature(bytes memory sig) internal pure returns (bytes32 r, bytes32 s, uint8 v) {
         require(sig.length == 65, "invalid signature length");
         assembly {
             r := mload(add(sig, 32))

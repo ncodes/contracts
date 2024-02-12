@@ -28,11 +28,7 @@ library WithdrawLib {
     /// @param state State object
     /// @param state2 State object
     /// @param token The address of the token the fee is denominated in.
-    function withdrawOperatorBalance(
-        StructsLib.State storage state,
-        StructsLib.State2 storage state2,
-        address token
-    ) public {
+    function withdrawOperatorBalance(StructsLib.State storage state, StructsLib.State2 storage state2, address token) public {
         uint256 bal = state.operatorsBalance[msg.sender][token];
         if (bal > 0) {
             state.operatorsBalance[msg.sender][token] = 0;
@@ -51,11 +47,7 @@ library WithdrawLib {
     /// @param state State object
     /// @param state2 State object
     /// @param token The address of a shareable token
-    function transferToFeePool(
-        StructsLib.State storage state,
-        StructsLib.State2 storage state2,
-        address token
-    ) public {
+    function transferToFeePool(StructsLib.State storage state, StructsLib.State2 storage state2, address token) public {
         uint256 lastTx = state.lastFeePoolTransfer[token];
         require(lastTx == 0 || block.timestamp - lastTx > state.feePoolTxInterval, "OC: NOT_READY");
 

@@ -382,7 +382,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         Structs.Ticket storage t = tickets[msg.sender][id];
         require(!t.blocked, "MM: BLOCKED");
         require(t.cancelAt > 0 && t.cancelAt <= block.timestamp, "MM: NOT_CANCELLED");
-        
+
         uint256 bond = t.bond;
         t.bond = 0;
         ticketSold--;
@@ -470,7 +470,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
 
         return slashAmt;
     }
-    
+
     /// @notice Slash a ticket
     /// The ticket must be joined to a pool or have been slashed.
     /// The ticket must not have been drafted.
@@ -482,11 +482,11 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         Structs.Ticket storage t = tickets[ticketOwner][ticketId];
         require(t.joined || t.slashed, "MM: NOT_READY");
         require(!t.drafted, "MM: IS_DRAFTED");
-        
+
         // Deduct the bond from the ticket
         if (t.bond < amount) amount = t.bond;
         t.bond -= amount;
-        
+
         // If ticket is joined, remove it from the pool, mark it as cancelled and unblock it
         if (t.joined) removeTicketFromPool(t);
         t.joined = false;
@@ -494,14 +494,14 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         t.cancelAt = block.timestamp;
         t.blocked = false;
         t.slashed = true;
-        
+
         // Burn the deducted amount
         IERC20(token).burn(amount);
-        
+
         emit TicketSlashedByOwner(ticketOwner, ticketId, amount);
     }
-    
-    /// @notice Block or unblock a ticket. 
+
+    /// @notice Block or unblock a ticket.
     /// Useful for when an offending ticket is currently awaiting governance action to slash it.
     /// Blocked ticket cannot join a pool, cannot be cancelled or drained, will not be added back to
     /// the pool when undrafted.

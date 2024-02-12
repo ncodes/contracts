@@ -178,11 +178,7 @@ contract NFT is ReentrancyGuard, ERC721Enumerable, Ownable, DefaultOperatorFilte
     /// @param addr The target address
     /// @param slot The amount of mint slot
     /// @param add Whether to add or remove the given number of slot
-    function allowAddr(
-        address addr,
-        uint256 slot,
-        bool add
-    ) public onlyOwner {
+    function allowAddr(address addr, uint256 slot, bool add) public onlyOwner {
         if (add) allowlist[addr] += slot;
         else allowlist[addr] -= slot;
         emit AllowAddr(addr, slot, add);
@@ -197,12 +193,7 @@ contract NFT is ReentrancyGuard, ERC721Enumerable, Ownable, DefaultOperatorFilte
     /// @param _mintAmount The amount of tokens to mint
     /// @param _signature The mint authorization signature (optional). If not provided, energon balance is used to pay for mint.
     /// @param expireAt Expiry time of the signature and also serves as a nonce for replay protection
-    function mint(
-        uint256 _mintAmount,
-        bool _noEnergon,
-        bytes calldata _signature,
-        uint256 expireAt
-    ) public nonReentrant {
+    function mint(uint256 _mintAmount, bool _noEnergon, bytes calldata _signature, uint256 expireAt) public nonReentrant {
         require(allowMint, "NFT: MINT_DISABLED");
         uint256 supply = totalSupply();
         require(_mintAmount > 0, "NFT: AMOUNT_REQ");
@@ -245,11 +236,7 @@ contract NFT is ReentrancyGuard, ERC721Enumerable, Ownable, DefaultOperatorFilte
     /// @notice Allocate tokens based on traits
     /// @param _tokenId The token ID
     /// @param _alloc The amount to allocate
-    function allocate(
-        uint256 _tokenId,
-        uint256 _alloc,
-        bytes calldata _signature
-    ) public payable nonReentrant {
+    function allocate(uint256 _tokenId, uint256 _alloc, bytes calldata _signature) public payable nonReentrant {
         require(allowAlloc, "NFT: ALLOC_DISABLED");
         require(ownerOf(_tokenId) == msg.sender, "NFT: NOT_OWNER");
         require(verifyAllocSig(allocator, msg.sender, _tokenId, _alloc, _signature), "NFT: BAD_SIG");
@@ -300,11 +287,7 @@ contract NFT is ReentrancyGuard, ERC721Enumerable, Ownable, DefaultOperatorFilte
     /// @param _tokenId The token ID
     /// @param _amount The amount of energon to burn
     /// @param _purpose The purpose of the energon being burned
-    function burnEnergon(
-        uint256 _tokenId,
-        uint256 _amount,
-        bytes calldata _purpose
-    ) external {
+    function burnEnergon(uint256 _tokenId, uint256 _amount, bytes calldata _purpose) external {
         require(allowEnergonOps, "NFT: BURN_DISABLED");
         require(ownerOf(_tokenId) == msg.sender, "NFT: NOT_OWNER");
         require(engBalances[_tokenId] >= _amount, "NFT: INSUFFICIENT_BAL");
@@ -317,11 +300,7 @@ contract NFT is ReentrancyGuard, ERC721Enumerable, Ownable, DefaultOperatorFilte
     /// @param _tokenId The token ID
     /// @param _burner The address to permit
     /// @param _amount The amount to permit
-    function burnApprove(
-        uint256 _tokenId,
-        address _burner,
-        uint256 _amount
-    ) external {
+    function burnApprove(uint256 _tokenId, address _burner, uint256 _amount) external {
         require(allowEnergonOps, "NFT: BURN_DISABLED");
         require(ownerOf(_tokenId) == msg.sender, "NFT: NOT_OWNER");
         burnAllowances[_burner][_tokenId] += _amount;
@@ -378,21 +357,12 @@ contract NFT is ReentrancyGuard, ERC721Enumerable, Ownable, DefaultOperatorFilte
     }
 
     /// @dev Construct mint message hash
-    function getMintMessageHash(
-        address _addr,
-        uint256 _mintAmount,
-        bool _noEnergon,
-        uint256 expireAt
-    ) internal pure returns (bytes32) {
+    function getMintMessageHash(address _addr, uint256 _mintAmount, bool _noEnergon, uint256 expireAt) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(_addr, _mintAmount, _noEnergon, expireAt));
     }
 
     /// @dev Construct allocation message hash
-    function getAllocMessageHash(
-        address _addr,
-        uint256 _tokenId,
-        uint256 _alloc
-    ) internal pure returns (bytes32) {
+    function getAllocMessageHash(address _addr, uint256 _tokenId, uint256 _alloc) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(_addr, _tokenId, _alloc));
     }
 
@@ -407,15 +377,7 @@ contract NFT is ReentrancyGuard, ERC721Enumerable, Ownable, DefaultOperatorFilte
         return ecrecover(_ethSignedMessageHash, v, r, s);
     }
 
-    function splitSignature(bytes memory sig)
-        internal
-        pure
-        returns (
-            bytes32 r,
-            bytes32 s,
-            uint8 v
-        )
-    {
+    function splitSignature(bytes memory sig) internal pure returns (bytes32 r, bytes32 s, uint8 v) {
         require(sig.length == 65, "invalid signature length");
         assembly {
             r := mload(add(sig, 32))
@@ -460,19 +422,11 @@ contract NFT is ReentrancyGuard, ERC721Enumerable, Ownable, DefaultOperatorFilte
         super.approve(operator, tokenId);
     }
 
-    function transferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) public override(IERC721, ERC721) onlyAllowedOperator(from) {
+    function transferFrom(address from, address to, uint256 tokenId) public override(IERC721, ERC721) onlyAllowedOperator(from) {
         super.transferFrom(from, to, tokenId);
     }
 
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) public override(IERC721, ERC721) onlyAllowedOperator(from) {
+    function safeTransferFrom(address from, address to, uint256 tokenId) public override(IERC721, ERC721) onlyAllowedOperator(from) {
         super.safeTransferFrom(from, to, tokenId);
     }
 

@@ -83,13 +83,7 @@ library LiquidityLib {
     /// @param provider The address of the liquidity provider
     /// @param lid The liquidity ID
     /// @param incr True to increment, false to decrement
-    function updateOpenDisputesCount(
-        StructsLib.State storage state,
-        address marketId,
-        address provider,
-        uint256 lid,
-        bool incr
-    ) external {
+    function updateOpenDisputesCount(StructsLib.State storage state, address marketId, address provider, uint256 lid, bool incr) external {
         Structs.Liquidity storage liq = state.liquidity[marketId][provider][lid];
         if (incr) liq.openDisputes++;
         else liq.openDisputes--;
@@ -98,11 +92,7 @@ library LiquidityLib {
     /// @dev Set an address as the liquidity manager for a market
     /// @param marketId The market ID
     /// @param manager The address of the manager
-    function setLiquidityManager(
-        StructsLib.State storage state,
-        address marketId,
-        address manager
-    ) external {
+    function setLiquidityManager(StructsLib.State storage state, address marketId, address manager) external {
         address old = state.liqManagers[msg.sender][marketId];
         state.liqManagers[msg.sender][marketId] = manager;
         emit UpdatedLiquidityManager(marketId, msg.sender, manager, old);
@@ -135,11 +125,7 @@ library LiquidityLib {
     /// @param state The State object
     /// @param mid The market ID
     /// @param lid The liquidity ID
-    function togglePause(
-        StructsLib.State storage state,
-        address mid,
-        uint256 lid
-    ) external {
+    function togglePause(StructsLib.State storage state, address mid, uint256 lid) external {
         require(AuxLib.hasNonZeroLiquidity(state, mid, msg.sender, lid), "OC: ZERO_LIQ");
         state.liquidity[mid][msg.sender][lid].paused = !state.liquidity[mid][msg.sender][lid].paused;
         emit TogglePause(mid, msg.sender, lid, state.liquidity[mid][msg.sender][lid].paused);

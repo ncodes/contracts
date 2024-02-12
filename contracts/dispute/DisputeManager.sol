@@ -9,6 +9,8 @@ import "../market/interfaces/IMarketCore.sol";
 import "../token/interfaces/IERC20.sol";
 import "../common/Ownable.sol";
 import "../market/MarketAuxLib.sol";
+import "../minerregisty/interfaces/IMinerRegistry.sol";
+import "hardhat/console.sol";
 
 struct Dispute {
     uint256 commitEndAt;
@@ -51,6 +53,7 @@ contract DisputeManager is Ownable {
     IMarketCore public marketCore;
     ICore public core;
     IMediatorManager public mediatorMgr;
+    IMinerRegistry public minerReg;
 
     /// @notice Mapping of disputes by their order Id.
     mapping(uint256 => Dispute[]) public disputes;
@@ -71,6 +74,11 @@ contract DisputeManager is Ownable {
     /// @notice The duration within which evidences should be submitted
     uint256 public evidenceDur;
 
+    /// @notice The base reward for miner task
+    uint256 public minerDraftReward;
+    uint256 public minerUndraftReward;
+    uint256 public minerExecuteReward;
+
     event DisputeCreated(uint256 orderId, address creator, uint256 index, bool wantRelease);
     event DraftedMediator(address marketId, uint256 poolId, uint256 orderId, uint256 ticketId, address mediator, address drafter);
     event Committed(address marketId, uint256 orderId, uint256 disputeId, address committer, uint256 ticketIdx, bytes32 hash);
@@ -85,9 +93,18 @@ contract DisputeManager is Ownable {
     event UpdatedMediatorManager(address addr);
     event UpdatedSharedSlashPortion(uint256 val);
     event UpdatedPredictDur(uint256 val);
+    event WithdrawnBalance(address dest, uint256 amt);
     event UpdatedEvidenceDur(uint256 val);
+    event UpdatedMinerRewards(uint256 draft, uint256 undraft, uint256 execute);
+    event UpdatedMinerRegistry(address addr);
 
     /// @notice Initialize the contract.
+    /// @param _token The address of the token contract
+    /// @param _marketCore The address of the market core contract
+    /// @param _core The address of the core contract
+    /// @param _medMgrAddr The address of the mediator manager contract
+    /// @param _predictDur The duration within which mediators are supposed to submit predictions
+    /// @param _evidenceDur The duration within which evidences should be submitted
     constructor(address _token, address _marketCore, address _core, address _medMgrAddr, uint256 _predictDur, uint256 _evidenceDur) {
         token = IERC20(_token);
         marketCore = IMarketCore(_marketCore);
@@ -97,11 +114,23 @@ contract DisputeManager is Ownable {
         evidenceDur = _evidenceDur;
     }
 
+    modifier onlyMiner() {
+        require(minerReg.isMiner(msg.sender), "DM: NOT_MINER");
+        _;
+    }
+
     /// @notice Set MarketCore contract address
     /// @param addr The address of the market core contract.
     function setMarketCore(address addr) external onlyOwner {
         marketCore = IMarketCore(addr);
         emit UpdatedMarketCore(addr);
+    }
+
+    /// @notice Set MinerRegistry contract address
+    /// @param addr The address of the miner registry contract.
+    function setMinerRegistry(address addr) external onlyOwner {
+        minerReg = IMinerRegistry(addr);
+        emit UpdatedMinerRegistry(addr);
     }
 
     /// @notice Set Core contract address
@@ -130,6 +159,17 @@ contract DisputeManager is Ownable {
     function setEvidenceDur(uint256 val) external onlyOwner {
         evidenceDur = val;
         emit UpdatedEvidenceDur(val);
+    }
+
+    /// @notice Set the miner rewards
+    /// @param draft The draft reward
+    /// @param undraft The undraft reward
+    /// @param execute The execute reward
+    function setMinerRewards(uint256 draft, uint256 undraft, uint256 execute) external onlyOwner {
+        minerDraftReward = draft;
+        minerUndraftReward = undraft;
+        minerExecuteReward = execute;
+        emit UpdatedMinerRewards(draft, undraft, execute);
     }
 
     /// @notice Return _default if _target is zero, otherwise _target is returned
@@ -187,7 +227,7 @@ contract DisputeManager is Ownable {
 
     /// @notice Draft a mediator to an order's dispute
     /// @param orderId The order Id
-    function draftMediator(uint256 orderId) external {
+    function draftMediator(uint256 orderId) external onlyMiner {
         require(disputes[orderId].length > 0, "DM: NO_DISPUTE");
         Dispute storage dispute = disputes[orderId][disputes[orderId].length - 1];
 
@@ -215,6 +255,8 @@ contract DisputeManager is Ownable {
             dispute.predictEndAt = dispute.evidenceEndAt + setOrDef(market.dur.predictDur, predictDur);
         }
 
+        minerReg.addReward(msg.sender, minerDraftReward);
+
         emit DraftedMediator(dispute.marketId, market.poolId, orderId, ticket.idx, ticket.owner, msg.sender);
     }
 
@@ -239,12 +281,15 @@ contract DisputeManager is Ownable {
         require(!seenCommits[_hash], "DM: COMMIT_SEEN");
         uint256 lstDispIdx = disputes[_orderId].length - 1;
         Dispute memory dispute = disputes[_orderId][lstDispIdx];
+
         require(isDraftee(dispute, _ticketIdx), "DM: NOT_DRAFTED");
         require(predictions[_orderId][lstDispIdx][msg.sender][_ticketIdx].committed == 0, "DM: PREV_COMMITTED");
         require(dispute.evidenceEndAt > 0 && block.timestamp > dispute.evidenceEndAt, "DM: NOT_READY");
         require(dispute.commitEndAt > block.timestamp, "DM: COMMIT_OVER");
+
         predictions[_orderId][lstDispIdx][msg.sender][_ticketIdx] = Prediction(false, _hash, 0);
         seenCommits[_hash] = true;
+
         emit Committed(dispute.marketId, _orderId, lstDispIdx, msg.sender, _ticketIdx, _hash);
     }
 
@@ -255,15 +300,18 @@ contract DisputeManager is Ownable {
     /// @param _hash The hash of the plain _vote.
     function revealVote(uint256 _orderId, uint256 _ticketIdx, string memory _vote, bytes32 _hash) external {
         require(!core.getOrder(_orderId).released, "DM: ORDER_RELEASED");
+
         uint256 lstDispIdx = disputes[_orderId].length - 1;
         Prediction storage prediction = predictions[_orderId][lstDispIdx][msg.sender][_ticketIdx];
         require(prediction.committed != 0, "DM: NO_COMMIT");
         require(!prediction.revealed, "DM: ALREADY_REVEALED");
+
         Dispute storage dispute = disputes[_orderId][lstDispIdx];
         require(block.timestamp > dispute.commitEndAt, "DM: NOT_READY");
         require(block.timestamp < dispute.predictEndAt, "DM: REVEAL_OVER");
         require(keccak256(abi.encodePacked(_vote, msg.sender)) == _hash, "DM: HASH_MISMATCH");
         require(_hash == prediction.committed, "DM: COMMIT_HASH_MISMATCH");
+
         bytes1 choice = bytes(_vote)[0];
         if (choice == "0") {
             dispute.nCancel++;
@@ -272,8 +320,10 @@ contract DisputeManager is Ownable {
         } else {
             revert("DM: INVALID_CHOICE");
         }
+
         prediction.revealed = true;
         prediction.vote = choice;
+
         emit Revealed(dispute.marketId, _orderId, lstDispIdx, msg.sender, _ticketIdx, choice);
     }
 
@@ -289,7 +339,7 @@ contract DisputeManager is Ownable {
     /// @notice Execute the decision of a dispute
     /// @param orderId The order Id
     /// @param dispIdx The dispute index
-    function executeDecision(uint256 orderId, uint256 dispIdx) external {
+    function executeDecision(uint256 orderId, uint256 dispIdx) external onlyMiner {
         require(dispIdx + 1 <= disputes[orderId].length, "DM: NO_DISPUTE");
 
         // Dispute must not have been executed
@@ -318,13 +368,15 @@ contract DisputeManager is Ownable {
         if (dispute.abandoned || (!redisputed && winningVote != 0))
             core.updateOpenDisputesCount(order.marketId, order.provider, order.lid, false);
 
+        minerReg.addReward(msg.sender, minerExecuteReward);
+
         emit DecisionExecuted(dispute.marketId, orderId, dispIdx, msg.sender, dispute.abandoned, winningVote);
     }
 
     /// @notice Undraft a mediator from a dispute
     /// @param orderId The order Id
     /// @param dispIdx The dispute index
-    function undraftMediator(uint256 orderId, uint256 dispIdx) external {
+    function undraftMediator(uint256 orderId, uint256 dispIdx) external onlyMiner {
         require(dispIdx + 1 <= disputes[orderId].length, "DM: NO_DISPUTE");
 
         // Ensure dispute has been executed or abandoned
@@ -355,29 +407,39 @@ contract DisputeManager is Ownable {
 
         // If dispute was abandoned or redisputed, grant drafting reward to mediator
         if (dispute.abandoned || slot.winningVote == 0) {
-            rewards[slot.ticketOwner] += pool.draftReward;
+            rewards[slot.ticketOwner] += pool.draftReward / (1 + dispIdx);
         }
 
-        // If dispute was not abandoned and ticket voted and won, grant win reward to mediator
-        if (!dispute.abandoned && slot.votedWin) {
-            rewards[slot.ticketOwner] += pool.winReward;
+        // If dispute was not abandoned, dispute did not stall and ticket voted and won, then grant win reward to mediator
+        if (!dispute.abandoned && slot.winningVote != 0 && slot.votedWin) {
+            rewards[slot.ticketOwner] += pool.winReward / (1 + dispIdx);
         }
 
         dispute.undrafted++;
+
+        minerReg.addReward(msg.sender, minerUndraftReward);
     }
 
-    /// @notice Get reward balance from non-mediation activities
+    /// @notice Get reward balance
     /// @param addr The target account address
     function rewardBalanceOf(address addr) public view returns (uint256) {
         return rewards[addr];
     }
 
-    /// @notice Withdraw reward from non-mediation activities.
+    /// @notice Withdraw reward.
     function withdrawReward() external {
         require(rewards[msg.sender] > 0, "DM: ZERO_BAL");
         uint256 amt = rewards[msg.sender];
         rewards[msg.sender] = 0;
         token.transfer(msg.sender, amt);
         emit WithdrawnReward(msg.sender, amt);
+    }
+
+    /// @notice Withdraw all token balance from the contract
+    /// @param dest The destination address
+    function withdrawBalance(address dest) external onlyOwner {
+        uint256 amt = token.balanceOf(address(this));
+        token.transfer(dest, amt);
+        emit WithdrawnBalance(dest, amt);
     }
 }

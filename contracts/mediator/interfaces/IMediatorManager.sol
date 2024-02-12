@@ -14,18 +14,9 @@ interface IMediatorManager {
 
     function join(uint256 ticketId) external;
 
-    function draft(
-        address marketId,
-        uint256 orderId,
-        uint256 disputeId
-    ) external returns (Structs.Ticket memory);
+    function draft(address marketId, uint256 orderId, uint256 disputeId) external returns (Structs.Ticket memory);
 
-    function undraft(
-        address ticketOwner,
-        uint256 ticketId,
-        bool voted,
-        bool winSide
-    ) external returns (uint256);
+    function undraft(address ticketOwner, uint256 ticketId, bool voted, bool winSide) external returns (uint256);
 
     function getTicketPool(uint256 poolId) external returns (Structs.TicketPool memory);
 

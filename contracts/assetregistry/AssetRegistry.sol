@@ -63,11 +63,7 @@ contract AssetRegistry is Ownable {
         );
     }
 
-    function setFee(
-        address addr,
-        uint256 feeBp,
-        uint256 feeFixed
-    ) external onlyOwner {
+    function setFee(address addr, uint256 feeBp, uint256 feeFixed) external onlyOwner {
         assets[addr].feeBp = feeBp;
         assets[addr].feeFixed = feeFixed;
         emit AssetRegistryUpdated(

@@ -7,6 +7,7 @@ import {getAddress, hexlify} from "ethers/lib/utils";
 import {ethers, waffle} from "hardhat";
 import {AssetRegistry, Core, DisputeManager, MarketCore, MediatorManager, TOKEN} from "../typechain-types";
 import {AddressZero, advanceBlockTime, makeMarketID, toBN} from "../utils/utils";
+import {MinerRegistry} from "./../typechain-types/MinerRegistry";
 import {getCoreLibraries, initCoreTestSuite, makeLibs} from "./helpers/helpers";
 const {deployMockContract} = waffle;
 
@@ -16,6 +17,7 @@ describe("DisputeManager", function () {
     let core: Core;
     let mc: MarketCore;
     let dm: DisputeManager;
+    let minerReg: MinerRegistry;
     let medMgr: MediatorManager;
     let assetReg: AssetRegistry;
     let deployer: SignerWithAddress;
@@ -47,6 +49,10 @@ describe("DisputeManager", function () {
     let draftReward = 10;
     let winReward = 100;
     const baseTicketPrice = 10;
+    const minerBond = 100;
+    const minerDraftReward = 10;
+    const minerUndraftReward = 11;
+    const minerExecuteReward = 12;
 
     beforeEach(async () => {
         const vars = await initCoreTestSuite();
@@ -88,8 +94,22 @@ describe("DisputeManager", function () {
         factory = await ethers.getContractFactory("DisputeManager");
         dm = await factory.deploy(token.address, mc.address, core.address, medMgr.address, predictDur, evidenceDur);
 
+        factory = await ethers.getContractFactory("MinerRegistry");
+        minerReg = await factory.deploy(token.address, minerBond, 0, 0);
+        await minerReg.updateWriter(dm.address, true);
+        await dm.setMinerRegistry(minerReg.address);
+        await token.approve(minerReg.address, minerBond);
+        await minerReg.register();
+        await token.transfer(user6.address, minerBond);
+        await token.connect(user6).approve(minerReg.address, minerBond);
+        await minerReg.connect(user6).register();
+        await token.transfer(user7.address, minerBond);
+        await token.connect(user7).approve(minerReg.address, minerBond);
+        await minerReg.connect(user7).register();
+
         await core.setInventor(inventor.address);
         await mc.updateWriter(core.address, true);
+        await dm.setMinerRewards(minerDraftReward, minerUndraftReward, minerExecuteReward);
 
         factory = await ethers.getContractFactory("TOKEN");
         baseAsset = await factory.deploy("BASE_TOKEN", "BASE_TOKEN", supply, 18);
@@ -274,6 +294,11 @@ describe("DisputeManager", function () {
             await medMgr.setDisputeManager(dm.address);
         });
 
+        it("should revert when caller is not a miner", async () => {
+            orderID = await createOrder_BaseOn_QuoteOff(mid);
+            await expect(dm.connect(user5).draftMediator(orderID)).to.be.revertedWith("DM: NOT_MINER");
+        });
+
         it("should revert when order has no dispute", async () => {
             orderID = await createOrder_BaseOn_QuoteOff(mid);
             await expect(dm.draftMediator(orderID)).to.be.revertedWith("DM: NO_DISPUTE");
@@ -318,6 +343,9 @@ describe("DisputeManager", function () {
                 expect(dispute.commitEndAt).to.eq(0);
                 expect(dispute.predictEndAt).to.eq(0);
 
+                // Should add miner reward to the miner
+                expect(await minerReg.rewardBalanceOf(deployer.address)).to.eq(minerDraftReward);
+
                 // should set phases timestamp after draft 2
                 const now = await advanceBlockTime(1);
                 await expect(dm.draftMediator(orderID)).to.emit(dm, "DraftedMediator").withArgs(getAddress(mid), 0, 0, 1, deployer.address, deployer.address);
@@ -326,6 +354,8 @@ describe("DisputeManager", function () {
                 expect(dispute.evidenceEndAt).to.eq(evidenceEndAt);
                 expect(dispute.commitEndAt).to.eq(evidenceEndAt + predictDur / 2);
                 expect(dispute.predictEndAt).to.eq(evidenceEndAt + predictDur);
+
+                expect(await minerReg.rewardBalanceOf(deployer.address)).to.eq(minerDraftReward + minerDraftReward);
             });
         });
 
@@ -459,7 +489,9 @@ describe("DisputeManager", function () {
                 // commit should succeed
                 await advanceBlockTime(evidenceDur);
                 const hash = randomBytes(32);
-                await expect(dm.commitVote(orderID, 0, hash)).to.emit(dm, "Committed").withArgs(getAddress(mid), orderID, toBN(0), deployer.address, toBN(0), hexlify(hash));
+                await expect(dm.commitVote(orderID, 0, hash))
+                    .to.emit(dm, "Committed")
+                    .withArgs(getAddress(mid), orderID, toBN(0), deployer.address, toBN(0), hexlify(hash));
                 const prediction = await dm.predictions(orderID, 0, deployer.address, 0);
                 expect(prediction.committed).to.eql(hexlify(hash));
                 expect(prediction.revealed).to.be.false;
@@ -614,6 +646,10 @@ describe("DisputeManager", function () {
             orderID = await createOrder_BaseOn_QuoteOff(mid);
         });
 
+        it("should revert with reason=NOT_MINER when sender is not a miner", async () => {
+            await expect(dm.connect(user5).executeDecision(orderID, 0)).to.be.revertedWith("DM: NOT_MINER");
+        });
+
         describe("when no matching dispute with index exists", () => {
             it("should revert with reason=NO_DISPUTE when order has no dispute", async () => {
                 await expect(dm.executeDecision(orderID, 0)).to.be.revertedWith("DM: NO_DISPUTE");
@@ -664,6 +700,9 @@ describe("DisputeManager", function () {
 
                     liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.openDisputes).to.eq(0);
+
+                    // Miner should be rewarded
+                    expect(await minerReg.rewardBalanceOf(deployer.address)).to.eq(minerDraftReward + minerExecuteReward);
                 });
 
                 context("when dispute was already executed", () => {
@@ -834,6 +873,10 @@ describe("DisputeManager", function () {
             await advanceBlockTime(ticketMatureDur);
         });
 
+        it("should revert with reason=NOT_MINER when sender is not a miner", async () => {
+            await expect(dm.connect(user5).undraftMediator(orderID, 0)).to.be.revertedWith("DM: NOT_MINER");
+        });
+
         it("should revert with reason=NO_DISPUTE when order has no dispute", async () => {
             await expect(dm.undraftMediator(orderID, 0)).to.be.revertedWith("DM: NO_DISPUTE");
         });
@@ -845,22 +888,33 @@ describe("DisputeManager", function () {
 
         context("when dispute result is inconclusive/stalled", () => {
             it("should undraft ticket and award draft reward", async () => {
+                let deployerMinerReward = 0;
+                let user7MinerReward = 0;
+
                 await expect(dm.connect(swapper).createDispute(orderID, false)).not.to.be.reverted;
                 await dm.draftMediator(orderID);
                 await dm.draftMediator(orderID);
+                deployerMinerReward += minerDraftReward + minerDraftReward;
 
                 await advanceBlockTime(evidenceDur + predictDur);
                 await expect(dm.executeDecision(orderID, 0)).not.to.be.reverted;
                 const dispute = await dm.getDispute(orderID, 0);
                 expect(dispute.executed).to.be.true;
+                deployerMinerReward += minerExecuteReward;
 
                 await expect(dm.connect(user7).undraftMediator(orderID, 0)).to.emit(medMgr, "Undrafted").withArgs(user5.address, 0, true, user7.address);
                 await expect(dm.undraftMediator(orderID, 0)).not.to.be.reverted;
                 expect(await dm.rewardBalanceOf(user5.address)).to.eq(draftReward);
                 expect(await dm.rewardBalanceOf(user6.address)).to.eq(draftReward);
+                deployerMinerReward += minerUndraftReward;
+                user7MinerReward += minerUndraftReward;
 
                 // it should revert if no ticket left to undraft
                 await expect(dm.undraftMediator(orderID, 0)).to.be.revertedWith("DM: ALL_UNDRAFTED");
+
+                // Verify miners rewards
+                expect(await minerReg.rewardBalanceOf(deployer.address)).to.eq(deployerMinerReward);
+                expect(await minerReg.rewardBalanceOf(user7.address)).to.eq(user7MinerReward);
             });
         });
 
@@ -958,6 +1012,74 @@ describe("DisputeManager", function () {
                 expect(await dm.rewardBalanceOf(user5.address)).to.eq(winReward);
                 expect(await dm.rewardBalanceOf(user6.address)).to.eq(winReward);
                 expect(await dm.rewardBalanceOf(user7.address)).to.eq(0);
+            });
+        });
+
+        context("when dispute is not the first of the order", () => {
+            it("should half reward", async () => {
+                await expect(dm.connect(swapper).createDispute(orderID, false)).not.to.be.reverted;
+                await dm.draftMediator(orderID);
+                await dm.draftMediator(orderID);
+                await advanceBlockTime(evidenceDur);
+
+                // vote
+                let vote1 = "1vote";
+                let hash = ethers.utils.solidityKeccak256(["string", "address"], [vote1, user5.address]);
+                let vote2 = "0vote";
+                await dm.connect(user5).commitVote(orderID, 0, hash);
+                let hash2 = ethers.utils.solidityKeccak256(["string", "address"], [vote2, user6.address]);
+                await dm.connect(user6).commitVote(orderID, 0, hash2);
+
+                // Reveal
+                await advanceBlockTime(predictDur / 2);
+                await expect(dm.connect(user5).revealVote(orderID, 0, vote1, hash)).not.to.be.reverted;
+                await expect(dm.connect(user6).revealVote(orderID, 0, vote2, hash2)).not.to.be.reverted;
+                await advanceBlockTime(predictDur / 2);
+
+                await expect(dm.executeDecision(orderID, 0)).not.to.be.reverted;
+                let dispute = await dm.getDispute(orderID, 0);
+                expect(dispute.abandoned).to.be.false;
+                expect(dispute.executed).to.be.true;
+
+                await expect(dm.undraftMediator(orderID, 0)).not.to.be.reverted;
+                await expect(dm.undraftMediator(orderID, 0)).not.to.be.reverted;
+
+                expect(await dm.rewardBalanceOf(user5.address)).to.eq(draftReward);
+                expect(await dm.rewardBalanceOf(user6.address)).to.eq(draftReward);
+
+                // Dispute 2
+                await expect(dm.connect(swapper).createDispute(orderID, false)).not.to.be.reverted;
+                await dm.draftMediator(orderID);
+                await dm.draftMediator(orderID);
+                await advanceBlockTime(evidenceDur);
+
+                // Vote
+                vote1 = "1vote_";
+                hash = ethers.utils.solidityKeccak256(["string", "address"], [vote1, user5.address]);
+                vote2 = "0vote_";
+                await dm.connect(user5).commitVote(orderID, 0, hash);
+                hash2 = ethers.utils.solidityKeccak256(["string", "address"], [vote2, user6.address]);
+                await dm.connect(user6).commitVote(orderID, 0, hash2);
+
+                // Reveal
+                await advanceBlockTime(predictDur / 2);
+                await expect(dm.connect(user5).revealVote(orderID, 0, vote1, hash)).not.to.be.reverted;
+                await expect(dm.connect(user6).revealVote(orderID, 0, vote2, hash2)).not.to.be.reverted;
+                await advanceBlockTime(predictDur / 2);
+
+                await expect(dm.executeDecision(orderID, 1)).not.to.be.reverted;
+                dispute = await dm.getDispute(orderID, 1);
+                expect(dispute.abandoned).to.be.false;
+                expect(dispute.executed).to.be.true;
+
+                const curUser5Reward = await dm.rewardBalanceOf(user5.address);
+                const curUser6Reward = await dm.rewardBalanceOf(user6.address);
+
+                await expect(dm.undraftMediator(orderID, 1)).not.to.be.reverted;
+                await expect(dm.undraftMediator(orderID, 1)).not.to.be.reverted;
+
+                expect(await dm.rewardBalanceOf(user5.address)).to.eq(curUser5Reward.add(draftReward / 2));
+                expect(await dm.rewardBalanceOf(user6.address)).to.eq(curUser6Reward.add(draftReward / 2));
             });
         });
     });

@@ -62,9 +62,13 @@ library OrderReleaseLib {
         Structs.Order storage o = s1.orders[oid];
         require(!o.cancelled && !o.released, "OC: ALREADY_FINALIZED");
         Structs.Market memory mkt = s2.marketCore.getMarket(o.marketId);
-        address releaser = (byDispute) ? msg.sender : (byManager) ? mkt.manager : (o.taker == MarketAuxLib.getPayer(mkt, o))
-            ? o.provider
-            : o.taker;
+        address releaser = (byDispute)
+            ? msg.sender
+            : (byManager)
+                ? mkt.manager
+                : (o.taker == MarketAuxLib.getPayer(mkt, o))
+                    ? o.provider
+                    : o.taker;
         require(byDispute || byManager || msg.sender == releaser, "OC: NOT_RELEASER");
         require(o.paid, "OC: ORDER_UNPAID");
 
