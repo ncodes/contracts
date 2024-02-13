@@ -75,11 +75,11 @@ library SwapLib {
     /// The order has not been marked as paid, released or disputed
     /// and has reached its cancel time.
     /// @param state State object
-    /// @param marketCore The MarketCore contract address
+    /// @param state2 State2 object
     /// @param id is the unique order ID
     /// @param byDispute Indicates that the method is called by the dispute manager.
-    function cancelOrder(StructsLib.State storage state, IMarketCore marketCore, uint256 id, bool byDispute) public {
-        OrderLib.cancelOrder(state, marketCore, id, byDispute, false);
+    function cancelOrder(StructsLib.State storage state, StructsLib.State2 storage state2, uint256 id, bool byDispute) public {
+        OrderLib.cancelOrder(state, state2, id, byDispute, false);
     }
 
     /// @notice Cancel an order using a market manager's signature

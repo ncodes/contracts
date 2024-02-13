@@ -14,6 +14,7 @@ import {
     FeePurse,
     FungibleLiquidityLib,
     MarketCore,
+    MinerRegistry,
     NFT,
     NonFungibleLiquidityLib,
     OfferLib,
@@ -261,6 +262,7 @@ export async function initCoreTestSuite() {
     let baseAddr: string;
     let quoteAddr: string;
     let core: Core;
+    let minerReg: MinerRegistry;
     let coreMock: MockContract;
     let mc: MarketCore;
     let energon: ENERGON;
@@ -299,6 +301,9 @@ export async function initCoreTestSuite() {
     let synthSwapFee = 14;
     let stableSwapFee = 10;
     let operatorBond = 100;
+    let minerBond = 1000;
+    let minerMatureDur = 600;
+    let minerCancelDur = 600;
 
     accts = await ethers.getSigners();
     deployer = accts[0];
@@ -382,6 +387,10 @@ export async function initCoreTestSuite() {
     operator = (await factory.deploy(token.address, operatorBond)) as Operator;
     await core.setOperator(operator.address);
 
+    let minerRegFact = await getContractFactory("MinerRegistry");
+    minerReg = (await minerRegFact.deploy(token.address, minerBond, minerMatureDur, minerCancelDur)) as MinerRegistry;
+    await core.setMinerRegistry(minerReg.address);
+
     mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 1, 0);
 
     return Promise.resolve({
@@ -402,6 +411,10 @@ export async function initCoreTestSuite() {
         user5,
         cAddr,
         accts,
+        minerReg,
+        minerBond,
+        minerCancelDur,
+        minerMatureDur,
         token,
         baseAsset,
         quoteAsset,

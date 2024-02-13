@@ -130,7 +130,7 @@ library OrderLib {
         require(mkt.manager != address(0), "OC: NO_MGR_SET");
         require(expireAt > block.timestamp, "OC: EXPIRED_SIG");
         require(verifyMarketManagerSig(mkt.manager, oid, 2, expireAt, signature), "OC: BAD_SIG");
-        cancelOrder(s1, s2.marketCore, oid, false, true);
+        cancelOrder(s1, s2, oid, false, true);
         emit FinalizedByManagerSig(mkt.manager, msg.sender, oid, 2);
     }
 
@@ -138,15 +138,20 @@ library OrderLib {
     /// The order has not been marked as paid, released or disputed
     /// and has reached its cancel time.
     /// @param s1 State object
-    /// @param marketCore The MarketCore contract address
+    /// @param s2 State2 object
     /// @param id is the unique order ID
     /// @param byDispute Indicates that the method is called by the dispute manager contract.
     /// @param byManager Indicates that the method is called by the market manager.
-    function cancelOrder(StructsLib.State storage s1, IMarketCore marketCore, uint256 id, bool byDispute, bool byManager) public {
+    function cancelOrder(StructsLib.State storage s1, StructsLib.State2 storage s2, uint256 id, bool byDispute, bool byManager) public {
         Structs.Order storage o = s1.orders[id];
-        Structs.Market memory mkt = marketCore.getMarket(o.marketId);
+        Structs.Market memory mkt = s2.marketCore.getMarket(o.marketId);
         require(
-            byDispute || byManager || o.provider == msg.sender || o.taker == msg.sender || mkt.manager == msg.sender,
+            byDispute ||
+                byManager ||
+                o.provider == msg.sender ||
+                o.taker == msg.sender ||
+                mkt.manager == msg.sender ||
+                s2.minerReg.isMiner(msg.sender),
             "OC: NOT_AUTHORIZED"
         );
         require(byDispute || (!o.paid && !o.released && !o.disputed && !o.cancelled), "OC: NOT_INACTIVE");
@@ -157,7 +162,7 @@ library OrderLib {
         // Handle ERC20/SYNTH & SYNTH/ERC20
         if (mkt.isFungible() && mkt.hasERC20()) {
             liq.amount += o.amount;
-            marketCore.setCounters(o.marketId, false, false, true, mkt.numLiquidity + o.amount);
+            s2.marketCore.setCounters(o.marketId, false, false, true, mkt.numLiquidity + o.amount);
             if (mkt.quote.isERC20()) {
                 IERC20 qAsset = IERC20(mkt.quote.addr);
                 uint256 cost = (o.amount * o.price) / 10 ** qAsset.decimals();
@@ -168,13 +173,13 @@ library OrderLib {
         // Handle SYNTH/SYNTH
         if (mkt.base.isSynth() && mkt.quote.isSynth()) {
             liq.amount += o.amount;
-            marketCore.setCounters(o.marketId, false, false, true, mkt.numLiquidity + o.amount);
+            s2.marketCore.setCounters(o.marketId, false, false, true, mkt.numLiquidity + o.amount);
         }
 
         // Handle SYNTH/NFT
         if (mkt.base.isSynth() && mkt.quote.isNFT()) {
             liq.amount += o.amount;
-            marketCore.setCounters(o.marketId, false, false, true, mkt.numLiquidity + o.amount);
+            s2.marketCore.setCounters(o.marketId, false, false, true, mkt.numLiquidity + o.amount);
             for (uint256 i = 0; i < o.takerIds.length; i++) {
                 if (mkt.quote.isERC721()) IERC721Strip(mkt.quote.addr).transferFrom(address(this), o.taker, o.takerIds[i]);
                 else IERC1155Strip(mkt.quote.addr).safeTransferFrom(address(this), o.taker, o.takerIds[i], 1, "");
@@ -184,7 +189,7 @@ library OrderLib {
         // Handle NFT/SYNTH
         if (mkt.base.isNFT() && mkt.quote.isSynth()) {
             liq.ids = o.providerIds;
-            marketCore.setCounters(o.marketId, false, false, true, mkt.numLiquidity + liq.ids.length);
+            s2.marketCore.setCounters(o.marketId, false, false, true, mkt.numLiquidity + liq.ids.length);
         }
 
         liq.openOrders -= 1;

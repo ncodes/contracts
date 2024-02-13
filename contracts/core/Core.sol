@@ -129,6 +129,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     event UpdatedDisputeManager(address addr);
     event UpdatedNFT(address addr);
     event UpdatedOperator(address addr);
+    event UpdatedMinerRegistry(address addr);
     event UpdatedAMMInfo(address swapRouter, address ethErc20Addr, uint256 poolFee);
     event UpdatedAMMPoolInfo(address input, address output, uint256 poolFee);
 
@@ -236,6 +237,13 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     function setOperator(address addr) external onlyOwner {
         state2.operatorMgr = IOperator(addr);
         emit UpdatedOperator(addr);
+    }
+
+    /// @notice Updated the MinerRegistry contract
+    /// @param addr The new address
+    function setMinerRegistry(address addr) external onlyOwner {
+        state2.minerReg = IMinerRegistry(addr);
+        emit UpdatedMinerRegistry(addr);
     }
 
     /// @notice Updated the NFT contract
@@ -494,7 +502,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     /// @param id The order ID
     function cancelOrder(uint256 id) external nonReentrant {
         require(hasOrder(id), "OC: UNKNOWN_ORDER");
-        SwapLib.cancelOrder(state, state2.marketCore, id, false);
+        SwapLib.cancelOrder(state, state2, id, false);
     }
 
     /// @notice Cancel an order using a market manager's signature
@@ -515,7 +523,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     /// @notice Allow the dispute manager to cancel an order.
     /// @param id The order ID.
     function cancelOrderByDispute(uint256 id) external onlyDisputeManager {
-        SwapLib.cancelOrder(state, state2.marketCore, id, true);
+        SwapLib.cancelOrder(state, state2, id, true);
     }
 
     /// @notice Mark a swap order as paid.

@@ -4,7 +4,7 @@ import {expect} from "chai";
 import {BigNumber, BigNumberish} from "ethers";
 import {getAddress} from "ethers/lib/utils";
 import {ethers} from "hardhat";
-import {AssetRegistry, Core, ERC1155T, ERC721T, FeePurse, MarketCore, NFT, Operator, TOKEN} from "../../typechain-types";
+import {AssetRegistry, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MinerRegistry, NFT, Operator, TOKEN} from "../../typechain-types";
 import {AddressZero, AssetType, advanceBlockTime, makeMarketID, pow10str, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
 
@@ -15,6 +15,9 @@ describe("Core - Order", function () {
     let operator: Operator;
     let mc: MarketCore;
     let nft: NFT;
+    let minerReg: MinerRegistry;
+    let minerBond: number;
+    let minerMatureDur: number;
     let testERC721: ERC721T;
     let testERC1155: ERC1155T;
     let assetReg: AssetRegistry;
@@ -50,6 +53,9 @@ describe("Core - Order", function () {
         core = vars.core;
         mc = vars.mc;
         nft = vars.nft;
+        minerReg = vars.minerReg;
+        minerBond = vars.minerBond;
+        minerMatureDur = vars.minerMatureDur;
         testERC721 = vars.testERC721;
         testERC1155 = vars.testERC1155;
         disputeDelayDur = vars.defaultDisputeDelayDur;
@@ -1279,8 +1285,17 @@ describe("Core - Order", function () {
             await expect(core.connect(marketCreator2).cancelOrder(orderID)).to.be.revertedWith("OC: NOT_AUTHORIZED");
         });
 
-        it("should revert not with reason=NOT_AUTHORIZED when sender is market manager", async () => {
+        it("should not revert with reason=NOT_AUTHORIZED when sender is market manager", async () => {
             await mc.connect(marketCreator2).setManager(mid, user2.address);
+            const orderID = await createOrder_BaseOn_QuoteOff(mid);
+            await expect(core.connect(user2).cancelOrder(orderID)).not.to.be.revertedWith("OC: NOT_AUTHORIZED");
+        });
+
+        it("should not revert with reason=NOT_AUTHORIZED when sender is a miner", async () => {
+            await token.transfer(user2.address, minerBond);
+            await token.connect(user2).approve(minerReg.address, minerBond);
+            await minerReg.connect(user2).register();
+
             const orderID = await createOrder_BaseOn_QuoteOff(mid);
             await expect(core.connect(user2).cancelOrder(orderID)).not.to.be.revertedWith("OC: NOT_AUTHORIZED");
         });
@@ -1534,6 +1549,18 @@ describe("Core - Order", function () {
                 let mkt = await mc.getMarket(mid);
                 expect(mkt.numLiquidity).to.eq(ids.length);
             });
+        });
+
+        it("should cancel successfully when sender is a miner", async () => {
+            const orderID = await createOrder_BaseOn_QuoteOff(mid);
+            await advanceBlockTime(orderLifeTime);
+
+            await token.transfer(user5.address, minerBond);
+            await token.connect(user5).approve(minerReg.address, minerBond);
+            await minerReg.connect(user5).register();
+            await advanceBlockTime(minerMatureDur);
+
+            await expect(core.connect(user5).cancelOrder(orderID)).to.emit(core, "OrderCancelled");
         });
     });
 
