@@ -98,7 +98,7 @@ describe("Core - Swap", function () {
         permPut: boolean,
         permSwap: boolean,
         commission: BigNumberish,
-        mediatorPoolId: BigNumberish
+        mediatorPoolId: BigNumberish,
     ) {
         const mid = makeMarketID(creator.address, base, quote, baseType, quoteType);
         await mc.connect(creator).createMarket(base, quote, baseType, quoteType, permPut, permSwap, commission, mediatorPoolId);
@@ -849,10 +849,10 @@ describe("Core - Swap", function () {
                 it("should be successful", async () => {
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
                     await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [3, 4, 4, 5], [1, 1, 2, 2], [0, 0, 0, 0, 0])).to.be.revertedWith(
-                        "OC: WANT_IDS_NUNIQ"
+                        "OC: WANT_IDS_NUNIQ",
                     );
                     await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [3, 4, 5], [1, 1, 2, 2], [0, 0, 0, 0, 0])).to.be.revertedWith(
-                        "OC: WANT_IDS_NUNIQ"
+                        "OC: WANT_IDS_NUNIQ",
                     );
                 });
             });
@@ -1162,6 +1162,31 @@ describe("Core - Swap", function () {
 
                 // Expect to be reverted
                 await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).to.be.revertedWith("OC: MAX_OPEN_DISPUTES");
+            });
+        });
+
+        context("market PUT permission is true and LP PUT permission is removed after putting liquidity", () => {
+            beforeEach(async () => {
+                await core.setMaxOpenOrders(1);
+                await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, 0, 1, true, false, 0, 0);
+                mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 0, 1);
+            });
+
+            it("should revert with msg=NO_PUT_PERM when swap is attempted on the liquidity", async () => {
+                await mc.connect(marketCreator2).permitPut(mid, provider.address);
+                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0]);
+                await mc.connect(marketCreator2).revokePut(mid, provider.address);
+
+                const swapAmt = toBN(5).mul(baseDec);
+                const swapCost = swapAmt.div(baseDec).mul(pricePerBase); // amount the swapper will pay in QUOTE (=50 QUOTE)
+
+                await quoteAsset.transfer(swapper.address, swapCost.mul(2));
+                await quoteAsset.connect(swapper).approve(cAddr, swapCost.mul(2));
+                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).to.be.revertedWith("MC: NO_PUT_PERM");
+
+                // Make sure liquidity can still be removed
+                await core.connect(provider).updateFungibleLiquidity(mid, 0, true, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0]);
+                expect((await core.getLiquidity(mid, provider.address, 0)).amount).to.eq(0);
             });
         });
     });

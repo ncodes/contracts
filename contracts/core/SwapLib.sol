@@ -21,9 +21,11 @@ library SwapLib {
     /// @param state2 The State2 object
     /// @param sp The swap parameters
     function swapQuoteForBase(StructsLib.State storage state, StructsLib.State2 storage state2, StructsLib.SwapSlot memory sp) public {
+        require(state2.marketCore.isPutPermitted(sp.addrs.marketId, sp.addrs.provider));
         require(state2.marketCore.isSwapPermitted(sp.addrs.marketId, msg.sender));
         Structs.Market memory market = state2.marketCore.getMarket(sp.addrs.marketId);
         require(!market.perms.offerOnly, "OC: OFFER_ONLY");
+
         checkMarketSwapBadges(state2, sp.addrs.marketId);
         checkProviderSwapBadges(state2, sp.addrs.marketId, sp.lid, sp.addrs.provider);
         if (market.base.isFungible()) SwapFungibleLib.swap(state, state2, sp, market);
