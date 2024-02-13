@@ -38,11 +38,11 @@ describe("Core - Order", function () {
     let nftDiscountBp: BigNumber;
     let fixedSynthSwapFee: BigNumberish;
     let synthSwapFee: BigNumberish;
-    let instantNFTSwapFee: BigNumberish;
     let fixedNFTSwapFee: BigNumberish;
     let feePurse: FeePurse;
     let disputeDelayDur: BigNumber;
     const chainId = 31337;
+    let minerCancelReward = 0;
 
     let marketCreator: SignerWithAddress, provider: SignerWithAddress, swapper: SignerWithAddress, marketCreator2: SignerWithAddress, inventor: SignerWithAddress;
 
@@ -75,7 +75,7 @@ describe("Core - Order", function () {
         amountOfBase = vars.amountOfBase;
         pricePerBase = vars.pricePerBase;
         fixedSynthSwapFee = vars.fixedSynthSwapFee;
-        instantNFTSwapFee = vars.instantNFTSwapFee;
+        minerCancelReward = vars.minerCancelReward;
         deployer = vars.deployer;
         marketCreator = vars.marketCreator;
         provider = vars.provider;
@@ -1551,7 +1551,7 @@ describe("Core - Order", function () {
             });
         });
 
-        it("should cancel successfully when sender is a miner", async () => {
+        it("should cancel successfully when sender is a miner and grant miner reward", async () => {
             const orderID = await createOrder_BaseOn_QuoteOff(mid);
             await advanceBlockTime(orderLifeTime);
 
@@ -1561,6 +1561,8 @@ describe("Core - Order", function () {
             await advanceBlockTime(minerMatureDur);
 
             await expect(core.connect(user5).cancelOrder(orderID)).to.emit(core, "OrderCancelled");
+
+            expect(await minerReg.rewardBalanceOf(user5.address)).to.eq(minerCancelReward);
         });
     });
 

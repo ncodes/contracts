@@ -9,6 +9,7 @@ import "./AuxLib.sol";
 import "./StructsLib.sol";
 import "../market/MarketAuxLib.sol";
 import "./LiquidityLib.sol";
+import "hardhat/console.sol";
 import {IERC721Strip, IERC1155Strip} from "../common/StrippedInterfaces.sol";
 
 library OrderLib {
@@ -195,6 +196,10 @@ library OrderLib {
         liq.openOrders -= 1;
         o.cancelled = true;
         o.finalizer = msg.sender;
+
+        if (s2.minerReg.isMiner(msg.sender)) {
+            s2.minerReg.addReward(MinerOperation.Cancel, msg.sender);
+        }
 
         emit OrderCancelled(id, msg.sender, byDispute);
     }

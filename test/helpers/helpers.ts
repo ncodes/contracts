@@ -301,9 +301,14 @@ export async function initCoreTestSuite() {
     let synthSwapFee = 14;
     let stableSwapFee = 10;
     let operatorBond = 100;
+    let supply = toBN("1000000000000000000000000");
     let minerBond = 1000;
     let minerMatureDur = 600;
     let minerCancelDur = 600;
+    let minerDraftReward = 1000;
+    let minerUndraftReward = 1000;
+    let minerExecuteReward = 1000;
+    let minerCancelReward = 1000;
 
     accts = await ethers.getSigners();
     deployer = accts[0];
@@ -314,7 +319,6 @@ export async function initCoreTestSuite() {
     inventor = accts[4];
     user5 = accts[5];
 
-    let supply = toBN("1000000000000000000000000");
     let TOKEN = await getContractFactory("TOKEN");
     token = (await TOKEN.deploy("TEST", "TEST", supply, 18)) as TOKEN;
     tokenDec = toBN(10).pow(await token.decimals());
@@ -331,9 +335,8 @@ export async function initCoreTestSuite() {
 
     coreMock = await deployMockContract(accts[0], CoreArtifact.abi);
 
-    let supply2 = toBN("1000000000000000000000000");
     let ENERGON = await getContractFactory("ENERGON");
-    energon = (await ENERGON.deploy("ENERGON", "ENR", supply2, 18)) as ENERGON;
+    energon = (await ENERGON.deploy("ENERGON", "ENR", supply, 18)) as ENERGON;
 
     let nftFact = await getContractFactory("NFT");
     nft = (await nftFact.deploy("NFT", "NFT", baseURI, maxSupply, 0, constants.AddressZero, deployer.address, energon.address, token.address)) as NFT;
@@ -361,7 +364,6 @@ export async function initCoreTestSuite() {
     orderLifeTime = minTimeToPay + orderGracePeriod;
     defaultDisputeDelayDur = await mc.defaultDisputeDelayDur();
 
-    supply = toBN("1000000000000000000000000");
     let dummyTokenFactory = await getContractFactory("TOKEN");
     baseAsset = (await dummyTokenFactory.deploy("BASE_TOKEN", "BASE_TOKEN", supply, 18)) as TOKEN;
     baseAddr = baseAsset.address;
@@ -389,7 +391,9 @@ export async function initCoreTestSuite() {
 
     let minerRegFact = await getContractFactory("MinerRegistry");
     minerReg = (await minerRegFact.deploy(token.address, minerBond, minerMatureDur, minerCancelDur)) as MinerRegistry;
+    await minerReg.updateOpsReward([0, 1, 2, 3], [minerDraftReward, minerUndraftReward, minerExecuteReward, minerCancelReward]);
     await core.setMinerRegistry(minerReg.address);
+    await minerReg.updateWriter(core.address, true);
 
     mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 1, 0);
 
@@ -433,6 +437,7 @@ export async function initCoreTestSuite() {
         pricePerBase,
         marketCreator,
         provider,
+        supply,
         swapper,
         marketCreator2,
         inventor,
@@ -444,5 +449,9 @@ export async function initCoreTestSuite() {
         instantSwapFee,
         synthSwapFee,
         stableSwapFee,
+        minerDraftReward,
+        minerUndraftReward,
+        minerExecuteReward,
+        minerCancelReward,
     });
 }

@@ -5,6 +5,13 @@ import {TOKEN} from "../typechain-types";
 import {advanceBlockTime, toBN} from "../utils/utils";
 import {MinerRegistry} from "./../typechain-types/MinerRegistry";
 
+export enum MinerOperation {
+    Draft,
+    Undraft,
+    Execute,
+    Cancel,
+}
+
 describe("MinerRegistry", function () {
     let deployer: SignerWithAddress;
     let user2: SignerWithAddress;
@@ -28,6 +35,36 @@ describe("MinerRegistry", function () {
 
         let factory = await ethers.getContractFactory("MinerRegistry");
         minerReg = (await factory.deploy(token.address, minerBond, matureDuration, cancelDuration)) as MinerRegistry;
+    });
+
+    describe(".updateOpReward", () => {
+        it("should revert if sender is not a owner", async () => {
+            await expect(minerReg.connect(user2).updateOpReward(0, "1000")).to.be.revertedWith("OWNABLE: NOT_OWNER");
+        });
+
+        it("should update reward", async () => {
+            await expect(minerReg.updateOpReward(0, "1000")).to.emit(minerReg, "UpdatedOpReward").withArgs(0, "1000");
+            expect(await minerReg.opRewards(0)).to.equal("1000");
+
+            await expect(minerReg.updateOpReward(2, "10")).to.emit(minerReg, "UpdatedOpReward").withArgs(2, "10");
+            expect(await minerReg.opRewards(MinerOperation.Execute)).to.equal("10");
+        });
+    });
+
+    describe(".updateOpsReward", () => {
+        it("should revert if sender is not owner", async () => {
+            await expect(minerReg.connect(user2).updateOpsReward([0, 1, 2, 3], ["1000", "1000", "1000", "1000"])).to.be.revertedWith("OWNABLE: NOT_OWNER");
+        });
+
+        it("should update rewards", async () => {
+            await expect(minerReg.updateOpsReward([0, 1, 2, 3], ["1001", "1002", "1003", "1004"]))
+                .to.emit(minerReg, "UpdatedOpsReward")
+                .withArgs([0, 1, 2, 3], ["1001", "1002", "1003", "1004"]);
+            expect(await minerReg.opRewards(0)).to.equal("1001");
+            expect(await minerReg.opRewards(1)).to.equal("1002");
+            expect(await minerReg.opRewards(2)).to.equal("1003");
+            expect(await minerReg.opRewards(3)).to.equal("1004");
+        });
     });
 
     describe(".updateMinerBond", () => {
@@ -176,16 +213,20 @@ describe("MinerRegistry", function () {
     });
 
     describe(".addReward", () => {
+        beforeEach(async () => {
+            await minerReg.updateOpsReward([0, 1, 2, 3], [toBN("1000"), toBN("1000"), toBN("1000"), toBN("1000")]);
+        });
+
         it("should revert if sender is not a writer", async () => {
-            await expect(minerReg.addReward(user2.address, toBN("1000"))).to.be.revertedWith("W: NOT_WRITER");
+            await expect(minerReg.addReward(MinerOperation.Draft, user2.address)).to.be.revertedWith("W: NOT_WRITER");
         });
 
         it("should add reward to a sender", async () => {
             await minerReg.updateWriter(deployer.address, true);
-            await minerReg.addReward(deployer.address, toBN("1000"));
+            await minerReg.addReward(MinerOperation.Draft, deployer.address);
             expect(await minerReg.rewardBalanceOf(deployer.address)).to.equal(toBN("1000"));
 
-            await minerReg.addReward(deployer.address, toBN("1000"));
+            await minerReg.addReward(MinerOperation.Draft, deployer.address);
             expect(await minerReg.rewardBalanceOf(deployer.address)).to.equal(toBN("2000"));
         });
 
@@ -194,20 +235,24 @@ describe("MinerRegistry", function () {
             await minerReg.register();
 
             await minerReg.updateWriter(deployer.address, true);
-            await minerReg.addReward(deployer.address, toBN("1000"));
+            await minerReg.addReward(MinerOperation.Draft, deployer.address);
             expect(await minerReg.rewardBalanceOf(deployer.address)).to.equal(toBN("1000"));
 
             await minerReg.toggleBlock(deployer.address);
-            await minerReg.addReward(deployer.address, toBN("1000"));
+            await minerReg.addReward(MinerOperation.Draft, deployer.address);
             expect(await minerReg.rewardBalanceOf(deployer.address)).to.equal(toBN("1000"));
 
             await minerReg.toggleBlock(deployer.address);
-            await minerReg.addReward(deployer.address, toBN("1000"));
+            await minerReg.addReward(MinerOperation.Draft, deployer.address);
             expect(await minerReg.rewardBalanceOf(deployer.address)).to.equal(toBN("2000"));
         });
     });
 
     describe(".withdrawReward", () => {
+        beforeEach(async () => {
+            await minerReg.updateOpsReward([0, 1, 2, 3], [toBN("1000"), toBN("1000"), toBN("1000"), toBN("1000")]);
+        });
+
         it("should perform no op when sender has no reward", async () => {
             await token.transfer(minerReg.address, toBN("1000"));
             await expect(minerReg.withdrawReward()).not.to.reverted;
@@ -216,7 +261,7 @@ describe("MinerRegistry", function () {
 
         it("should withdraw reward", async () => {
             await minerReg.updateWriter(deployer.address, true);
-            await minerReg.addReward(deployer.address, toBN("1000"));
+            await minerReg.addReward(MinerOperation.Draft, deployer.address);
             await token.transfer(minerReg.address, toBN("1000"));
             const curBal = await token.balanceOf(deployer.address);
 

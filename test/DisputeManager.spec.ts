@@ -2,7 +2,7 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
 import {randomBytes} from "crypto";
 import {MockContract} from "ethereum-waffle";
-import {BigNumber} from "ethers";
+import {BigNumber, BigNumberish} from "ethers";
 import {getAddress, hexlify} from "ethers/lib/utils";
 import {ethers, waffle} from "hardhat";
 import {AssetRegistry, Core, DisputeManager, MarketCore, MediatorManager, TOKEN} from "../typechain-types";
@@ -33,10 +33,10 @@ describe("DisputeManager", function () {
         provider: SignerWithAddress,
         swapper: SignerWithAddress,
         inventor: SignerWithAddress,
-        mockDisputeMgr: SignerWithAddress,
         user5: SignerWithAddress,
         user6: SignerWithAddress,
         user7: SignerWithAddress;
+    let supply: BigNumberish;
     let ticketCancelDur = 86400 * 7;
     let ticketMatureDur = 86400;
     let ticketExpireDur = 86400 * 2;
@@ -49,10 +49,11 @@ describe("DisputeManager", function () {
     let draftReward = 10;
     let winReward = 100;
     const baseTicketPrice = 10;
-    const minerBond = 100;
-    const minerDraftReward = 10;
-    const minerUndraftReward = 11;
-    const minerExecuteReward = 12;
+    let minerBond = 0;
+    let minerDraftReward = 0;
+    let minerUndraftReward = 0;
+    let minerExecuteReward = 0;
+    let minerMatureDur = 0;
 
     beforeEach(async () => {
         const vars = await initCoreTestSuite();
@@ -62,18 +63,21 @@ describe("DisputeManager", function () {
         provider = accts[1];
         swapper = accts[2];
         inventor = accts[3];
-        mockDisputeMgr = accts[4];
         user5 = accts[5];
         user6 = accts[6];
         user7 = accts[7];
+        supply = vars.supply;
         mc = vars.mc;
-
-        const supply = BigNumber.from("1000000000000000000000000");
-        let factory: any = await ethers.getContractFactory("TOKEN");
-        token = await factory.deploy("TEST", "TEST", supply, 18);
+        token = vars.token;
+        minerReg = vars.minerReg;
+        minerBond = vars.minerBond;
+        minerDraftReward = vars.minerDraftReward;
+        minerUndraftReward = vars.minerUndraftReward;
+        minerExecuteReward = vars.minerExecuteReward;
+        minerMatureDur = vars.minerMatureDur;
 
         const libs = await makeLibs();
-        factory = await ethers.getContractFactory("Core", {
+        let factory: any = await ethers.getContractFactory("Core", {
             libraries: getCoreLibraries(libs),
         });
         core = await factory.deploy(mc.address, token.address, 1800, 1800, 1, 3);
@@ -94,8 +98,6 @@ describe("DisputeManager", function () {
         factory = await ethers.getContractFactory("DisputeManager");
         dm = await factory.deploy(token.address, mc.address, core.address, medMgr.address, predictDur, evidenceDur);
 
-        factory = await ethers.getContractFactory("MinerRegistry");
-        minerReg = await factory.deploy(token.address, minerBond, 0, 0);
         await minerReg.updateWriter(dm.address, true);
         await dm.setMinerRegistry(minerReg.address);
         await token.approve(minerReg.address, minerBond);
@@ -106,10 +108,11 @@ describe("DisputeManager", function () {
         await token.transfer(user7.address, minerBond);
         await token.connect(user7).approve(minerReg.address, minerBond);
         await minerReg.connect(user7).register();
+        await advanceBlockTime(minerMatureDur);
 
+        await core.setMinerRegistry(minerReg.address);
         await core.setInventor(inventor.address);
         await mc.updateWriter(core.address, true);
-        await dm.setMinerRewards(minerDraftReward, minerUndraftReward, minerExecuteReward);
 
         factory = await ethers.getContractFactory("TOKEN");
         baseAsset = await factory.deploy("BASE_TOKEN", "BASE_TOKEN", supply, 18);

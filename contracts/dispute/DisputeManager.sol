@@ -74,11 +74,6 @@ contract DisputeManager is Ownable {
     /// @notice The duration within which evidences should be submitted
     uint256 public evidenceDur;
 
-    /// @notice The base reward for miner task
-    uint256 public minerDraftReward;
-    uint256 public minerUndraftReward;
-    uint256 public minerExecuteReward;
-
     event DisputeCreated(uint256 orderId, address creator, uint256 index, bool wantRelease);
     event DraftedMediator(address marketId, uint256 poolId, uint256 orderId, uint256 ticketId, address mediator, address drafter);
     event Committed(address marketId, uint256 orderId, uint256 disputeId, address committer, uint256 ticketIdx, bytes32 hash);
@@ -159,17 +154,6 @@ contract DisputeManager is Ownable {
     function setEvidenceDur(uint256 val) external onlyOwner {
         evidenceDur = val;
         emit UpdatedEvidenceDur(val);
-    }
-
-    /// @notice Set the miner rewards
-    /// @param draft The draft reward
-    /// @param undraft The undraft reward
-    /// @param execute The execute reward
-    function setMinerRewards(uint256 draft, uint256 undraft, uint256 execute) external onlyOwner {
-        minerDraftReward = draft;
-        minerUndraftReward = undraft;
-        minerExecuteReward = execute;
-        emit UpdatedMinerRewards(draft, undraft, execute);
     }
 
     /// @notice Return _default if _target is zero, otherwise _target is returned
@@ -255,7 +239,7 @@ contract DisputeManager is Ownable {
             dispute.predictEndAt = dispute.evidenceEndAt + setOrDef(market.dur.predictDur, predictDur);
         }
 
-        minerReg.addReward(msg.sender, minerDraftReward);
+        minerReg.addReward(MinerOperation.Draft, msg.sender);
 
         emit DraftedMediator(dispute.marketId, market.poolId, orderId, ticket.idx, ticket.owner, msg.sender);
     }
@@ -368,7 +352,7 @@ contract DisputeManager is Ownable {
         if (dispute.abandoned || (!redisputed && winningVote != 0))
             core.updateOpenDisputesCount(order.marketId, order.provider, order.lid, false);
 
-        minerReg.addReward(msg.sender, minerExecuteReward);
+        minerReg.addReward(MinerOperation.Execute, msg.sender);
 
         emit DecisionExecuted(dispute.marketId, orderId, dispIdx, msg.sender, dispute.abandoned, winningVote);
     }
@@ -417,7 +401,7 @@ contract DisputeManager is Ownable {
 
         dispute.undrafted++;
 
-        minerReg.addReward(msg.sender, minerUndraftReward);
+        minerReg.addReward(MinerOperation.Undraft, msg.sender);
     }
 
     /// @notice Get reward balance

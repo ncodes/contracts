@@ -13,11 +13,19 @@ struct Miner {
     bool blocked;
 }
 
+enum MinerOperation {
+    Draft,
+    Undraft,
+    Execute,
+    Cancel
+}
+
 /// @title MinerRegistry
 /// @notice The MinerRegistry contract is a registry of miners that are permitted to execute protocol tasks.
 contract MinerRegistry is Ownable, Writable {
     mapping(address => Miner) public miners;
     mapping(address => uint256) public rewards;
+    mapping(MinerOperation => uint256) public opRewards;
     address public token;
     uint256 public minerBond;
     uint256 public matureDuration;
@@ -38,11 +46,32 @@ contract MinerRegistry is Ownable, Writable {
     event Registered(address indexed miner, uint256 bond);
     event Cancelled(address indexed miner, uint256 cancelDuration);
     event Drained(address indexed miner, uint256 amount);
-    event AddedReward(address indexed miner, uint256 amount);
+    event AddedReward(address indexed miner, MinerOperation op, uint256 amount);
     event RewardWithdrawn(address indexed miner, uint256 amount);
     event WithdrawnBalance(uint256 amount);
     event Blocked(address indexed miner, bool blocked);
     event Slashed(address indexed miner, uint256 amount);
+    event UpdatedOpReward(MinerOperation op, uint256 amount);
+    event UpdatedOpsReward(MinerOperation[] ops, uint256[] amounts);
+
+    /// @notice Update the miner rewards for an operation
+    /// @param op The operation to update
+    /// @param amount The new reward amount
+    function updateOpReward(MinerOperation op, uint256 amount) external onlyOwner {
+        opRewards[op] = amount;
+        emit UpdatedOpReward(op, amount);
+    }
+
+    /// @notice Update the miner rewards for multiple operations
+    /// @param ops The operations to update
+    /// @param amounts The new reward amounts per operation
+    function updateOpsReward(MinerOperation[] memory ops, uint256[] memory amounts) external onlyOwner {
+        require(ops.length == amounts.length, "MR: INVALID_LENGTH");
+        for (uint256 i = 0; i < ops.length; i++) {
+            opRewards[ops[i]] = amounts[i];
+        }
+        emit UpdatedOpsReward(ops, amounts);
+    }
 
     /// @notice Update the miner bond
     /// @param _minerBond The new miner bond amount
@@ -106,12 +135,12 @@ contract MinerRegistry is Ownable, Writable {
     /// @notice Add rewards to a miner
     /// CONTRACT: Expect writer to call isMiner before calling this function
     /// CONTRACT: Blocked miner will not receive rewards
+    /// @param op The operation to add rewards for
     /// @param miner The address to add rewards to
-    /// @param amount The amount of rewards to add
-    function addReward(address miner, uint256 amount) external onlyWriter {
+    function addReward(MinerOperation op, address miner) external onlyWriter {
         if (miners[miner].blocked) return;
-        rewards[miner] += amount;
-        emit AddedReward(miner, amount);
+        rewards[miner] += opRewards[op];
+        emit AddedReward(miner, op, opRewards[op]);
     }
 
     /// @notice Get an address reward balance
