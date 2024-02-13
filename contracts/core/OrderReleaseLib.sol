@@ -29,7 +29,7 @@ library OrderReleaseLib {
         uint256[] idsFromProvider,
         uint256[] idsFromTaker
     );
-    event FinalizedByManagerSig(address manager, address finalizer, uint256 orderId, bool released);
+    event FinalizedByManagerSig(address manager, address finalizer, uint256 orderId, uint action);
 
     /// @notice Release an order by a market manager's signature
     /// @param s1 The State object
@@ -47,9 +47,9 @@ library OrderReleaseLib {
         Structs.Market memory mkt = s2.marketCore.getMarket(s1.orders[oid].marketId);
         require(mkt.manager != address(0), "OC: NO_MGR_SET");
         require(expireAt > block.timestamp, "OC: EXPIRED_SIG");
-        require(verifyMarketManagerSig(mkt.manager, oid, true, expireAt, signature), "OC: BAD_SIG");
+        require(verifyMarketManagerSig(mkt.manager, oid, 1, expireAt, signature), "OC: BAD_SIG");
         releaseOrder(s1, s2, oid, false, true);
-        emit FinalizedByManagerSig(mkt.manager, msg.sender, oid, true);
+        emit FinalizedByManagerSig(mkt.manager, msg.sender, oid, 1);
     }
 
     /// @notice Release asset.
@@ -351,18 +351,18 @@ library OrderReleaseLib {
     /// @notice Verify a market manager's signature
     /// @param signer The market manager's address
     /// @param id The order ID
-    /// @param release Indicates whether the order should be released or cancelled
+    /// @param action Indicates the manager action (0: paid, 1: release, 2: cancel)
     /// @param expireAt Indicates the timestamp when the signature is to expire.
     /// @param signature The signature created by the manager
     function verifyMarketManagerSig(
         address signer,
         uint256 id,
-        bool release,
+        uint action,
         uint256 expireAt,
         bytes memory signature
     ) internal view returns (bool) {
         if (address(0) == signer) return false;
-        bytes32 messageHash = keccak256(abi.encode(block.chainid, id, release, expireAt));
+        bytes32 messageHash = keccak256(abi.encode(block.chainid, id, action, expireAt));
         bytes32 ethSignedMessageHash = SigLib.getSignedMessageHash(messageHash);
         return SigLib.recoverSigner(ethSignedMessageHash, signature) == signer;
     }

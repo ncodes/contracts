@@ -45,10 +45,10 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
         uint256[] idsFromProvider,
         uint256[] idsFromTaker
     );
-    event SwapOrderPaid(uint256 indexed orderID, uint256 disputeDelayDur);
+    event SwapOrderPaid(uint256 indexed orderID, address payer, uint256 disputeDelayDur);
     event OrderCancelled(uint256 indexed orderID, address indexed canceller, bool indexed byDispute);
     event TransferredToFeePool(address indexed token, uint256 amount, address convAsset, uint256 convAmount);
-    event FinalizedByManagerSig(address manager, address finalizer, uint256 orderId, bool released);
+    event FinalizedByManagerSig(address manager, address finalizer, uint256 orderId, uint action);
     event ProtocolFeeUpdated(
         uint256 instantSwapFeeBp,
         uint256 synthSwapFeeBp,
@@ -524,7 +524,16 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     /// When the base asset is synthetic,the sender must be the provider.
     /// @param id The order ID.
     function markOrderAsPaid(uint256 id) external {
-        SwapLib.markOrderAsPaid(state, state2.marketCore, id);
+        SwapLib.markOrderAsPaid(state, state2.marketCore, id, false);
+    }
+
+    /// @notice Mark a swap order as paid using a market manager's signature.
+    /// @param id The order ID.
+    /// @param expireAt The expire time of the signature
+    /// @param signature The signature created by the manager
+    function markOrderAsPaidByManagerSig(uint256 id, uint256 expireAt, bytes calldata signature) external {
+        require(id <= state.orders.length - 1, "OC: UNKNOWN_ORDER");
+        SwapLib.markOrderAsPaidByManagerSig(state, state2, id, expireAt, signature);
     }
 
     /// @notice Checks if at order at index id exist

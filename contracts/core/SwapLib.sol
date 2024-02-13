@@ -99,14 +99,30 @@ library SwapLib {
     }
 
     /// @dev Mark a swap order as paid.
-    /// Order must be have been released or cancelled.
-    /// When the base asset is ERC20, the sender must be the taker.
-    /// When the base asset is synthetic,the sender must be the provider.
+    /// Order must not have been released or cancelled.
+    /// When the base asset is on-chain (ERC20 or NFT), the sender must be the taker.
+    /// When the base asset is synthetic, the sender must be the provider.
     /// @param state State object
     /// @param marketCore The MarketCore contract address
     /// @param id The order ID.
-    function markOrderAsPaid(StructsLib.State storage state, IMarketCore marketCore, uint256 id) public {
-        OrderLib.markOrderAsPaid(state, marketCore, id);
+    function markOrderAsPaid(StructsLib.State storage state, IMarketCore marketCore, uint256 id, bool byManager) public {
+        OrderLib.markOrderAsPaid(state, marketCore, id, byManager);
+    }
+
+    /// @notice Mark an order as paid using a market manager's signature
+    /// @param state The State object
+    /// @param state2 The State2 object
+    /// @param oid The order ID
+    /// @param expireAt The expire time of the signature
+    /// @param signature The signature created by the manager
+    function markOrderAsPaidByManagerSig(
+        StructsLib.State storage state,
+        StructsLib.State2 storage state2,
+        uint256 oid,
+        uint256 expireAt,
+        bytes calldata signature
+    ) external {
+        OrderLib.markOrderAsPaidByManagerSig(state, state2, oid, expireAt, signature);
     }
 
     /// @dev Marks an order as `disputed`

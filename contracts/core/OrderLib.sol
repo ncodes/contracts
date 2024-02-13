@@ -26,8 +26,8 @@ library OrderLib {
         uint256[] idsFromTaker
     );
     event OrderCancelled(uint256 indexed orderID, address indexed canceller, bool indexed byDispute);
-    event SwapOrderPaid(uint256 indexed orderID, uint256 disputeDelayDur);
-    event FinalizedByManagerSig(address manager, address finalizer, uint256 orderId, bool released);
+    event SwapOrderPaid(uint256 indexed orderID, address payer, uint256 disputeDelayDur);
+    event FinalizedByManagerSig(address manager, address finalizer, uint256 orderId, uint action);
 
     /// @notice Create order for ERC20/SYNTH, SYNTH/ERC20, SYNTH/SYNTH, SYNTH/NFT & NFT/SYNTH
     /// @param s1 The State object
@@ -129,9 +129,9 @@ library OrderLib {
         Structs.Market memory mkt = s2.marketCore.getMarket(s1.orders[oid].marketId);
         require(mkt.manager != address(0), "OC: NO_MGR_SET");
         require(expireAt > block.timestamp, "OC: EXPIRED_SIG");
-        require(verifyMarketManagerSig(mkt.manager, oid, false, expireAt, signature), "OC: BAD_SIG");
+        require(verifyMarketManagerSig(mkt.manager, oid, 2, expireAt, signature), "OC: BAD_SIG");
         cancelOrder(s1, s2.marketCore, oid, false, true);
-        emit FinalizedByManagerSig(mkt.manager, msg.sender, oid, false);
+        emit FinalizedByManagerSig(mkt.manager, msg.sender, oid, 2);
     }
 
     /// @notice Cancel an inactive order. An inactive order is one where:
@@ -140,8 +140,8 @@ library OrderLib {
     /// @param s1 State object
     /// @param marketCore The MarketCore contract address
     /// @param id is the unique order ID
-    /// @param byDispute Indicates that the method is called by the dispute manager.
-    /// @param byManager Indicates that the method is called by the market manager via a manager signature.
+    /// @param byDispute Indicates that the method is called by the dispute manager contract.
+    /// @param byManager Indicates that the method is called by the market manager.
     function cancelOrder(StructsLib.State storage s1, IMarketCore marketCore, uint256 id, bool byDispute, bool byManager) public {
         Structs.Order storage o = s1.orders[id];
         Structs.Market memory mkt = marketCore.getMarket(o.marketId);
@@ -194,6 +194,27 @@ library OrderLib {
         emit OrderCancelled(id, msg.sender, byDispute);
     }
 
+    /// @notice Mark a swap order as paid using a market manager's signature
+    /// @param s1 The State object
+    /// @param s2 The State2 object
+    /// @param oid The order ID.
+    /// @param expireAt The expire time of the signature
+    /// @param signature The signature created by the manager
+    function markOrderAsPaidByManagerSig(
+        StructsLib.State storage s1,
+        StructsLib.State2 storage s2,
+        uint256 oid,
+        uint256 expireAt,
+        bytes calldata signature
+    ) public {
+        Structs.Market memory mkt = s2.marketCore.getMarket(s1.orders[oid].marketId);
+        require(mkt.manager != address(0), "OC: NO_MGR_SET");
+        require(expireAt > block.timestamp, "OC: EXPIRED_SIG");
+        require(verifyMarketManagerSig(mkt.manager, oid, 0, expireAt, signature), "OC: BAD_SIG");
+        markOrderAsPaid(s1, s2.marketCore, oid, true);
+        emit FinalizedByManagerSig(mkt.manager, msg.sender, oid, 0);
+    }
+
     /// @notice Mark a swap order as paid.
     /// Order must be have been released or cancelled.
     /// When the base asset is ERC20, the sender must be the taker.
@@ -201,15 +222,16 @@ library OrderLib {
     /// @param s1 State object
     /// @param marketCore The MarketCore contract address
     /// @param id The order ID.
-    function markOrderAsPaid(StructsLib.State storage s1, IMarketCore marketCore, uint256 id) public {
+    /// @param byManager Indicates that the method is called by the market manager
+    function markOrderAsPaid(StructsLib.State storage s1, IMarketCore marketCore, uint256 id, bool byManager) public {
         require(AuxLib.hasOrder(s1, id), "OC: UNKNOWN_ORDER");
         Structs.Order storage o = s1.orders[id];
         require(!o.released && !o.cancelled && !o.paid, "OC: NOT_ACTIVE");
         Structs.Market memory market = marketCore.getMarket(o.marketId);
-        require(msg.sender == MarketAuxLib.getPayer(market, o), "OC: NOT_PAYER");
+        require(byManager || msg.sender == MarketAuxLib.getPayer(market, o), "OC: NOT_PAYER");
         o.paid = true;
         o.disputeFrom = block.timestamp + market.dur.disputeDelayDur;
-        emit SwapOrderPaid(id, market.dur.disputeDelayDur);
+        emit SwapOrderPaid(id, byManager ? market.manager : msg.sender, market.dur.disputeDelayDur);
     }
 
     /// @notice Marks an order as `disputed`
@@ -227,18 +249,18 @@ library OrderLib {
     /// @notice Verify a market manager's signature
     /// @param signer The market manager's address
     /// @param id The order ID
-    /// @param release Indicates whether the order should be released or cancelled
+    /// @param action Indicates the manager action (0: paid, 1: release, 2: cancel)
     /// @param expireAt Indicates the timestamp when the signature is to expire.
     /// @param signature The signature created by the manager
     function verifyMarketManagerSig(
         address signer,
         uint256 id,
-        bool release,
+        uint action,
         uint256 expireAt,
         bytes memory signature
     ) internal view returns (bool) {
         if (address(0) == signer) return false;
-        bytes32 messageHash = keccak256(abi.encode(block.chainid, id, release, expireAt));
+        bytes32 messageHash = keccak256(abi.encode(block.chainid, id, action, expireAt));
         bytes32 ethSignedMessageHash = SigLib.getSignedMessageHash(messageHash);
         return SigLib.recoverSigner(ethSignedMessageHash, signature) == signer;
     }
