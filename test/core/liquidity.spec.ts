@@ -378,7 +378,7 @@ describe("Core - Liquidity", function () {
                 await testERC721.mint();
                 await testERC721.setApprovalForAll(core.address, true);
 
-                await assetReg.set(baseAddr, curRate, 0, fixedFee, 0, true, false, false); // rate: 100, bp: 0.1
+                await assetReg.set(baseAddr, curRate, 0, fixedFee, true, false, false); // rate: 100, bp: 0.1
 
                 const ids = [1, 2];
                 mid = await createMarket(undefined, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.SYNTH, false, false, 0, 0);
@@ -392,7 +392,7 @@ describe("Core - Liquidity", function () {
                     await testERC721.mint();
                     await testERC721.setApprovalForAll(core.address, true);
 
-                    await assetReg.set(testERC721.address, curRate, 0, fixedFee, 0, true, false, false); // rate: 100, bp: 0.1
+                    await assetReg.set(testERC721.address, curRate, 0, fixedFee, true, false, false); // rate: 100, bp: 0.1
 
                     const ids = [1, 2];
                     const expectedFee = toDec(fixedFee).mul(ids.length);
@@ -419,7 +419,7 @@ describe("Core - Liquidity", function () {
                     await testERC721.setApprovalForAll(core.address, true);
                     await nft.mint(1, false, Buffer.alloc(0), 0);
 
-                    await assetReg.set(testERC721.address, curRate, 0, fixedFee, 0, true, false, false); // rate: 100, bp: 0.1
+                    await assetReg.set(testERC721.address, curRate, 0, fixedFee, true, false, false); // rate: 100, bp: 0.1
 
                     const ids = [1, 2];
                     const expectedFee = toDec(fixedFee).mul(ids.length);
@@ -1219,7 +1219,7 @@ describe("Core - Liquidity", function () {
                     it("should successfully apply discount and lock correct fee (feeFixed: 0.1, nftDiscountBp: 2500)", async () => {
                         await nft.mint(1, false, Buffer.alloc(0), 0);
 
-                        await assetReg.set(baseAddr, curRate, 0, fixedFee, 0, false, false, false);
+                        await assetReg.set(baseAddr, curRate, 0, fixedFee, false, false, false);
                         const liqAmt = tokenDec.mul(2);
                         let protoFee = toDec(toDec(liqAmt).mul(toDec(fixedFee)).div(pow10str(18)));
                         let mktCreatorFee = toDec(toDec(liqAmt).mul(toDec(marketCom)).div(pow10str(18)));
@@ -1242,7 +1242,7 @@ describe("Core - Liquidity", function () {
                         await nft.mint(1, false, Buffer.alloc(0), 0);
 
                         fixedFee = toBN("500000000000000000");
-                        await assetReg.set(baseAddr, curRate, 0, fixedFee, 0, false, false, false);
+                        await assetReg.set(baseAddr, curRate, 0, fixedFee, false, false, false);
                         const liqAmt = tokenDec.mul(2);
                         let protoFee = toDec(toDec(liqAmt).mul(toDec(fixedFee)).div(pow10str(18)));
                         let mktCreatorFee = toDec(toDec(liqAmt).mul(toDec(marketCom)).div(pow10str(18)));
@@ -1263,7 +1263,7 @@ describe("Core - Liquidity", function () {
 
                 describe("sender does not have NFT and base asset has asset registry record", () => {
                     it("should successfully apply discount and lock correct fee (feeFixed: 0.1)", async () => {
-                        await assetReg.set(baseAddr, curRate, 0, fixedFee, 0, false, false, false);
+                        await assetReg.set(baseAddr, curRate, 0, fixedFee, false, false, false);
 
                         const liqAmt = tokenDec.mul(2);
                         let protoFee = toBN(toDec(liqAmt).mul(toDec(fixedFee)).div(pow10str(18)));

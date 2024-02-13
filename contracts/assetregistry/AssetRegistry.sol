@@ -10,8 +10,6 @@ struct Info {
     uint256 feeBp;
     // The fixed fee rate charged by the protocol (denominated in P2P)
     uint256 feeFixed;
-    // How much unit equates to 1 reward point (denominated in the asset)
-    uint256 amountPerRewardPoint;
     // Indicates whether the asset is verified
     bool verified;
     // Indicates whether the asset is a stablecoin
@@ -24,29 +22,19 @@ struct Info {
 contract AssetRegistry is Ownable {
     mapping(address => Info) public assets;
 
-    event AssetRegistryUpdated(
-        address addr,
-        uint256 curRate,
-        uint256 feeBp,
-        uint256 feeFixed,
-        uint256 amountPerRewardPoint,
-        bool verified,
-        bool stable,
-        bool sharable
-    );
+    event AssetRegistryUpdated(address addr, uint256 curRate, uint256 feeBp, uint256 feeFixed, bool verified, bool stable, bool sharable);
 
     function set(
         address addr,
         uint256 curRate,
         uint256 feeBp,
         uint256 feeFixed,
-        uint256 amountPerRewardPoint,
         bool verified,
         bool stable,
         bool sharable
     ) external onlyOwner {
-        assets[addr] = Info(curRate, feeBp, feeFixed, amountPerRewardPoint, verified, stable, sharable);
-        emit AssetRegistryUpdated(addr, curRate, feeBp, feeFixed, amountPerRewardPoint, verified, stable, sharable);
+        assets[addr] = Info(curRate, feeBp, feeFixed, verified, stable, sharable);
+        emit AssetRegistryUpdated(addr, curRate, feeBp, feeFixed, verified, stable, sharable);
     }
 
     function setRate(address addr, uint256 rate) external onlyOwner {
@@ -56,7 +44,6 @@ contract AssetRegistry is Ownable {
             assets[addr].curRate,
             assets[addr].feeBp,
             assets[addr].feeFixed,
-            assets[addr].amountPerRewardPoint,
             assets[addr].verified,
             assets[addr].stable,
             assets[addr].sharable
@@ -71,7 +58,6 @@ contract AssetRegistry is Ownable {
             assets[addr].curRate,
             assets[addr].feeBp,
             assets[addr].feeFixed,
-            assets[addr].amountPerRewardPoint,
             assets[addr].verified,
             assets[addr].stable,
             assets[addr].sharable
@@ -85,7 +71,6 @@ contract AssetRegistry is Ownable {
             assets[addr].curRate,
             assets[addr].feeBp,
             assets[addr].feeFixed,
-            assets[addr].amountPerRewardPoint,
             assets[addr].verified,
             assets[addr].stable,
             assets[addr].sharable
@@ -99,7 +84,6 @@ contract AssetRegistry is Ownable {
             assets[addr].curRate,
             assets[addr].feeBp,
             assets[addr].feeFixed,
-            assets[addr].amountPerRewardPoint,
             assets[addr].verified,
             assets[addr].stable,
             assets[addr].sharable
@@ -113,7 +97,6 @@ contract AssetRegistry is Ownable {
             assets[addr].curRate,
             assets[addr].feeBp,
             assets[addr].feeFixed,
-            assets[addr].amountPerRewardPoint,
             assets[addr].verified,
             assets[addr].stable,
             assets[addr].sharable
