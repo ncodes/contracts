@@ -451,7 +451,7 @@ describe("Core", function () {
 
         context("market has a dispute delay set", () => {
             it("should return false when within dispute delay time", async () => {
-                await mc.connect(marketCreator2).setDisputeDurations(mid, 10, 0, 0);
+                await mc.connect(marketCreator2).setDisputeDelayDuration(mid, 10);
                 const now = await advanceBlockTime(1);
                 const orderID = await createOrder_BaseOn_QuoteOff(mid);
                 await core.connect(swapper).markOrderAsPaid(orderID);

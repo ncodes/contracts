@@ -297,7 +297,7 @@ describe("Core - Order", function () {
             const disputeDelayDur = 1000;
             beforeEach(async () => {
                 await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, 1, 0, false, false, marketCom, 0);
-                await mc.connect(marketCreator2).setDisputeDurations(mid, disputeDelayDur, 0, 0);
+                await mc.connect(marketCreator2).setDisputeDelayDuration(mid, disputeDelayDur);
                 await provideLiquidity(provider, amountOfBase, pricePerBase);
                 const swapAmt = toBN(5).mul(baseDec);
                 await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;

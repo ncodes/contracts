@@ -240,7 +240,7 @@ describe("DisputeManager", function () {
             it("should create a new dispute round", async () => {
                 // create mature ticket
                 const numMediators = 1;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 2, 2, 1000, 2, 10000);
                 await token.approve(medMgr.address, (baseTicketPrice + bondAmt) * 2);
                 await medMgr.purchaseTicket(0);
@@ -266,7 +266,7 @@ describe("DisputeManager", function () {
         describe("previous dispute was already voted on decisively (released or cancelled)", () => {
             it("should revert on new dispute creation", async () => {
                 const numMediators = 1;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 2, 2, 1000, 2, 10000);
 
                 orderID = await createOrder_BaseOn_QuoteOff(mid);
@@ -316,7 +316,7 @@ describe("DisputeManager", function () {
         });
 
         it("should revert when maximum number of draftees was reached", async () => {
-            await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, 0);
+            await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, 0, 0, 0);
             orderID = await createOrder_BaseOn_QuoteOff(mid);
             await core.connect(swapper).markOrderAsPaid(orderID);
             await expect(dm.connect(swapper).createDispute(orderID, false)).not.to.be.reverted;
@@ -326,7 +326,7 @@ describe("DisputeManager", function () {
         describe("number of mediators = 2", () => {
             it("should update state correctly", async () => {
                 const numMediators = 2;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 2, 2, 1000, 2, 10000);
                 await token.approve(medMgr.address, (baseTicketPrice + bondAmt) * 2);
                 await medMgr.purchaseTicket(0);
@@ -365,7 +365,7 @@ describe("DisputeManager", function () {
         context("when there is an existing dispute", () => {
             it("should revert when dispute has been executed", async () => {
                 const numMediators = 1;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 2, 2, 1000, 2, 10000);
 
                 orderID = await createOrder_BaseOn_QuoteOff(mid);
@@ -388,7 +388,7 @@ describe("DisputeManager", function () {
 
             it("should revert when dispute has been abandoned", async () => {
                 const numMediators = 1;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 2, 2, 1000, 2, 10000);
 
                 orderID = await createOrder_BaseOn_QuoteOff(mid);
@@ -427,7 +427,7 @@ describe("DisputeManager", function () {
 
             // join as mediator
             const numMediators = 1;
-            await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+            await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0);
             await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 3, 3, 1000, 2, 10000);
             await token.approve(medMgr.address, baseTicketPrice + bondAmt);
             await medMgr.purchaseTicket(0);
@@ -445,7 +445,7 @@ describe("DisputeManager", function () {
             beforeEach(async () => {
                 // join 2 mediators
                 const numMediators = 3;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 3, 3, 1000, 2, 10000);
                 await token.approve(medMgr.address, baseTicketPrice + bondAmt);
                 await token.transfer(user5.address, baseTicketPrice + bondAmt);
@@ -472,7 +472,7 @@ describe("DisputeManager", function () {
             beforeEach(async () => {
                 // join as mediator
                 const numMediators = 1;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 3, 3, 1000, 2, 10000);
                 await token.approve(medMgr.address, baseTicketPrice + bondAmt);
                 await medMgr.purchaseTicket(0);
@@ -509,7 +509,7 @@ describe("DisputeManager", function () {
             beforeEach(async () => {
                 // join as mediator
                 const numMediators = 1;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 3, 3, 1000, 2, 10000);
                 await token.approve(medMgr.address, baseTicketPrice + bondAmt);
                 await medMgr.purchaseTicket(0);
@@ -545,7 +545,7 @@ describe("DisputeManager", function () {
 
             // join as mediator
             const numMediators = 1;
-            await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+            await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0);
             await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 3, 3, 1000, 2, 10000);
             await token.approve(medMgr.address, baseTicketPrice + bondAmt);
             await medMgr.purchaseTicket(0);
@@ -662,7 +662,7 @@ describe("DisputeManager", function () {
         context("when matching dispute with index exist", () => {
             beforeEach(async () => {
                 const numMediators = 1;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 3, 3, 1000, 2, 10000);
 
                 await core.connect(swapper).markOrderAsPaid(orderID);
@@ -805,7 +805,7 @@ describe("DisputeManager", function () {
         context("when there are two disputes", () => {
             beforeEach(async () => {
                 const numMediators = 1;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 3, 3, 1000, 2, 10000);
 
                 await core.connect(swapper).markOrderAsPaid(orderID);
@@ -862,7 +862,7 @@ describe("DisputeManager", function () {
 
         beforeEach(async () => {
             const numMediators = 2;
-            await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+            await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0);
             await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 3, 3, 1000, 2, 10000);
 
             await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
@@ -976,7 +976,7 @@ describe("DisputeManager", function () {
         context("when ticket owner voted the lose side", () => {
             it("should not award any reward to the ticket", async () => {
                 const numMediators = 3;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0);
                 await join(user7);
                 await advanceBlockTime(ticketMatureDur);
 
@@ -1092,7 +1092,7 @@ describe("DisputeManager", function () {
 
         beforeEach(async () => {
             const numMediators = 1;
-            await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+            await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0);
             await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 3, 3, 1000, 2, 10000);
 
             await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);

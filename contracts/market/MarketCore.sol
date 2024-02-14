@@ -57,7 +57,7 @@ contract MarketCore is Writable {
     event UpdatedMarketBadges(address indexed id, string[2][], string[2][]);
     event UpdatedBadgeAddr(address addr);
     event UpdatedDefaultDisputeDelayDur(uint256 val);
-    event UpdatedDisputeDurations(address indexed id, uint256 disputeDelayDur, uint256 evidenceDur, uint256 predictDur);
+    event UpdatedDisputeDelayDuration(address indexed id, uint256 disputeDelayDur);
     event UpdatedMarketManager(address indexed id, address mgr);
     event RenouncedMarket(address id, address owner);
 
@@ -178,21 +178,12 @@ contract MarketCore is Writable {
         emit OfferOnlyEnabled(id);
     }
 
-    /// @notice Set dispute durations for a market
+    /// @notice Set dispute delat duration for a market
     /// @param id The market ID.
-    /// @param disputeDelayDur The time to wait before a dispute can be started.
-    /// @param evidenceDur The duration for evidence collection.
-    /// @param predictDur The duration for voting (includes committing and revealing).
-    function setDisputeDurations(
-        address id,
-        uint256 disputeDelayDur,
-        uint256 evidenceDur,
-        uint256 predictDur
-    ) external marketMustExist(id) isMarketCreator(id) isNotRenounced(id) {
-        markets[id].dur.disputeDelayDur = disputeDelayDur;
-        markets[id].dur.evidenceDur = evidenceDur;
-        markets[id].dur.predictDur = predictDur;
-        emit UpdatedDisputeDurations(id, disputeDelayDur, evidenceDur, predictDur);
+    /// @param duration The time to wait before a dispute can be started.
+    function setDisputeDelayDuration(address id, uint256 duration) external marketMustExist(id) isMarketCreator(id) isNotRenounced(id) {
+        markets[id].dur.disputeDelayDur = duration;
+        emit UpdatedDisputeDelayDuration(id, duration);
     }
 
     /// @notice Updated market manager

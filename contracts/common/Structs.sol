@@ -17,10 +17,6 @@ library Structs {
     struct MarketDur {
         // Time to wait before a dispute can be started
         uint256 disputeDelayDur;
-        // The duration for evidence collection
-        uint256 evidenceDur;
-        // The duration for voting (includes committing and revealing)
-        uint256 predictDur;
     }
 
     // Market represents a pair of assets where one
@@ -217,6 +213,8 @@ library Structs {
         uint256 noVoteSlashBP;
         uint256 loseVoteSlashBP;
         uint256 numDraftees;
+        uint256 evidenceDur;
+        uint256 predictDur;
     }
 
     struct DelegateTicket {

@@ -50,7 +50,7 @@ describe("MarketCore", function () {
         permPut: boolean,
         permSwap: boolean,
         commission: BigNumberish,
-        mediatePoolId = 0
+        mediatePoolId = 0,
     ) {
         const mid = makeMarketID(creator.address, base, quote, baseType, quoteType);
         await mc.connect(creator).createMarket(base, quote, baseType, quoteType, permPut, permSwap, commission, mediatePoolId);
@@ -69,7 +69,9 @@ describe("MarketCore", function () {
         it("Should create new market if not existing", async function () {
             mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 0, 1);
             expect(await mc.hasMarket(mid)).to.be.false;
-            expect(mc.createMarket(baseAddr, quoteAddr, 0, 1, true, true, 0, 0)).to.emit(mc, "NewMarket").withArgs(getAddress(mid), marketCreator.address, baseAddr, quoteAddr, 0, 1, 0, 3);
+            expect(mc.createMarket(baseAddr, quoteAddr, 0, 1, true, true, 0, 0))
+                .to.emit(mc, "NewMarket")
+                .withArgs(getAddress(mid), marketCreator.address, baseAddr, quoteAddr, 0, 1, 0, 3);
             expect(await mc.hasMarket(mid)).to.be.true;
         });
 
@@ -118,26 +120,24 @@ describe("MarketCore", function () {
         });
     });
 
-    describe(".setDisputeDurations", () => {
+    describe(".setDisputeDelayDuration", () => {
         beforeEach(async () => {
             await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
         });
 
         it("should revert with reason=NOT_OWNER when sender is not owner of market", async () => {
-            await expect(mc.connect(provider).setDisputeDurations(mid, 0, 0, 0)).to.be.revertedWith("MC: NOT_CREATOR");
+            await expect(mc.connect(provider).setDisputeDelayDuration(mid, 0)).to.be.revertedWith("MC: NOT_CREATOR");
         });
 
         it("should revert with reason=MARKET_RENOUNCED when market ownership has been renounced", async () => {
             await mc["renounceOwnership(address)"](mid);
-            await expect(mc.setDisputeDurations(mid, 1, 2, 3)).to.be.revertedWith("MC: MARKET_RENOUNCED");
+            await expect(mc.setDisputeDelayDuration(mid, 1)).to.be.revertedWith("MC: MARKET_RENOUNCED");
         });
 
         it("should update successfully", async () => {
-            await expect(mc.setDisputeDurations(mid, 1, 2, 3)).not.to.be.reverted;
+            await expect(mc.setDisputeDelayDuration(mid, 1)).not.to.be.reverted;
             const market = await mc.markets(mid);
             expect(market.dur.disputeDelayDur).to.eq(1);
-            expect(market.dur.evidenceDur).to.eq(2);
-            expect(market.dur.predictDur).to.eq(3);
         });
     });
 

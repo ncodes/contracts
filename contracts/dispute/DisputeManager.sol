@@ -234,9 +234,9 @@ contract DisputeManager is Ownable {
 
         // If sender is last draftee, set phases time.
         if (dispute.ticketOwners.length == pool.numDraftees) {
-            dispute.evidenceEndAt = block.timestamp + setOrDef(market.dur.evidenceDur, evidenceDur);
-            dispute.commitEndAt = dispute.evidenceEndAt + (setOrDef(market.dur.predictDur, predictDur) / 2);
-            dispute.predictEndAt = dispute.evidenceEndAt + setOrDef(market.dur.predictDur, predictDur);
+            dispute.evidenceEndAt = block.timestamp + setOrDef(pool.evidenceDur, evidenceDur);
+            dispute.commitEndAt = dispute.evidenceEndAt + (setOrDef(pool.predictDur, predictDur) / 2);
+            dispute.predictEndAt = dispute.evidenceEndAt + setOrDef(pool.predictDur, predictDur);
         }
 
         minerReg.addReward(MinerOperation.Draft, msg.sender);

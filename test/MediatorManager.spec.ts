@@ -44,6 +44,8 @@ describe("MediatorManager", function () {
     let winReward = 100;
     let numDraftees = 3;
     let supply = toBN("1000000000000000000000000");
+    let evidenceDur = 86400;
+    let predictDur = 86400;
 
     beforeEach(async () => {
         const vars = await initCoreTestSuite();
@@ -81,17 +83,17 @@ describe("MediatorManager", function () {
 
         mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 1, 0);
         mid2 = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 1, 0);
-        await c.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numDraftees);
+        await c.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numDraftees, evidenceDur, predictDur);
     });
 
     describe(".updateTicketPool", () => {
         it("should revert when bond is zero", async () => {
-            await expect(c.updateTicketPool(1, 0, 1, 1, 1, 1, 1)).to.be.revertedWith("MM: INVALID_REQ_BOND");
+            await expect(c.updateTicketPool(1, 0, 1, 1, 1, 1, 1, 1, 2)).to.be.revertedWith("MM: INVALID_REQ_BOND");
         });
 
         it("should revert when pool exist", async () => {
             expect(await c.poolExists(1)).to.be.false;
-            await expect(c.updateTicketPool(1, 1, 1, 1, 1, 1, 1)).not.be.reverted;
+            await expect(c.updateTicketPool(1, 1, 1, 1, 1, 1, 1, 1, 2)).not.be.reverted;
             expect(await c.poolExists(1)).to.be.true;
             const pool = await c.pools(1);
             expect(pool.reqBond).to.eq(1);
@@ -382,7 +384,7 @@ describe("MediatorManager", function () {
             await token.approve(c.address, baseTicketPrice + bondAmt);
             await c.purchaseTicket(0);
             await advanceBlockTime(ticketMatureDur);
-            await c.updateTicketPool(0, baseTicketPrice + bondAmt + 1, 1, 1, 1, 1, 1);
+            await c.updateTicketPool(0, baseTicketPrice + bondAmt + 1, 1, 1, 1, 1, 1, 1, 1);
             await expect(c.join(0)).to.be.revertedWith("MM: LOW_BOND");
         });
     });
@@ -725,8 +727,8 @@ describe("MediatorManager", function () {
                 await expect(c.join(0)).to.be.revertedWith("MM: LOW_BOND");
             });
 
-            it("should not be able to join the pool since ticket was made to immediately expire", async () => {
-                await c.updateTicketPool(0, 1, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numDraftees);
+            it("should not be able to join the pool since ticket was immediately canceled", async () => {
+                await c.updateTicketPool(0, 1, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numDraftees, evidenceDur, predictDur);
                 await expect(c.join(0)).to.be.revertedWith("MM: EXPIRED");
             });
 
@@ -788,7 +790,7 @@ describe("MediatorManager", function () {
             });
 
             it("should not be able to join the pool since ticket was made to immediately expire", async () => {
-                await c.updateTicketPool(0, 1, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numDraftees);
+                await c.updateTicketPool(0, 1, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numDraftees, evidenceDur, predictDur);
                 await expect(c.join(0)).to.be.revertedWith("MM: EXPIRED");
             });
 

@@ -84,7 +84,9 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         uint256 winReward,
         uint256 noVoteSlashBP,
         uint256 loseVoteSlashBP,
-        uint256 numDraftees
+        uint256 numDraftees,
+        uint256 evidenceDur,
+        uint256 predictDur
     );
     event UpdatedTicketParams(
         uint256 baseTicketPrice,
@@ -124,14 +126,16 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         ticketExpireDur = _ticketExpireDur;
     }
 
-    // @notice Update or add a new ticket pool
-    // @param poolId The pool id
-    // @param reqBond The required bond
-    // @param draftReward The reward to disburse to drafted ticket
-    // @param winReward The reward to disburse to winning ticket
-    // @param noVoteSlashBP The slash percentage for no vote
-    // @param loseVoteSlashBP The slash percentage for losing vote
-    // @param numDraftees The number of draftees to select from the pool per dispute
+    /// @notice Update or add a new ticket pool
+    /// @param poolId The pool id
+    /// @param reqBond The required bond
+    /// @param draftReward The reward to disburse to drafted ticket
+    /// @param winReward The reward to disburse to winning ticket
+    /// @param noVoteSlashBP The slash percentage for no vote
+    /// @param loseVoteSlashBP The slash percentage for losing vote
+    /// @param numDraftees The number of draftees to select from the pool per dispute
+    /// @param evidenceDur The duration for evidence submission
+    /// @param predictDur The duration for prediction submission
     function updateTicketPool(
         uint256 poolId,
         uint256 reqBond,
@@ -139,11 +143,32 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         uint256 winReward,
         uint256 noVoteSlashBP,
         uint256 loseVoteSlashBP,
-        uint256 numDraftees
+        uint256 numDraftees,
+        uint256 evidenceDur,
+        uint256 predictDur
     ) external onlyOwner {
         require(reqBond > 0, "MM: INVALID_REQ_BOND");
-        pools[poolId] = Structs.TicketPool(reqBond, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numDraftees);
-        emit UpdatedTicketPool(poolId, reqBond, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numDraftees);
+        pools[poolId] = Structs.TicketPool(
+            reqBond,
+            draftReward,
+            winReward,
+            noVoteSlashBP,
+            loseVoteSlashBP,
+            numDraftees,
+            evidenceDur,
+            predictDur
+        );
+        emit UpdatedTicketPool(
+            poolId,
+            reqBond,
+            draftReward,
+            winReward,
+            noVoteSlashBP,
+            loseVoteSlashBP,
+            numDraftees,
+            evidenceDur,
+            predictDur
+        );
     }
 
     /// @notice Set address of randomness provider
