@@ -27,6 +27,8 @@ interface IMediatorManager {
         uint256 winReward,
         uint256 noVoteSlashBP,
         uint256 loseVoteSlashBP,
-        uint256 numDraftees
+        uint256 numDraftees,
+        uint256 evidenceDur,
+        uint256 predictDur
     ) external;
 }

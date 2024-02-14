@@ -83,24 +83,79 @@ describe("MediatorManager", function () {
 
         mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 1, 0);
         mid2 = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 1, 0);
-        await c.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numDraftees, evidenceDur, predictDur);
+        await c.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numDraftees, evidenceDur, predictDur, false);
     });
 
     describe(".updateTicketPool", () => {
-        it("should revert when bond is zero", async () => {
-            await expect(c.updateTicketPool(1, 0, 1, 1, 1, 1, 1, 1, 2)).to.be.revertedWith("MM: INVALID_REQ_BOND");
-        });
-
-        it("should revert when pool exist", async () => {
+        it("should create pool if not existing or update if existing", async () => {
             expect(await c.poolExists(1)).to.be.false;
-            await expect(c.updateTicketPool(1, 1, 1, 1, 1, 1, 1, 1, 2)).not.be.reverted;
+            await expect(c.updateTicketPool(1, 1, 1, 1, 1, 1, 1, 1, 2, false)).not.be.reverted;
+
             expect(await c.poolExists(1)).to.be.true;
-            const pool = await c.pools(1);
+            let pool = await c.pools(1);
             expect(pool.reqBond).to.eq(1);
             expect(pool.draftReward).to.eq(1);
             expect(pool.winReward).to.eq(1);
             expect(pool.noVoteSlashBP).to.eq(1);
             expect(pool.loseVoteSlashBP).to.eq(1);
+
+            await expect(c.updateTicketPool(1, 2, 2, 2, 2, 2, 2, 2, 2, false)).not.be.reverted;
+            pool = await c.pools(1);
+            expect(pool.reqBond).to.eq(2);
+            expect(pool.draftReward).to.eq(2);
+            expect(pool.winReward).to.eq(2);
+            expect(pool.noVoteSlashBP).to.eq(2);
+            expect(pool.loseVoteSlashBP).to.eq(2);
+            expect(pool.evidenceDur).to.eq(2);
+            expect(pool.predictDur).to.eq(2);
+        });
+
+        // revert if not owner of pool
+        it("should revert with reason=OWNABLE: NOT_OWNER when sender is not deployer", async () => {
+            await expect(c.updateTicketPool(1, 1, 1, 1, 1, 1, 1, 1, 2, false)).not.be.reverted;
+            await expect(c.connect(mediator).updateTicketPool(1, 1, 1, 1, 1, 1, 1, 1, 2, false)).to.be.revertedWith("MM: NOT_OWNER");
+        });
+    });
+
+    describe(".toggleApprove", () => {
+        it("should revert with reason=OWNABLE: NOT_OWNER when sender is not deployer", async () => {
+            await expect(c.toggleApprove(1, mediator.address)).to.be.revertedWith("MM: NOT_OWNER");
+        });
+
+        it("should revert with reason=NOT_APPROVE_ONLY when pool is not approveOnly", async () => {
+            await expect(c.updateTicketPool(0, 1, 1, 1, 1, 1, 1, 1, 2, false)).not.be.reverted;
+            await expect(c.toggleApprove(0, mediator.address)).to.be.revertedWith("MM: NOT_APPROVE_ONLY");
+        });
+
+        it("should approve and unapprove address", async () => {
+            await expect(c.updateTicketPool(0, 1, 1, 1, 1, 1, 1, 1, 2, true)).not.be.reverted;
+            await expect(c.toggleApprove(0, mediator.address)).not.be.reverted;
+            expect(await c.isApproved(0, mediator.address)).to.be.true;
+
+            await expect(c.toggleApprove(0, mediator.address)).not.be.reverted;
+            expect(await c.isApproved(0, mediator.address)).to.be.false;
+        });
+    });
+
+    describe(".isApproved", () => {
+        it("should return false when pool does not exist", async () => {
+            expect(await c.isApproved(1, mediator.address)).to.be.false;
+        });
+
+        it("should return true when pool exist but pool is not approveOnly", async () => {
+            await expect(c.updateTicketPool(0, 1, 1, 1, 1, 1, 1, 1, 2, false)).not.be.reverted;
+            expect(await c.isApproved(0, mediator.address)).to.be.true;
+        });
+
+        it("should return false when pool exist and pool is approveOnly but address is not approved", async () => {
+            await expect(c.updateTicketPool(0, 1, 1, 1, 1, 1, 1, 1, 2, true)).not.be.reverted;
+            expect(await c.isApproved(0, mediator.address)).to.be.false;
+        });
+
+        it("should return true when pool exist and pool is approveOnly and address is approved", async () => {
+            await expect(c.updateTicketPool(1, 1, 1, 1, 1, 1, 1, 1, 2, true)).not.be.reverted;
+            await expect(c.toggleApprove(1, mediator.address)).not.be.reverted;
+            expect(await c.isApproved(1, mediator.address)).to.be.true;
         });
     });
 
@@ -372,6 +427,14 @@ describe("MediatorManager", function () {
             await expect(c.join(0)).to.be.emit(c, "JoinedPool").withArgs(deployer.address, 0, 0);
         });
 
+        it("should revert when pool requires approval and sender is not approved", async () => {
+            await c.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numDraftees, evidenceDur, predictDur, true);
+            await token.approve(c.address, baseTicketPrice + bondAmt);
+            await c.purchaseTicket(0);
+            await advanceBlockTime(ticketMatureDur);
+            await expect(c.join(0)).to.be.revertedWith("MM: NOT_APPROVED");
+        });
+
         it("should revert when ticket is already joined", async () => {
             await token.approve(c.address, baseTicketPrice + bondAmt);
             await c.purchaseTicket(0);
@@ -384,7 +447,7 @@ describe("MediatorManager", function () {
             await token.approve(c.address, baseTicketPrice + bondAmt);
             await c.purchaseTicket(0);
             await advanceBlockTime(ticketMatureDur);
-            await c.updateTicketPool(0, baseTicketPrice + bondAmt + 1, 1, 1, 1, 1, 1, 1, 1);
+            await c.updateTicketPool(0, baseTicketPrice + bondAmt + 1, 1, 1, 1, 1, 1, 1, 1, false);
             await expect(c.join(0)).to.be.revertedWith("MM: LOW_BOND");
         });
     });
@@ -688,16 +751,38 @@ describe("MediatorManager", function () {
             });
         });
 
+        describe("when mediator voted for the winning side but mediator is no longer approved", () => {
+            it("should be un-drafted but not added back to the pool", async () => {
+                await c.updateTicketPool(0, 0, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numDraftees, evidenceDur, predictDur, true);
+                await c.toggleApprove(0, deployer.address);
+                await c.purchaseTicket(0);
+                await advanceBlockTime(ticketMatureDur);
+                await expect(c.join(0)).not.to.be.reverted;
+
+                await expect(c.draft(mid, 0, 0)).not.to.be.reverted;
+
+                await c.toggleApprove(0, deployer.address);
+                await expect(c.undraft(deployer.address, 0, true, true))
+                    .to.emit(c, "Undrafted")
+                    .withArgs(deployer.address, 0, false, deployer.address);
+
+                const ticket = await c.tickets(deployer.address, 0);
+                await expect(c.poolTickets(0, ticket.poolIdx)).to.be.reverted;
+                expect(ticket.poolIdx).to.eq(0);
+                expect(ticket.joined).to.be.false;
+                expect(ticket.cancelAt.isZero()).to.be.false;
+            });
+        });
+
         describe("when mediator did not vote", () => {
             const totalBond = baseTicketPrice + bondAmt;
             const expectedSlashAmt = (totalBond * noVoteSlashBP) / 10000;
-            let timeUndraft: number;
             beforeEach(async () => {
                 await c.purchaseTicket(0);
                 await advanceBlockTime(ticketMatureDur);
                 await expect(c.join(0)).not.to.be.reverted;
                 await expect(c.draft(mid, 0, 0)).not.to.be.reverted;
-                timeUndraft = await advanceBlockTime(1);
+                await advanceBlockTime(1);
                 await expect(c.undraft(deployer.address, 0, false, false))
                     .to.emit(c, "TicketSlashed")
                     .withArgs(deployer.address, toBN(0), expectedSlashAmt, false, false);
@@ -728,7 +813,7 @@ describe("MediatorManager", function () {
             });
 
             it("should not be able to join the pool since ticket was immediately canceled", async () => {
-                await c.updateTicketPool(0, 1, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numDraftees, evidenceDur, predictDur);
+                await c.updateTicketPool(0, 1, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numDraftees, evidenceDur, predictDur, false);
                 await expect(c.join(0)).to.be.revertedWith("MM: EXPIRED");
             });
 
@@ -784,13 +869,12 @@ describe("MediatorManager", function () {
                 expect(ticket.joinBy.isZero()).to.be.true;
             });
 
-            // should not be able to join the pool again
             it("should not be able to join the pool again since bond is low", async () => {
                 await expect(c.join(0)).to.be.revertedWith("MM: LOW_BOND");
             });
 
             it("should not be able to join the pool since ticket was made to immediately expire", async () => {
-                await c.updateTicketPool(0, 1, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numDraftees, evidenceDur, predictDur);
+                await c.updateTicketPool(0, 1, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numDraftees, evidenceDur, predictDur, false);
                 await expect(c.join(0)).to.be.revertedWith("MM: EXPIRED");
             });
 

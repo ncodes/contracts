@@ -50,6 +50,12 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     /// @notice Tickets assigned to a pool
     mapping(uint256 => Structs.PoolTicket[]) public poolTickets;
 
+    /// @notice Mapping of pool to their owners
+    mapping(uint256 => address) public poolOwners;
+
+    /// @notice Mapping of pool to their approvals
+    mapping(uint256 => mapping(address => bool)) public poolApprovals;
+
     /// @notice Track purchase windows
     Structs.PurchaseWindow[] public windows;
 
@@ -77,6 +83,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     event UpdatedDisputeManager(address val);
     event UpdatedMarketCore(address val);
     event TicketBlocked(address owner, uint256 id, bool blocked);
+    event PoolApproval(uint256 poolId, address addr, bool approved);
     event UpdatedTicketPool(
         uint256 poolId,
         uint256 reqBond,
@@ -86,7 +93,8 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         uint256 loseVoteSlashBP,
         uint256 numDraftees,
         uint256 evidenceDur,
-        uint256 predictDur
+        uint256 predictDur,
+        bool approveOnly
     );
     event UpdatedTicketParams(
         uint256 baseTicketPrice,
@@ -145,10 +153,15 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         uint256 loseVoteSlashBP,
         uint256 numDraftees,
         uint256 evidenceDur,
-        uint256 predictDur
-    ) external onlyOwner {
-        require(reqBond > 0, "MM: INVALID_REQ_BOND");
+        uint256 predictDur,
+        bool approveOnly
+    ) external {
+        address _owner = poolOwners[poolId];
+        require(_owner == msg.sender || _owner == address(0), "MM: NOT_OWNER");
+
         pools[poolId] = Structs.TicketPool(
+            true,
+            approveOnly,
             reqBond,
             draftReward,
             winReward,
@@ -158,6 +171,9 @@ contract MediatorManager is Ownable, ReentrancyGuard {
             evidenceDur,
             predictDur
         );
+
+        poolOwners[poolId] = msg.sender;
+
         emit UpdatedTicketPool(
             poolId,
             reqBond,
@@ -167,8 +183,26 @@ contract MediatorManager is Ownable, ReentrancyGuard {
             loseVoteSlashBP,
             numDraftees,
             evidenceDur,
-            predictDur
+            predictDur,
+            approveOnly
         );
+    }
+
+    /// @notice Approve or disapprove an address to a pool
+    /// @param poolId The pool id
+    /// @param addr The address to approve
+    function toggleApprove(uint256 poolId, address addr) external {
+        require(poolOwners[poolId] == msg.sender, "MM: NOT_OWNER");
+        require(pools[poolId].approveOnly, "MM: NOT_APPROVE_ONLY");
+        poolApprovals[poolId][addr] = !poolApprovals[poolId][addr];
+        emit PoolApproval(poolId, addr, poolApprovals[poolId][addr]);
+    }
+
+    /// @notice Check if an address is approved to a pool
+    /// @param poolId The pool id
+    /// @param addr The address to check
+    function isApproved(uint256 poolId, address addr) public view returns (bool) {
+        return (pools[poolId].exists && !pools[poolId].approveOnly) || poolApprovals[poolId][addr];
     }
 
     /// @notice Set address of randomness provider
@@ -251,7 +285,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     // @notice Check if a pool exists
     // @param poolId The pool id
     function poolExists(uint256 poolId) public view returns (bool) {
-        return pools[poolId].reqBond > 0;
+        return pools[poolId].exists;
     }
 
     // @notice Get pool
@@ -345,7 +379,9 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         address sdr = msg.sender;
         Structs.TicketPool memory pool = pools[poolId];
         uint256 totalBond = getTicketPrice() + pool.reqBond;
-        tickets[sdr].push(Structs.Ticket(sdr, tickets[sdr].length, poolId, totalBond, matureAt, 0, 0, joinBy, false, false, false, false));
+        tickets[sdr].push(
+            Structs.Ticket(sdr, tickets[sdr].length, poolId, totalBond, matureAt, 0, 0, joinBy, false, false, false, false, false)
+        );
         ticketSold++;
 
         // Transfer bond to this contract
@@ -362,10 +398,11 @@ contract MediatorManager is Ownable, ReentrancyGuard {
 
         // Make sure ticket has not joined its assigned pool and bond is sufficient
         Structs.Ticket storage ticket = tickets[sender][ticketId];
+        require(isApproved(ticket.poolId, sender), "MM: NOT_APPROVED");
         require(!ticket.joined, "MM: ALREADY_JOINED");
         require(ticket.bond >= pools[ticket.poolId].reqBond, "MM: LOW_BOND");
 
-        // Make sure ticket is not blocked, expired, cancelled or immature
+        // Make sure ticket is not blocked, suspended, expired, cancelled or immature
         require(!ticket.blocked, "MM: BLOCKED");
         require(ticket.matureAt <= block.timestamp, "MM: NOT_MATURE");
         require(ticket.joinBy > block.timestamp, "MM: EXPIRED");
@@ -484,7 +521,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         }
 
         // Ticket must be added back in the pool if it is not blocked, else remove it from the pool completely.
-        if (!t.blocked) {
+        if (!t.blocked && isApproved(t.poolId, t.owner)) {
             t.poolIdx = poolTickets[t.poolId].length;
             poolTickets[t.poolId].push(Structs.PoolTicket(t.owner, t.idx));
         } else {

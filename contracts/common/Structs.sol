@@ -204,9 +204,12 @@ library Structs {
         bool joined;
         bool blocked;
         bool slashed;
+        bool suspended;
     }
 
     struct TicketPool {
+        bool exists;
+        bool approveOnly;
         uint256 reqBond;
         uint256 draftReward;
         uint256 winReward;
