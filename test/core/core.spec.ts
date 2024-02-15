@@ -2,7 +2,7 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
 import {BigNumber, BigNumberish} from "ethers";
 import {ethers} from "hardhat";
-import {AssetRegistry, Core, ENERGON, ERC1155T, ERC721T, FeePool, FeePurse, MarketCore, NFT, TOKEN} from "../../typechain-types";
+import {AssetRegistry, Core, ENERGON, ERC1155T, ERC721T, FeePool, FeePurse, MarketCore, MediatorManager, NFT, TOKEN} from "../../typechain-types";
 import {AddressZero, advanceBlockTime, getERC20, makeMarketID, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
 const {getContractFactory} = ethers;
@@ -12,6 +12,7 @@ describe("Core", function () {
     let quoteAddr: string;
     let core: Core;
     let mc: MarketCore;
+    let medMgr: MediatorManager;
     let energon: ENERGON;
     let nft: NFT;
     let feePurse: FeePurse;
@@ -38,7 +39,6 @@ describe("Core", function () {
     let amountOfBase: BigNumber;
     let pricePerBase: BigNumber;
     let fixedSynthSwapFee: BigNumberish;
-    let instantNFTSwapFee: BigNumberish;
 
     let marketCreator: SignerWithAddress, provider: SignerWithAddress, swapper: SignerWithAddress, marketCreator2: SignerWithAddress, inventor: SignerWithAddress;
 
@@ -74,7 +74,6 @@ describe("Core", function () {
         amountOfBase = vars.amountOfBase;
         pricePerBase = vars.pricePerBase;
         fixedSynthSwapFee = vars.fixedSynthSwapFee;
-        instantNFTSwapFee = vars.instantNFTSwapFee;
         deployer = vars.deployer;
         marketCreator = vars.marketCreator;
         provider = vars.provider;
@@ -82,6 +81,9 @@ describe("Core", function () {
         marketCreator2 = vars.marketCreator2;
         inventor = vars.inventor;
         user5 = vars.user5;
+        medMgr = vars.mediatorMgr;
+
+        await medMgr.updateTicketPool(0, vars.ticketBondAmt, 10, 10, 100, 100, 1, 0, 0, false, false);
     });
 
     async function provideLiquidity(provider: SignerWithAddress, liquidityAmt: BigNumber, basePrice: BigNumber, timeToPay = 0) {

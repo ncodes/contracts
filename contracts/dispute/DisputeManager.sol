@@ -180,6 +180,8 @@ contract DisputeManager is Ownable {
 
         // Create the dispute and mark the order as disputed
         Structs.Order memory order = core.getOrder(orderId);
+        Structs.Market memory market = marketCore.getMarket(order.marketId);
+        require(mediatorMgr.isApprovedMarket(market.poolId, order.marketId), "DM: MKT_NOT_APPROVED");
         Dispute memory disp;
         disp.marketId = order.marketId;
         disp.creator = msg.sender;

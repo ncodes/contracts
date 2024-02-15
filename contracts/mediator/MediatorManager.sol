@@ -56,6 +56,9 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     /// @notice Mapping of pool to their approvals
     mapping(uint256 => mapping(address => bool)) public poolApprovals;
 
+    /// @notice Mapping of pool to their market approvals
+    mapping(uint256 => mapping(address => bool)) public poolMarketApprovals;
+
     /// @notice Track purchase windows
     Structs.PurchaseWindow[] public windows;
 
@@ -83,7 +86,8 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     event UpdatedDisputeManager(address val);
     event UpdatedMarketCore(address val);
     event TicketBlocked(address owner, uint256 id, bool blocked);
-    event PoolApproval(uint256 poolId, address addr, bool approved);
+    event PoolMediatorApproval(uint256 poolId, address addr, bool approved);
+    event PoolMarketApproval(uint256 poolId, address addr, bool approved);
     event UpdatedTicketPool(
         uint256 poolId,
         uint256 reqBond,
@@ -94,7 +98,8 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         uint256 numDraftees,
         uint256 evidenceDur,
         uint256 predictDur,
-        bool approveOnly
+        bool approvedMediatorOnly,
+        bool approvedMarketOnly
     );
     event UpdatedTicketParams(
         uint256 baseTicketPrice,
@@ -144,6 +149,8 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     /// @param numDraftees The number of draftees to select from the pool per dispute
     /// @param evidenceDur The duration for evidence submission
     /// @param predictDur The duration for prediction submission
+    /// @param approvedMediatorOnly Indicates whether only approved mediators can join the pool
+    /// @param approvedMarketOnly Indicates whether only approved markets can join the pool
     function updateTicketPool(
         uint256 poolId,
         uint256 reqBond,
@@ -154,14 +161,16 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         uint256 numDraftees,
         uint256 evidenceDur,
         uint256 predictDur,
-        bool approveOnly
+        bool approvedMediatorOnly,
+        bool approvedMarketOnly
     ) external {
         address _owner = poolOwners[poolId];
         require(_owner == msg.sender || _owner == address(0), "MM: NOT_OWNER");
 
         pools[poolId] = Structs.TicketPool(
             true,
-            approveOnly,
+            approvedMediatorOnly,
+            approvedMarketOnly,
             reqBond,
             draftReward,
             winReward,
@@ -184,25 +193,43 @@ contract MediatorManager is Ownable, ReentrancyGuard {
             numDraftees,
             evidenceDur,
             predictDur,
-            approveOnly
+            approvedMediatorOnly,
+            approvedMarketOnly
         );
     }
 
     /// @notice Approve or disapprove an address to a pool
     /// @param poolId The pool id
     /// @param addr The address to approve
-    function toggleApprove(uint256 poolId, address addr) external {
+    function toggleApproveMediator(uint256 poolId, address addr) external {
         require(poolOwners[poolId] == msg.sender, "MM: NOT_OWNER");
-        require(pools[poolId].approveOnly, "MM: NOT_APPROVE_ONLY");
+        require(pools[poolId].approvedMediatorOnly, "MM: NOT_APPROVE_ONLY");
         poolApprovals[poolId][addr] = !poolApprovals[poolId][addr];
-        emit PoolApproval(poolId, addr, poolApprovals[poolId][addr]);
+        emit PoolMediatorApproval(poolId, addr, poolApprovals[poolId][addr]);
     }
 
-    /// @notice Check if an address is approved to a pool
+    /// @notice Check if an address is approved to mediate in a pool
     /// @param poolId The pool id
     /// @param addr The address to check
-    function isApproved(uint256 poolId, address addr) public view returns (bool) {
-        return (pools[poolId].exists && !pools[poolId].approveOnly) || poolApprovals[poolId][addr];
+    function isApprovedMediator(uint256 poolId, address addr) public view returns (bool) {
+        return (pools[poolId].exists && !pools[poolId].approvedMediatorOnly) || poolApprovals[poolId][addr];
+    }
+
+    /// @notice Approve or disapprove a market to a pool
+    /// @param poolId The pool id
+    /// @param marketAddr The market address to approve
+    function toggleApproveMarket(uint256 poolId, address marketAddr) external {
+        require(poolOwners[poolId] == msg.sender, "MM: NOT_OWNER");
+        require(pools[poolId].approvedMarketOnly, "MM: NOT_APPROVE_ONLY");
+        poolMarketApprovals[poolId][marketAddr] = !poolMarketApprovals[poolId][marketAddr];
+        emit PoolMarketApproval(poolId, marketAddr, poolMarketApprovals[poolId][marketAddr]);
+    }
+    
+    /// @notice Check if a market is approved to join a pool
+    /// @param poolId The pool id
+    /// @param marketAddr The market address to check
+    function isApprovedMarket(uint256 poolId, address marketAddr) public view returns (bool) {
+        return (pools[poolId].exists && !pools[poolId].approvedMarketOnly) || poolMarketApprovals[poolId][marketAddr];
     }
 
     /// @notice Set address of randomness provider
@@ -398,7 +425,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
 
         // Make sure ticket has not joined its assigned pool and bond is sufficient
         Structs.Ticket storage ticket = tickets[sender][ticketId];
-        require(isApproved(ticket.poolId, sender), "MM: NOT_APPROVED");
+        require(isApprovedMediator(ticket.poolId, sender), "MM: NOT_APPROVED");
         require(!ticket.joined, "MM: ALREADY_JOINED");
         require(ticket.bond >= pools[ticket.poolId].reqBond, "MM: LOW_BOND");
 
@@ -521,7 +548,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         }
 
         // Ticket must be added back in the pool if it is not blocked, else remove it from the pool completely.
-        if (!t.blocked && isApproved(t.poolId, t.owner)) {
+        if (!t.blocked && isApprovedMediator(t.poolId, t.owner)) {
             t.poolIdx = poolTickets[t.poolId].length;
             poolTickets[t.poolId].push(Structs.PoolTicket(t.owner, t.idx));
         } else {

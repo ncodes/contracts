@@ -209,7 +209,8 @@ library Structs {
 
     struct TicketPool {
         bool exists;
-        bool approveOnly;
+        bool approvedMediatorOnly;
+        bool approvedMarketOnly;
         uint256 reqBond;
         uint256 draftReward;
         uint256 winReward;

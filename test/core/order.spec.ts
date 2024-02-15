@@ -4,7 +4,7 @@ import {expect} from "chai";
 import {BigNumber, BigNumberish} from "ethers";
 import {getAddress} from "ethers/lib/utils";
 import {ethers} from "hardhat";
-import {AssetRegistry, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MinerRegistry, NFT, Operator, TOKEN} from "../../typechain-types";
+import {AssetRegistry, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MediatorManager, MinerRegistry, NFT, Operator, TOKEN} from "../../typechain-types";
 import {AddressZero, AssetType, advanceBlockTime, makeMarketID, pow10str, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
 
@@ -41,6 +41,7 @@ describe("Core - Order", function () {
     let fixedNFTSwapFee: BigNumberish;
     let feePurse: FeePurse;
     let disputeDelayDur: BigNumber;
+    let medMgr: MediatorManager;
     const chainId = 31337;
     let minerCancelReward = 0;
 
@@ -87,6 +88,9 @@ describe("Core - Order", function () {
         synthSwapFee = vars.synthSwapFee;
         nftDiscountBp = vars.nftDiscountBp;
         fixedNFTSwapFee = vars.fixedNFTSwapFee;
+        medMgr = vars.mediatorMgr;
+
+        await medMgr.updateTicketPool(0, vars.ticketBondAmt, 10, 10, 100, 100, 1, 0, 0, false, false);
     });
 
     async function provideLiquidity(provider: SignerWithAddress, liquidityAmt: BigNumber, basePrice: BigNumber, timeToPay = 0) {
@@ -1596,20 +1600,17 @@ describe("Core - Order", function () {
             await expect(core.cancelOrderByManagerSig(orderID, now + 10, Buffer.alloc(65))).to.be.revertedWith("OC: BAD_SIG");
         });
 
-        it("should emit 'Swap' and 'FinalizedByManagerSig' on success", async () => {
+        it("should emit 'OrderCancelled' and 'FinalizedByManagerSig' on success", async () => {
             const mgr = deployer;
             await mc.connect(marketCreator2).setManager(mid, mgr.address);
-
             const expireAt = (await advanceBlockTime(2)) + 4;
             const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint", "uint256", "uint", "uint256"], [chainId, orderID, 2, expireAt]));
             const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
             const signedMsg = await mgr.signMessage(msgHashBytes);
-
             await expect(core.connect(user2).cancelOrderByManagerSig(orderID, expireAt, signedMsg))
-                .to.emit(core, "Swap")
+                .to.emit(core, "OrderCancelled")
                 .emit(core, "FinalizedByManagerSig")
                 .withArgs(mgr.address, user2.address, orderID, 2);
-
             const order = await core.getOrder(0);
             expect(order.cancelled).to.be.true;
             expect(order.finalizer).to.eql(user2.address);

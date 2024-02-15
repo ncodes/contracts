@@ -1,23 +1,30 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
+import {MockContract, deployMockContract} from "ethereum-waffle";
 import {BigNumber, BigNumberish, constants} from "ethers";
 import {getAddress} from "ethers/lib/utils";
 import {ethers} from "hardhat";
-import {MarketCore, TOKEN} from "../typechain-types";
+import {MarketCore, MediatorManager, TOKEN} from "../typechain-types";
 import {AddressZero, AssetType, makeMarketID, toBN} from "../utils/utils";
 import {initCoreTestSuite} from "./helpers/helpers";
 
 describe("MarketCore", function () {
     let baseAddr: string;
     let quoteAddr: string;
+    let randomness: MockContract;
     let mc: MarketCore;
     let deployer: SignerWithAddress;
     let accts: SignerWithAddress[];
     let baseAsset: TOKEN;
     let quoteAsset: TOKEN;
     let mid: string;
+    let mediatorMgr: MediatorManager;
+    let token: TOKEN;
     let defaultDisputeDelayDur: BigNumber;
     let marketCreator: SignerWithAddress, user2: SignerWithAddress, provider: SignerWithAddress;
+    let ticketCancelDur = 100;
+    let ticketMatureDur = 100;
+    let ticketExpireDur = 100;
 
     beforeEach(async () => {
         const vars = await initCoreTestSuite();
@@ -28,8 +35,16 @@ describe("MarketCore", function () {
         provider = accts[2];
 
         mc = vars.mc;
-
+        token = vars.token;
         defaultDisputeDelayDur = vars.defaultDisputeDelayDur;
+
+        const Randomness = require("../artifacts/contracts/randomness/Randomness.sol/Randomness.json");
+        randomness = await deployMockContract(deployer, Randomness.abi);
+        await randomness.mock.randomN.returns(0);
+
+        let factory3 = await ethers.getContractFactory("MediatorManager");
+        mediatorMgr = (await factory3.deploy(token.address, mc.address, randomness.address, ticketCancelDur, ticketMatureDur, ticketExpireDur)) as MediatorManager;
+        mc.setMediatorManager(mediatorMgr.address);
 
         const supply = toBN("1000000000000000000000000");
         let dummyTokenFactory = await ethers.getContractFactory("TOKEN");
@@ -39,6 +54,8 @@ describe("MarketCore", function () {
         quoteAddr = quoteAsset.address;
 
         mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 1, 0);
+
+        await mediatorMgr.updateTicketPool(0, 0, 1, 1, 1, 1, 1, 1, 1, false, false);
     });
 
     async function createMarket(
@@ -71,13 +88,27 @@ describe("MarketCore", function () {
             expect(await mc.hasMarket(mid)).to.be.false;
             expect(mc.createMarket(baseAddr, quoteAddr, 0, 1, true, true, 0, 0))
                 .to.emit(mc, "NewMarket")
-                .withArgs(getAddress(mid), marketCreator.address, baseAddr, quoteAddr, 0, 1, 0, 3);
+                .withArgs(getAddress(mid), marketCreator.address, baseAddr, quoteAddr, 0, 1, true, true, 0, 0);
             expect(await mc.hasMarket(mid)).to.be.true;
         });
 
         it("should revert when market already exists", async () => {
             await mc.createMarket(baseAddr, quoteAddr, 0, 1, false, false, 0, 0);
             await expect(mc.createMarket(baseAddr, quoteAddr, 0, 1, false, false, 0, 0)).to.be.revertedWith("MARKET_EXIST");
+        });
+
+        describe("when pool is approve-only", () => {
+            it("should revert when market is not approved for the specified pool", async () => {
+                await mediatorMgr.updateTicketPool(1, 0, 1, 1, 1, 1, 1, 1, 1, false, true);
+                await expect(mc.createMarket(baseAddr, quoteAddr, 0, 1, false, false, 0, 1)).to.be.revertedWith("MC: NOT_APPROVED");
+            });
+
+            it("should successfully create market when approved for the specified pool", async () => {
+                await mediatorMgr.updateTicketPool(1, 0, 1, 1, 1, 1, 1, 1, 1, false, true);
+                mid = makeMarketID(deployer.address, baseAddr, quoteAddr, 0, 1);
+                await mediatorMgr.toggleApproveMarket(1, mid);
+                await expect(mc.createMarket(baseAddr, quoteAddr, 0, 1, false, false, 0, 1)).to.emit(mc, "NewMarket");
+            });
         });
     });
 

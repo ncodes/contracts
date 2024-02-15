@@ -5,9 +5,17 @@ import "../common/Writable.sol";
 import "../common/Structs.sol";
 import "./MarketAuxLib.sol";
 import "../badge/interfaces/IBadge.sol";
+import "../mediator/interfaces/IMediatorManager.sol";
+import "hardhat/console.sol";
 
 /// MarketCore manages market state
 contract MarketCore is Writable {
+    /// @notice The badge contract address
+    IBadge public badge;
+
+    /// @notice The mediator manager contract address
+    IMediatorManager public mediatorManager;
+
     /// @notice Contains all known markets.
     mapping(address => Structs.Market) public markets;
 
@@ -30,9 +38,6 @@ contract MarketCore is Writable {
 
     /// @notice Time to wait before dispute can be started
     uint256 public defaultDisputeDelayDur;
-
-    /// @notice The badge contract address
-    IBadge public badge;
 
     event NewMarket(
         address indexed id,
@@ -60,6 +65,7 @@ contract MarketCore is Writable {
     event UpdatedDisputeDelayDuration(address indexed id, uint256 disputeDelayDur);
     event UpdatedMarketManager(address indexed id, address mgr);
     event RenouncedMarket(address id, address owner);
+    event UpdatedMediatorManager(address addr);
 
     /// @notice Modifier to ensure a market exist
     /// @param id The market ID
@@ -93,6 +99,13 @@ contract MarketCore is Writable {
     function setBadgeMgr(address addr) public onlyOwner {
         badge = IBadge(addr);
         emit UpdatedBadgeAddr(addr);
+    }
+
+    /// @notice Set the mediator manager contract address
+    /// @param addr The mediator manager contract address
+    function setMediatorManager(address addr) public onlyOwner {
+        mediatorManager = IMediatorManager(addr);
+        emit UpdatedMediatorManager(addr);
     }
 
     /// @notice Change default dispute delay time
@@ -140,8 +153,11 @@ contract MarketCore is Writable {
     ) external {
         require(base != address(0), "MC: ZERO_BASE");
         require(quote != address(0), "MC: ZERO_QUOTE");
+        require(mediatorManager.poolExists(mediatePoolId), "MC: UNKNW_POOL");
         address id = address(ripemd160(abi.encodePacked(msg.sender, base, quote, baseType, quoteType)));
+        require(!mediatorManager.poolExists(mediatePoolId) || mediatorManager.isApprovedMarket(mediatePoolId, id), "MC: NOT_APPROVED");
         require(markets[id].createdAt == 0, "MC: MARKET_EXIST");
+
         Structs.Asset memory baseAsset = Structs.Asset(base, baseType);
         Structs.Asset memory quoteAsset = Structs.Asset(quote, quoteType);
         markets[id].creator = msg.sender;
@@ -153,6 +169,7 @@ contract MarketCore is Writable {
         markets[id].perms.swap = permSwap;
         markets[id].dur.disputeDelayDur = defaultDisputeDelayDur;
         markets[id].poolId = mediatePoolId;
+
         emit NewMarket(id, msg.sender, baseAsset.addr, quoteAsset.addr, baseType, quoteType, permPut, permSwap, commission, mediatePoolId);
     }
 

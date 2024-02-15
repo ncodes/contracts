@@ -3,7 +3,7 @@ import {expect} from "chai";
 import {BigNumber, BigNumberish, constants} from "ethers";
 import {getAddress} from "ethers/lib/utils";
 import {randomAddressString} from "hardhat/internal/hardhat-network/provider/utils/random";
-import {AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, NFT, TOKEN} from "../../typechain-types";
+import {AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MediatorManager, NFT, TOKEN} from "../../typechain-types";
 import {AddressZero, AssetType, advanceBlockTime, makeMarketID, pow10str, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
 
@@ -12,6 +12,7 @@ describe("Core - Liquidity", function () {
     let quoteAddr: string;
     let core: Core;
     let mc: MarketCore;
+    let medMgr: MediatorManager;
     let badgeMgr: BadgeManager;
     let testERC721: ERC721T;
     let testERC1155: ERC1155T;
@@ -25,14 +26,6 @@ describe("Core - Liquidity", function () {
     let token: TOKEN;
     let mid: string;
     let tokenDec: BigNumber;
-    let baseDec: BigNumber;
-    let quoteDec: BigNumber;
-    let minTimeToPay: number;
-    let orderGracePeriod: number;
-    let orderLifeTime: number;
-    let maxSupply = 3;
-    let hiddenURI: string;
-    let baseURI: string;
     let amountOfBase: BigNumber;
     let pricePerBase: BigNumber;
     let instantNFTSwapFee: BigNumberish;
@@ -66,14 +59,6 @@ describe("Core - Liquidity", function () {
         quoteAsset = vars.quoteAsset;
         mid = vars.mid;
         tokenDec = vars.tokenDec;
-        baseDec = vars.baseDec;
-        quoteDec = vars.quoteDec;
-        minTimeToPay = vars.minTimeToPay;
-        orderGracePeriod = vars.orderGracePeriod;
-        orderLifeTime = vars.orderLifeTime;
-        maxSupply = vars.maxSupply;
-        hiddenURI = vars.hiddenURI;
-        baseURI = vars.baseURI;
         amountOfBase = vars.amountOfBase;
         pricePerBase = vars.pricePerBase;
         instantNFTSwapFee = vars.instantNFTSwapFee;
@@ -88,9 +73,12 @@ describe("Core - Liquidity", function () {
         token = vars.token;
         nftDiscountBp = vars.nftDiscountBp;
         fixedNFTSwapFee = vars.fixedNFTSwapFee;
+        medMgr = vars.mediatorMgr;
 
         fixedFee = toBN("100000000000000000"); // 0.1
         curRate = toBN("100000000000000000"); // 0.1
+
+        await medMgr.updateTicketPool(0, vars.ticketBondAmt, 10, 10, 100, 100, 1, 0, 0, false, false);
     });
 
     async function createMarket(

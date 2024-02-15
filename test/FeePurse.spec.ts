@@ -1,9 +1,9 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
+import {constants} from "ethers";
 import {ethers} from "hardhat";
 import {FeePurse, TOKEN} from "../typechain-types";
 import {toBN} from "../utils/utils";
-import {constants} from "ethers";
 
 describe("FeePurse", function () {
     let deployer: SignerWithAddress;
@@ -162,7 +162,9 @@ describe("FeePurse", function () {
         it("should successfully withdraw to address", async () => {
             await expect(feePurse.connect(user3).lock(deployer.address, 1)).not.to.be.reverted;
             expect(await feePurse.balanceOf(deployer.address)).to.eq(2);
-            await expect(feePurse.connect(user3).withdrawFrom(1, deployer.address, user3.address)).to.emit(feePurse, "Withdrawn").withArgs(deployer.address, user3.address, 1);
+            await expect(feePurse.connect(user3).withdrawFrom(1, deployer.address, user3.address))
+                .to.emit(feePurse, "Withdrawn")
+                .withArgs(deployer.address, user3.address, 1);
             expect(await feePurse.balanceOf(deployer.address)).to.eq(1);
             expect(await feeToken.balanceOf(user3.address)).to.eq(1);
         });

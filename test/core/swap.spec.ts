@@ -3,7 +3,7 @@ import {Buffer} from "buffer";
 import {expect} from "chai";
 import {BigNumber, BigNumberish} from "ethers";
 import {getAddress} from "ethers/lib/utils";
-import {AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, NFT, Operator, TOKEN} from "../../typechain-types";
+import {AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MediatorManager, NFT, Operator, TOKEN} from "../../typechain-types";
 import {AddressZero, AssetType, advanceBlockTime, bnToN, makeMarketID, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
 
@@ -41,6 +41,7 @@ describe("Core - Swap", function () {
     let synthSwapFee: BigNumberish;
     let stableSwapFee: BigNumberish;
     let feePurse: FeePurse;
+    let mediatorMgr: MediatorManager;
 
     let marketCreator: SignerWithAddress, provider: SignerWithAddress, swapper: SignerWithAddress, marketCreator2: SignerWithAddress, inventor: SignerWithAddress;
 
@@ -85,8 +86,10 @@ describe("Core - Swap", function () {
         stableSwapFee = vars.stableSwapFee;
         feePurse = vars.feePurse;
         fixedNFTSwapFee = vars.fixedNFTSwapFee;
+        mediatorMgr = vars.mediatorMgr;
 
         await core.setProtoFee(instantSwapFee, synthSwapFee, stableSwapFee, 0, 0, instantNFTSwapFee);
+        await mediatorMgr.updateTicketPool(0, 0, 1, 1, 1, 1, 1, 1, 1, false, false);
     });
 
     async function createMarket(

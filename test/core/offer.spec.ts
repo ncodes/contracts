@@ -2,7 +2,7 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
 import {BigNumber, BigNumberish} from "ethers";
 import {getAddress} from "ethers/lib/utils";
-import {AssetRegistry, Core, ERC1155T, ERC721T, FeePurse, MarketCore, NFT, TOKEN} from "../../typechain-types";
+import {AssetRegistry, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MediatorManager, NFT, TOKEN} from "../../typechain-types";
 import {AddressZero, AssetType, advanceBlockTime, makeMarketID, now, pow10, toBN} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
 
@@ -10,6 +10,7 @@ describe("Core - Offer", function () {
     let baseAddr: string;
     let quoteAddr: string;
     let core: Core;
+    let medMgr: MediatorManager;
     let mc: MarketCore;
     let testERC721: ERC721T;
     let testERC1155: ERC1155T;
@@ -54,6 +55,7 @@ describe("Core - Offer", function () {
         testERC721 = vars.testERC721;
         testERC1155 = vars.testERC1155;
         feePurse = vars.feePurse;
+        medMgr = vars.mediatorMgr;
         assetReg = vars.assetReg;
         deployer = vars.deployer;
         user5 = vars.user5;
@@ -88,6 +90,8 @@ describe("Core - Offer", function () {
         fixedFee = toBN("100000000000000000"); // 0.1
         curRate = toBN("100000000000000000"); // 0.1
         deadline = now() + 100;
+
+        await medMgr.updateTicketPool(0, vars.ticketBondAmt, 10, 10, 100, 100, 1, 0, 0, false, false);
     });
 
     async function createMarket(
@@ -99,7 +103,7 @@ describe("Core - Offer", function () {
         permPut: boolean,
         permSwap: boolean,
         commission: BigNumberish,
-        mediatorPoolId: BigNumberish
+        mediatorPoolId: BigNumberish,
     ) {
         const mid = makeMarketID(creator.address, base, quote, baseType, quoteType);
         await mc.connect(creator).createMarket(base, quote, baseType, quoteType, permPut, permSwap, commission, mediatorPoolId);
@@ -465,7 +469,9 @@ describe("Core - Offer", function () {
             await expect(core.createOffer(mid, provider.address, AddressZero, 0, amountOfBase, 1, [], deadline, 0)).not.to.be.reverted;
             const price = 2;
             const now = await advanceBlockTime(1);
-            await expect(core.updateOffer(0, 1, price, [], deadline)).to.emit(core, "OfferUpdated").withArgs(0, deployer.address, 1, price, [], deadline);
+            await expect(core.updateOffer(0, 1, price, [], deadline))
+                .to.emit(core, "OfferUpdated")
+                .withArgs(0, deployer.address, 1, price, [], deadline);
             const offer = await core.getOffer(0);
             expect(offer.price).to.eq(price);
             expect(offer.deadline).to.eq(now + deadline + 1);
@@ -479,7 +485,9 @@ describe("Core - Offer", function () {
                 const price = 2;
                 const now = await advanceBlockTime(1);
                 const offer = await core.getOffer(0);
-                await expect(core.updateOffer(0, 1, price, [], 0)).to.emit(core, "OfferUpdated").withArgs(0, deployer.address, 1, price, [], 0);
+                await expect(core.updateOffer(0, 1, price, [], 0))
+                    .to.emit(core, "OfferUpdated")
+                    .withArgs(0, deployer.address, 1, price, [], 0);
                 // const offerNew = await core.getOffer(0);
                 // expect(offerNew.deadline).to.eq(offer.deadline);
             });

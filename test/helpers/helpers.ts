@@ -14,6 +14,7 @@ import {
     FeePurse,
     FungibleLiquidityLib,
     MarketCore,
+    MediatorManager,
     MinerRegistry,
     NFT,
     NonFungibleLiquidityLib,
@@ -268,6 +269,8 @@ export async function initCoreTestSuite() {
     let energon: ENERGON;
     let nft: NFT;
     let badgeMgr: BadgeManager;
+    let mediatorMgr: MediatorManager;
+    let randomness: MockContract;
     let testERC721: ERC721T;
     let testERC1155: ERC1155T;
     let assetReg: AssetRegistry;
@@ -309,6 +312,10 @@ export async function initCoreTestSuite() {
     let minerUndraftReward = 1000;
     let minerExecuteReward = 1000;
     let minerCancelReward = 1000;
+    let ticketBondAmt = 100;
+    let ticketCancelDur = 86400;
+    let ticketMatureDur = 86400;
+    let ticketExpireDur = 86400;
 
     accts = await ethers.getSigners();
     deployer = accts[0];
@@ -395,6 +402,14 @@ export async function initCoreTestSuite() {
     await core.setMinerRegistry(minerReg.address);
     await minerReg.updateWriter(core.address, true);
 
+    const Randomness = require("../../artifacts/contracts/randomness/Randomness.sol/Randomness.json");
+    randomness = await deployMockContract(deployer, Randomness.abi);
+    await randomness.mock.randomN.returns(0);
+
+    let factory3 = await ethers.getContractFactory("MediatorManager");
+    mediatorMgr = (await factory3.deploy(token.address, mc.address, randomness.address, ticketCancelDur, ticketMatureDur, ticketExpireDur)) as MediatorManager;
+    mc.setMediatorManager(mediatorMgr.address);
+
     mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 1, 0);
 
     return Promise.resolve({
@@ -444,14 +459,20 @@ export async function initCoreTestSuite() {
         fixedSynthSwapFee,
         fixedNFTSwapFee,
         instantNFTSwapFee,
+        mediatorMgr,
         feePurse,
         nftDiscountBp,
         instantSwapFee,
         synthSwapFee,
+        randomness,
         stableSwapFee,
         minerDraftReward,
         minerUndraftReward,
         minerExecuteReward,
         minerCancelReward,
+        ticketCancelDur,
+        ticketMatureDur,
+        ticketExpireDur,
+        ticketBondAmt,
     });
 }

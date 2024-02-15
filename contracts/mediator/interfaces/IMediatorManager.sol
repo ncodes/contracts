@@ -6,6 +6,10 @@ import "../../common/Structs.sol";
 interface IMediatorManager {
     function getTicket(address owner, uint256 id) external view returns (Structs.Ticket memory);
 
+    function isApprovedMarket(uint256 poolId, address marketAddr) external view returns (bool);
+
+    function poolExists(uint256 poolId) external view returns (bool);
+
     function purchaseTicket(uint256 poolId) external;
 
     function cancelTicket(uint256 id) external;
