@@ -487,7 +487,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     /// @param id The order ID
     function releaseOrder(uint256 id) external nonReentrant {
         require(id <= state.orders.length - 1, "OC: UNKNOWN_ORDER");
-        SwapLib.releaseOrder(state, state2, id, false);
+        SwapLib.releaseOrder(state, state2, owner(), id, false);
     }
 
     /// @notice Release an order using a market manager's signature
@@ -496,14 +496,19 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     /// @param signature The signature created by the manager
     function releaseOrderByManagerSig(uint256 id, uint256 expireAt, bytes calldata signature) external nonReentrant {
         require(id <= state.orders.length - 1, "OC: UNKNOWN_ORDER");
-        SwapLib.releaseOrderByManagerSig(state, state2, id, expireAt, signature);
+        SwapLib.releaseOrderByManagerSig(state, state2, owner(), id, expireAt, signature);
+    }
+    /// @notice Allow the dispute manager to release an order.
+    /// @param id The order ID.
+    function releaseOrderByDispute(uint256 id) external onlyDisputeManager {
+        SwapLib.releaseOrder(state, state2, owner(), id, true);
     }
 
     /// @notice Cancel an order
     /// @param id The order ID
     function cancelOrder(uint256 id) external nonReentrant {
         require(hasOrder(id), "OC: UNKNOWN_ORDER");
-        SwapLib.cancelOrder(state, state2, id, false);
+        SwapLib.cancelOrder(state, state2, owner(), id, false);
     }
 
     /// @notice Cancel an order using a market manager's signature
@@ -512,19 +517,13 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     /// @param signature The signature created by the manager
     function cancelOrderByManagerSig(uint256 id, uint256 expireAt, bytes calldata signature) external nonReentrant {
         require(id <= state.orders.length - 1, "OC: UNKNOWN_ORDER");
-        SwapLib.cancelOrderByManagerSig(state, state2, id, expireAt, signature);
-    }
-
-    /// @notice Allow the dispute manager to release an order.
-    /// @param id The order ID.
-    function releaseOrderByDispute(uint256 id) external onlyDisputeManager {
-        SwapLib.releaseOrder(state, state2, id, true);
+        SwapLib.cancelOrderByManagerSig(state, state2, owner(), id, expireAt, signature);
     }
 
     /// @notice Allow the dispute manager to cancel an order.
     /// @param id The order ID.
     function cancelOrderByDispute(uint256 id) external onlyDisputeManager {
-        SwapLib.cancelOrder(state, state2, id, true);
+        SwapLib.cancelOrder(state, state2, owner(), id, true);
     }
 
     /// @notice Mark a swap order as paid.

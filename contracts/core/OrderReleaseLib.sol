@@ -34,12 +34,14 @@ library OrderReleaseLib {
     /// @notice Release an order by a market manager's signature
     /// @param s1 The State object
     /// @param s2 The State2 object
+    /// @param owner The owner of the contract
     /// @param oid The order ID.
     /// @param expireAt The expire time of the signature
     /// @param signature The signature created by the manager
     function releaseOrderByManagerSig(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
+        address owner,
         uint256 oid,
         uint256 expireAt,
         bytes calldata signature
@@ -48,17 +50,25 @@ library OrderReleaseLib {
         require(mkt.manager != address(0), "OC: NO_MGR_SET");
         require(expireAt > block.timestamp, "OC: EXPIRED_SIG");
         require(verifyMarketManagerSig(mkt.manager, oid, 1, expireAt, signature), "OC: BAD_SIG");
-        releaseOrder(s1, s2, oid, false, true);
+        releaseOrder(s1, s2, owner, oid, false, true);
         emit FinalizedByManagerSig(mkt.manager, msg.sender, oid, 1);
     }
 
     /// @notice Release asset.
     /// @param s1 The State object
     /// @param s2 The State2 object
+    /// @param owner The owner of the contract
     /// @param oid The order ID.
     /// @param byDispute Indicates that the method is called by the dispute manager.
     /// @param byManager Indicates that the method is called by the market manager via a manager signature.
-    function releaseOrder(StructsLib.State storage s1, StructsLib.State2 storage s2, uint256 oid, bool byDispute, bool byManager) public {
+    function releaseOrder(
+        StructsLib.State storage s1,
+        StructsLib.State2 storage s2,
+        address owner,
+        uint256 oid,
+        bool byDispute,
+        bool byManager
+    ) public {
         Structs.Order storage o = s1.orders[oid];
         require(!o.cancelled && !o.released, "OC: ALREADY_FINALIZED");
         Structs.Market memory mkt = s2.marketCore.getMarket(o.marketId);
@@ -69,7 +79,7 @@ library OrderReleaseLib {
                 : (o.taker == MarketAuxLib.getPayer(mkt, o))
                     ? o.provider
                     : o.taker;
-        require(byDispute || byManager || msg.sender == releaser, "OC: NOT_RELEASER");
+        require(byDispute || byManager || msg.sender == releaser || msg.sender == owner, "OC: NOT_RELEASER");
         require(o.paid, "OC: ORDER_UNPAID");
 
         Structs.Asset memory asset;

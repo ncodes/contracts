@@ -51,26 +51,35 @@ library SwapLib {
     /// @dev Release ERC20 asset.
     /// @param state The State object
     /// @param state2 The State2 object
+    /// @param owner The contract owner
     /// @param oid The order ID.
     /// @param byDispute Indicates that the method is called by the dispute manager.
-    function releaseOrder(StructsLib.State storage state, StructsLib.State2 storage state2, uint256 oid, bool byDispute) public {
-        OrderReleaseLib.releaseOrder(state, state2, oid, byDispute, false);
+    function releaseOrder(
+        StructsLib.State storage state,
+        StructsLib.State2 storage state2,
+        address owner,
+        uint256 oid,
+        bool byDispute
+    ) public {
+        OrderReleaseLib.releaseOrder(state, state2, owner, oid, byDispute, false);
     }
 
     /// @notice Release an order using a market manager's signature
     /// @param state The State object
     /// @param state2 The State2 object
+    /// @param owner The contract owner
     /// @param oid The order ID
     /// @param expireAt The expire time of the signature
     /// @param signature The signature created by the manager
     function releaseOrderByManagerSig(
         StructsLib.State storage state,
         StructsLib.State2 storage state2,
+        address owner,
         uint256 oid,
         uint256 expireAt,
         bytes calldata signature
     ) public {
-        OrderReleaseLib.releaseOrderByManagerSig(state, state2, oid, expireAt, signature);
+        OrderReleaseLib.releaseOrderByManagerSig(state, state2, owner, oid, expireAt, signature);
     }
 
     /// @dev Cancel an inactive order. An inactive order is one where:
@@ -78,26 +87,35 @@ library SwapLib {
     /// and has reached its cancel time.
     /// @param state State object
     /// @param state2 State2 object
+    /// @param owner The contract owner
     /// @param id is the unique order ID
     /// @param byDispute Indicates that the method is called by the dispute manager.
-    function cancelOrder(StructsLib.State storage state, StructsLib.State2 storage state2, uint256 id, bool byDispute) public {
-        OrderLib.cancelOrder(state, state2, id, byDispute, false);
+    function cancelOrder(
+        StructsLib.State storage state,
+        StructsLib.State2 storage state2,
+        address owner,
+        uint256 id,
+        bool byDispute
+    ) public {
+        OrderLib.cancelOrder(state, state2, owner, id, byDispute, false);
     }
 
     /// @notice Cancel an order using a market manager's signature
     /// @param state The State object
     /// @param state2 The State2 object
+    /// @param owner The contract owner
     /// @param oid The order ID
     /// @param expireAt The expire time of the signature
     /// @param signature The signature created by the manager
     function cancelOrderByManagerSig(
         StructsLib.State storage state,
         StructsLib.State2 storage state2,
+        address owner,
         uint256 oid,
         uint256 expireAt,
         bytes calldata signature
     ) external {
-        OrderLib.cancelOrderByManagerSig(state, state2, oid, expireAt, signature);
+        OrderLib.cancelOrderByManagerSig(state, state2, owner, oid, expireAt, signature);
     }
 
     /// @dev Mark a swap order as paid.

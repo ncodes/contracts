@@ -117,12 +117,14 @@ library OrderLib {
     /// @notice Release an order by a market manager's signature
     /// @param s1 The State object
     /// @param s2 The State2 object
+    /// @param owner The contract owner
     /// @param oid The order ID.
     /// @param expireAt The expire time of the signature
     /// @param signature The signature created by the manager
     function cancelOrderByManagerSig(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
+        address owner,
         uint256 oid,
         uint256 expireAt,
         bytes calldata signature
@@ -131,7 +133,7 @@ library OrderLib {
         require(mkt.manager != address(0), "OC: NO_MGR_SET");
         require(expireAt > block.timestamp, "OC: EXPIRED_SIG");
         require(verifyMarketManagerSig(mkt.manager, oid, 2, expireAt, signature), "OC: BAD_SIG");
-        cancelOrder(s1, s2, oid, false, true);
+        cancelOrder(s1, s2, owner, oid, false, true);
         emit FinalizedByManagerSig(mkt.manager, msg.sender, oid, 2);
     }
 
@@ -140,10 +142,18 @@ library OrderLib {
     /// and has reached its cancel time.
     /// @param s1 State object
     /// @param s2 State2 object
+    /// @param owner The contract owner
     /// @param id is the unique order ID
     /// @param byDispute Indicates that the method is called by the dispute manager contract.
     /// @param byManager Indicates that the method is called by the market manager.
-    function cancelOrder(StructsLib.State storage s1, StructsLib.State2 storage s2, uint256 id, bool byDispute, bool byManager) public {
+    function cancelOrder(
+        StructsLib.State storage s1,
+        StructsLib.State2 storage s2,
+        address owner,
+        uint256 id,
+        bool byDispute,
+        bool byManager
+    ) public {
         Structs.Order storage o = s1.orders[id];
         Structs.Market memory mkt = s2.marketCore.getMarket(o.marketId);
         require(
@@ -152,7 +162,8 @@ library OrderLib {
                 o.provider == msg.sender ||
                 o.taker == msg.sender ||
                 mkt.manager == msg.sender ||
-                s2.minerReg.isMiner(msg.sender),
+                s2.minerReg.isMiner(msg.sender) ||
+                owner == msg.sender,
             "OC: NOT_AUTHORIZED"
         );
         require(byDispute || (!o.paid && !o.released && !o.disputed && !o.cancelled), "OC: NOT_INACTIVE");

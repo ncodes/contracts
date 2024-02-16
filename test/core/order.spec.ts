@@ -1196,6 +1196,32 @@ describe("Core - Order", function () {
                 });
             });
         });
+
+        context("sender is contract owner", () => {
+            it("should successfully release order", async () => {
+                await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0, 0);
+                mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 1, 0);
+
+                await core.setProtoFee(0, 0, 0, 0, 0, 0);
+                await mc.connect(marketCreator2).setCommission(mid, 0);
+
+                // provide liquidity
+                await provideLiquidity(provider, amountOfBase, pricePerBase);
+
+                // create swap order.
+                swapAmt = toBN(5).mul(baseDec);
+                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, user5.address, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                const numOrders = (await core.state()).numOrders;
+                expect(numOrders.toNumber()).to.eql(1);
+                orderID = numOrders.toNumber() - 1;
+
+                // release order
+                await expect(core.connect(swapper).markOrderAsPaid(orderID)).not.to.be.reverted;
+                await expect(core.connect(deployer).releaseOrder(orderID)).to.emit(core, "Swap");
+
+                expect(await baseAsset.balanceOf(user5.address)).to.eql(swapAmt);
+            });
+        });
     });
 
     describe(".releaseOrderByManagerSig", () => {
@@ -1567,6 +1593,19 @@ describe("Core - Order", function () {
             await expect(core.connect(user5).cancelOrder(orderID)).to.emit(core, "OrderCancelled");
 
             expect(await minerReg.rewardBalanceOf(user5.address)).to.eq(minerCancelReward);
+        });
+
+        context("sender is contract owner", () => {
+            it("should successfully cancel order", async () => {
+                let orderID = await createOrder_BaseOn_QuoteOff(mid);
+                let order = await core.getOrder(0);
+
+                await advanceBlockTime(orderLifeTime);
+                await expect(core.connect(deployer).cancelOrder(orderID)).to.emit(core, "OrderCancelled").withArgs(0, deployer.address, false);
+
+                order = await core.getOrder(0);
+                expect(order.cancelled).to.be.true;
+            });
         });
     });
 
