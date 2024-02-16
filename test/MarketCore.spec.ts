@@ -25,6 +25,7 @@ describe("MarketCore", function () {
     let ticketCancelDur = 100;
     let ticketMatureDur = 100;
     let ticketExpireDur = 100;
+    let ticketPauseDur = 100;
 
     beforeEach(async () => {
         const vars = await initCoreTestSuite();
@@ -43,7 +44,7 @@ describe("MarketCore", function () {
         await randomness.mock.randomN.returns(0);
 
         let factory3 = await ethers.getContractFactory("MediatorManager");
-        mediatorMgr = (await factory3.deploy(token.address, mc.address, randomness.address, ticketCancelDur, ticketMatureDur, ticketExpireDur)) as MediatorManager;
+        mediatorMgr = (await factory3.deploy(token.address, mc.address, randomness.address, ticketCancelDur, ticketMatureDur, ticketExpireDur, ticketPauseDur)) as MediatorManager;
         mc.setMediatorManager(mediatorMgr.address);
 
         const supply = toBN("1000000000000000000000000");

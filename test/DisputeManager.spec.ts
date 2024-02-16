@@ -40,6 +40,7 @@ describe("DisputeManager", function () {
     let ticketCancelDur = 0;
     let ticketMatureDur = 0;
     let ticketExpireDur = 0;
+    let ticketPauseDur = 0;
     let predictDur = 86400;
     let evidenceDur = 86400;
     let bondAmt = 100000;
@@ -78,6 +79,7 @@ describe("DisputeManager", function () {
         ticketCancelDur = vars.ticketCancelDur;
         ticketMatureDur = vars.ticketMatureDur;
         ticketExpireDur = vars.ticketExpireDur;
+        ticketPauseDur = vars.ticketPauseDur;
 
         const libs = await makeLibs();
         let factory: any = await ethers.getContractFactory("Core", {
@@ -95,7 +97,7 @@ describe("DisputeManager", function () {
         await randomness.mock.randomN.returns(0);
 
         factory = await ethers.getContractFactory("MediatorManager");
-        medMgr = await factory.deploy(token.address, mc.address, randomness.address, ticketCancelDur, ticketMatureDur, ticketExpireDur);
+        medMgr = await factory.deploy(token.address, mc.address, randomness.address, ticketCancelDur, ticketMatureDur, ticketExpireDur, ticketPauseDur);
         await medMgr.setTicketMarketParams(10, windowDur, 256, 60000, 1000, 7, 10000);
 
         factory = await ethers.getContractFactory("DisputeManager");

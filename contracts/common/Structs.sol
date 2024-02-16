@@ -192,19 +192,20 @@ library Structs {
     }
 
     struct Ticket {
-        address owner;
         uint256 idx;
         uint256 poolId;
         uint256 bond;
         uint256 matureAt;
-        uint256 poolIdx;
+        int256 poolIdx;
         uint256 cancelAt;
         uint256 joinBy;
+        uint256 numPaused;
+        address owner;
         bool drafted;
         bool joined;
         bool blocked;
         bool slashed;
-        bool suspended;
+        bool paused;
     }
 
     struct TicketPool {

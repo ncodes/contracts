@@ -316,6 +316,7 @@ export async function initCoreTestSuite() {
     let ticketCancelDur = 86400;
     let ticketMatureDur = 86400;
     let ticketExpireDur = 86400;
+    let ticketPauseDur = 86400;
 
     accts = await ethers.getSigners();
     deployer = accts[0];
@@ -407,7 +408,7 @@ export async function initCoreTestSuite() {
     await randomness.mock.randomN.returns(0);
 
     let factory3 = await ethers.getContractFactory("MediatorManager");
-    mediatorMgr = (await factory3.deploy(token.address, mc.address, randomness.address, ticketCancelDur, ticketMatureDur, ticketExpireDur)) as MediatorManager;
+    mediatorMgr = (await factory3.deploy(token.address, mc.address, randomness.address, ticketCancelDur, ticketMatureDur, ticketExpireDur, ticketPauseDur)) as MediatorManager;
     mc.setMediatorManager(mediatorMgr.address);
 
     mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 1, 0);
@@ -473,6 +474,7 @@ export async function initCoreTestSuite() {
         ticketCancelDur,
         ticketMatureDur,
         ticketExpireDur,
+        ticketPauseDur,
         ticketBondAmt,
     });
 }

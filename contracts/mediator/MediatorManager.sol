@@ -41,6 +41,9 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     /// @notice The base point used to determine a sold out window
     uint256 public soldOutBP = 10000;
 
+    /// @notice The maximum number of times a ticket can be paused
+    uint256 public maxPause = 3;
+
     // The supported mediator pools
     mapping(uint256 => Structs.TicketPool) public pools;
 
@@ -71,6 +74,9 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     /// @notice The duration a new ticket is expected to join a market or become expired
     uint256 public ticketExpireDur;
 
+    /// @notice The duration a ticket can remain paused for
+    uint256 public ticketPauseDur;
+
     event TicketPurchased(address owner, uint256 id, uint256 poolId, uint256 amount, uint256 matureAt, uint256 joinBy);
     event TicketCancelled(address owner, uint256 id);
     event TicketDrained(address owner, uint256 id, uint256 amount);
@@ -80,14 +86,13 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     event TicketSlashed(address owner, uint256 ticketId, uint256 amount, bool voted, bool winSide);
     event TicketSlashedByOwner(address owner, uint256 ticketId, uint256 amount);
     event UpdatedRandomnessProvider(address val);
-    event UpdatedTicketCancelDuration(uint256 val);
-    event UpdatedTicketMatureDuration(uint256 val);
-    event UpdatedTicketExpireDuration(uint256 val);
     event UpdatedDisputeManager(address val);
     event UpdatedMarketCore(address val);
     event TicketBlocked(address owner, uint256 id, bool blocked);
+    event TicketPaused(address ticketOwner, uint256 ticketId, bool paused, uint256 pauseDur);
     event PoolMediatorApproval(uint256 poolId, address addr, bool approved);
     event PoolMarketApproval(uint256 poolId, address addr, bool approved);
+    event UpdatedTicketDurations(uint256 ticketCancelDur, uint256 ticketMatureDur, uint256 ticketExpireDur, uint256 ticketPauseDur);
     event UpdatedTicketPool(
         uint256 poolId,
         uint256 reqBond,
@@ -110,6 +115,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         uint256 minInactiveWindowBeforeReset,
         uint256 soldOutBP
     );
+    event UpdatedMaxPause(uint256 maxPause);
 
     /// @notice Modifier to sender is the dispute manager
     modifier isDisputeMgr() {
@@ -123,13 +129,15 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     /// @param _randAddr The randomness contract address.
     /// @param _ticketCancelDur Seconds it takes to cancel a ticket.
     /// @param _ticketMatureDur Seconds it takes for a ticket to mature.
+    /// @param _ticketPauseDur Seconds a ticket can remain paused for
     constructor(
         address _token,
         address _marketCore,
         address _randAddr,
         uint256 _ticketCancelDur,
         uint256 _ticketMatureDur,
-        uint256 _ticketExpireDur
+        uint256 _ticketExpireDur,
+        uint256 _ticketPauseDur
     ) {
         token = _token;
         marketCore = IMarketCore(_marketCore);
@@ -137,6 +145,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         ticketCancelDur = _ticketCancelDur;
         ticketMatureDur = _ticketMatureDur;
         ticketExpireDur = _ticketExpireDur;
+        ticketPauseDur = _ticketPauseDur;
     }
 
     /// @notice Update or add a new ticket pool
@@ -198,6 +207,13 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         );
     }
 
+    /// @notice Update the maximum number of times a ticket can be paused
+    /// @param _maxPause The maximum number of times a ticket can be paused
+    function setMaxPause(uint256 _maxPause) external onlyOwner {
+        maxPause = _maxPause;
+        emit UpdatedMaxPause(_maxPause);
+    }
+
     /// @notice Approve or disapprove an address to a pool
     /// @param poolId The pool id
     /// @param addr The address to approve
@@ -224,7 +240,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         poolMarketApprovals[poolId][marketAddr] = !poolMarketApprovals[poolId][marketAddr];
         emit PoolMarketApproval(poolId, marketAddr, poolMarketApprovals[poolId][marketAddr]);
     }
-    
+
     /// @notice Check if a market is approved to join a pool
     /// @param poolId The pool id
     /// @param marketAddr The market address to check
@@ -239,25 +255,22 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         emit UpdatedRandomnessProvider(provider);
     }
 
-    /// @notice Set the bond lock duration
-    /// @param dur The new duration.
-    function setTicketCancelDuration(uint256 dur) external onlyOwner {
-        ticketCancelDur = dur;
-        emit UpdatedTicketCancelDuration(dur);
-    }
-
-    /// @notice Set the maturity duration of a ticket
-    /// @param dur The new duration.
-    function setTicketMatureDuration(uint256 dur) external onlyOwner {
-        ticketMatureDur = dur;
-        emit UpdatedTicketMatureDuration(dur);
-    }
-
-    /// @notice Set the expire duration of a ticket
-    /// @param dur The new duration.
-    function setTicketExpireDuration(uint256 dur) external onlyOwner {
-        ticketExpireDur = dur;
-        emit UpdatedTicketExpireDuration(dur);
+    /// @notice Set various ticket durations
+    /// @param _ticketCancelDur The duration to cancel a ticket
+    /// @param _ticketMatureDur The duration for a ticket to mature
+    /// @param _ticketExpireDur The duration for a ticket to expire
+    /// @param _ticketPauseDur The duration for a ticket to remain paused
+    function setTicketDurations(
+        uint256 _ticketCancelDur,
+        uint256 _ticketMatureDur,
+        uint256 _ticketExpireDur,
+        uint256 _ticketPauseDur
+    ) external onlyOwner {
+        ticketCancelDur = _ticketCancelDur;
+        ticketMatureDur = _ticketMatureDur;
+        ticketExpireDur = _ticketExpireDur;
+        ticketPauseDur = _ticketPauseDur;
+        emit UpdatedTicketDurations(_ticketCancelDur, _ticketMatureDur, _ticketExpireDur, _ticketPauseDur);
     }
 
     /// @notice Set ticket parameters
@@ -406,9 +419,14 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         address sdr = msg.sender;
         Structs.TicketPool memory pool = pools[poolId];
         uint256 totalBond = getTicketPrice() + pool.reqBond;
-        tickets[sdr].push(
-            Structs.Ticket(sdr, tickets[sdr].length, poolId, totalBond, matureAt, 0, 0, joinBy, false, false, false, false, false)
-        );
+        Structs.Ticket memory ticket;
+        ticket.owner = sdr;
+        ticket.idx = tickets[sdr].length;
+        ticket.poolId = poolId;
+        ticket.bond = totalBond;
+        ticket.matureAt = matureAt;
+        ticket.joinBy = joinBy;
+        tickets[sdr].push(ticket);
         ticketSold++;
 
         // Transfer bond to this contract
@@ -429,7 +447,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         require(!ticket.joined, "MM: ALREADY_JOINED");
         require(ticket.bond >= pools[ticket.poolId].reqBond, "MM: LOW_BOND");
 
-        // Make sure ticket is not blocked, suspended, expired, cancelled or immature
+        // Make sure ticket is not blocked, expired, cancelled or immature
         require(!ticket.blocked, "MM: BLOCKED");
         require(ticket.matureAt <= block.timestamp, "MM: NOT_MATURE");
         require(ticket.joinBy > block.timestamp, "MM: EXPIRED");
@@ -438,7 +456,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         // Lock ticket to pool
         ticket.joined = true;
         ticket.joinBy = 0;
-        ticket.poolIdx = poolTickets[ticket.poolId].length;
+        ticket.poolIdx = int256(poolTickets[ticket.poolId].length);
         poolTickets[ticket.poolId].push(Structs.PoolTicket(ticket.owner, ticket.idx));
 
         emit JoinedPool(sender, ticket.poolId, ticketId);
@@ -474,6 +492,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
 
         uint256 bond = t.bond;
         t.bond = 0;
+        t.joined = false;
         ticketSold--;
         IERC20(token).transfer(msg.sender, bond);
         emit TicketDrained(msg.sender, id, bond);
@@ -482,12 +501,13 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     /// @notice Remove the ticket from its current pool.
     /// @param ticket The target ticket
     function removeTicketFromPool(Structs.Ticket storage ticket) internal {
+        if (ticket.poolIdx == -1) return;
         Structs.PoolTicket memory last = poolTickets[ticket.poolId][poolTickets[ticket.poolId].length - 1];
-        poolTickets[ticket.poolId][ticket.poolIdx] = last;
+        poolTickets[ticket.poolId][uint256(ticket.poolIdx)] = last;
         poolTickets[ticket.poolId].pop();
         Structs.Ticket storage lastTicket = tickets[last.owner][last.idx];
         lastTicket.poolIdx = ticket.poolIdx;
-        ticket.poolIdx = 0;
+        ticket.poolIdx = -1;
     }
 
     /// @notice Draft a ticket from the market's ticket list.
@@ -534,26 +554,28 @@ contract MediatorManager is Ownable, ReentrancyGuard {
 
         emit Undrafted(t.owner, t.idx, slashAmt > 0, tx.origin);
 
-        // If ticket was slashed, calculate, deduct, burn slash amount and
+        // If ticket was slashed, calculate, deduct and burn slash amount.
         if (slashAmt > 0) {
             slashAmt = t.bond < slashAmt ? t.bond : slashAmt;
             t.bond -= slashAmt;
             emit TicketSlashed(t.owner, t.idx, slashAmt, voted, winSide);
             t.joined = false;
-            t.poolIdx = 0;
             t.cancelAt = block.timestamp;
+            t.paused = false;
             t.slashed = true;
             IERC20(token).burn(slashAmt);
             return slashAmt;
         }
 
-        // Ticket must be added back in the pool if it is not blocked, else remove it from the pool completely.
-        if (!t.blocked && isApprovedMediator(t.poolId, t.owner)) {
-            t.poolIdx = poolTickets[t.poolId].length;
+        // Ticket must be added back in the pool:
+        // - If it was not blocked
+        // - If it is still approved to join the pool
+        // - If it is not paused
+        if (!t.blocked && isApprovedMediator(t.poolId, t.owner) && !t.paused) {
+            t.poolIdx = int256(poolTickets[t.poolId].length);
             poolTickets[t.poolId].push(Structs.PoolTicket(t.owner, t.idx));
         } else {
             t.joined = false;
-            t.poolIdx = 0;
             t.cancelAt = block.timestamp;
         }
 
@@ -579,7 +601,6 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         // If ticket is joined, remove it from the pool, mark it as cancelled and unblock it
         if (t.joined) removeTicketFromPool(t);
         t.joined = false;
-        t.poolIdx = 0;
         t.cancelAt = block.timestamp;
         t.blocked = false;
         t.slashed = true;
@@ -598,5 +619,36 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         require(ticketExist(ticketOwner, ticketId), "MM: UNKNOWN_TICKET");
         tickets[ticketOwner][ticketId].blocked = !tickets[ticketOwner][ticketId].blocked;
         emit TicketBlocked(ticketOwner, ticketId, tickets[ticketOwner][ticketId].blocked);
+    }
+
+    /// @notice Pause or unpause a ticket. Pausing is like cancelling a ticket but with the ability to
+    /// unpause it. A paused ticket cannot join a pool and will not be added back to the pool when undrafted.
+    /// @param ticketId The ticket ID
+    function togglePause(uint256 ticketId) external {
+        require(ticketExist(msg.sender, ticketId), "MM: UNKNOWN_TICKET");
+        Structs.Ticket storage t = tickets[msg.sender][ticketId];
+        require(!t.blocked, "MM: BLOCKED");
+        require(t.matureAt <= block.timestamp, "MM: NOT_MATURE");
+        require(t.cancelAt == 0 || t.cancelAt > block.timestamp, "MM: CANCELLED");
+
+        t.paused = !t.paused;
+
+        if (t.paused) {
+            require(t.numPaused < maxPause, "MM: MAX_PAUSE_REACHED");
+            removeTicketFromPool(t);
+            t.cancelAt = block.timestamp + ticketPauseDur;
+            t.numPaused++;
+        } else {
+            t.cancelAt = 0;
+            
+            // Add ticket back to pool if it is not currently drafted. 
+            // If it is drafted, it will be added back to the pool when undrafted.
+            if (!t.drafted) {
+                t.poolIdx = int256(poolTickets[t.poolId].length);
+                poolTickets[t.poolId].push(Structs.PoolTicket(t.owner, t.idx));
+            }
+        }
+
+        emit TicketPaused(msg.sender, ticketId, t.paused, ticketPauseDur);
     }
 }
