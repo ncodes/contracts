@@ -9,6 +9,7 @@
     "deploy-local": "npx hardhat run scripts/deploy-script.ts --network localhost",
     "deploy-goerli": "npx hardhat run scripts/deploy-script.ts --network goerli",
     "deploy-sepolia": "npx hardhat run scripts/deploy-script.ts --network sepolia",
+    "deploy-ethereum": "npx hardhat run scripts/deploy-script.ts --network ethereum",
     "deploy-nft": "npx hardhat run scripts/deploy-nft.ts",
     "gen-key": "npx hardhat run tasks/genkey.ts",
     "play": "npx hardhat run scripts/_play/play.ts --network localhost"
