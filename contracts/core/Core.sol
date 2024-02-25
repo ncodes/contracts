@@ -8,7 +8,6 @@ import "./StructsLib.sol";
 import "../market/interfaces/IMarketCore.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "../pools/interfaces/IFeePool.sol";
-import "../token/WETH.sol";
 import "./WithdrawLib.sol";
 import "./AuxLib.sol";
 import "./FeeLib.sol";
@@ -21,7 +20,7 @@ import "./FungibleLiquidityLib.sol";
 import "./NonFungibleLiquidityLib.sol";
 
 /// Core manages market orders
-contract Core is Ownable, ERC1155Holder, WETH9 {
+contract Core is Ownable, ERC1155Holder {
     StructsLib.State public state;
     StructsLib.State2 public state2;
 
