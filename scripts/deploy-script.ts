@@ -139,7 +139,7 @@ async function deployBadgeManager() {
         });
 
         // TODO: Step 2
-        // - Deposit gas into issue
+        // - Deposit gas into issuer wallet
         await runStep(2, "Create `pm/*` badge issuer and initial badges", async () => {
             const issuer = new Wallet(params.paymentMethodBadgeIssuerKey, provider);
             await call(badgeMgr, deployer, (c) => {
@@ -166,7 +166,7 @@ async function deployBadgeManager() {
         });
 
         // TODO: Step 2:
-        // - Deposit gas into issue
+        // - Deposit gas into issuer wallet
         await runStep(2, "Create `kyc/*` badge issuer and initial badges", async () => {
             const issuer = new Wallet(params.kycBadgeIssuerKey, provider);
             await call(badgeMgr, deployer, (c) => {

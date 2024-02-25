@@ -7,8 +7,8 @@ import "../common/Structs.sol";
 import "./StructsLib.sol";
 import "../market/interfaces/IMarketCore.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../pools/interfaces/IFeePool.sol";
+import "../token/WETH.sol";
 import "./WithdrawLib.sol";
 import "./AuxLib.sol";
 import "./FeeLib.sol";
@@ -21,7 +21,7 @@ import "./FungibleLiquidityLib.sol";
 import "./NonFungibleLiquidityLib.sol";
 
 /// Core manages market orders
-contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
+contract Core is Ownable, ERC1155Holder, WETH9 {
     StructsLib.State public state;
     StructsLib.State2 public state2;
 
@@ -424,7 +424,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
         uint256[] memory ids,
         uint256 txDeadline,
         uint256 operator
-    ) external nonReentrant notExpired(txDeadline) marketMustExist(marketId) {
+    ) external  notExpired(txDeadline) marketMustExist(marketId) {
         StructsLib.SwapSlotAddresses memory addrs = StructsLib.SwapSlotAddresses(marketId, provider, recipient);
         SwapLib.swapQuoteForBase(state, state2, StructsLib.SwapSlot(lid, amount, maxPrice, ids, 0, operator, addrs));
     }
@@ -470,13 +470,13 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
 
     /// @notice Withdraw fees accrued for the protocol inventor
     /// @param asset The address of the asset the fee is denominated in.
-    function withdrawInventorBalance(address asset) external nonReentrant onlyInventor {
+    function withdrawInventorBalance(address asset) external  onlyInventor {
         WithdrawLib.withdrawInventorBalance(state, asset);
     }
 
     /// @notice Release an order
     /// @param id The order ID
-    function releaseOrder(uint256 id) external nonReentrant {
+    function releaseOrder(uint256 id) external  {
         require(id <= state.orders.length - 1, "OC: UNKNOWN_ORDER");
         SwapLib.releaseOrder(state, state2, id, false);
     }
@@ -485,14 +485,14 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     /// @param id The order ID
     /// @param expireAt The expire time of the signature
     /// @param signature The signature created by the manager
-    function releaseOrderByManagerSig(uint256 id, uint256 expireAt, bytes calldata signature) external nonReentrant {
+    function releaseOrderByManagerSig(uint256 id, uint256 expireAt, bytes calldata signature) external  {
         require(id <= state.orders.length - 1, "OC: UNKNOWN_ORDER");
         SwapLib.releaseOrderByManagerSig(state, state2, id, expireAt, signature);
     }
 
     /// @notice Cancel an order
     /// @param id The order ID
-    function cancelOrder(uint256 id) external nonReentrant {
+    function cancelOrder(uint256 id) external  {
         require(hasOrder(id), "OC: UNKNOWN_ORDER");
         SwapLib.cancelOrder(state, state2.marketCore, id, false);
     }
@@ -501,7 +501,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     /// @param id The order ID
     /// @param expireAt The expire time of the signature
     /// @param signature The signature created by the manager
-    function cancelOrderByManagerSig(uint256 id, uint256 expireAt, bytes calldata signature) external nonReentrant {
+    function cancelOrderByManagerSig(uint256 id, uint256 expireAt, bytes calldata signature) external  {
         require(id <= state.orders.length - 1, "OC: UNKNOWN_ORDER");
         SwapLib.cancelOrderByManagerSig(state, state2, id, expireAt, signature);
     }
@@ -637,7 +637,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
         uint256[] memory wantOrIds,
         uint256[] memory wantAndIds,
         uint256[5] memory limits
-    ) external nonReentrant notExpired(limits[3]) marketMustExist(marketId) {
+    ) external  notExpired(limits[3]) marketMustExist(marketId) {
         StructsLib.UpdateLiquiditySlot memory slot = StructsLib.UpdateLiquiditySlot(
             marketId,
             lid,
@@ -679,7 +679,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
         uint256[] memory wantOrIds,
         uint256[] memory wantAndIds,
         uint256[3] memory limits
-    ) external nonReentrant notExpired(limits[1]) marketMustExist(marketId) {
+    ) external  notExpired(limits[1]) marketMustExist(marketId) {
         StructsLib.UpdateLiquiditySlot memory slot = StructsLib.UpdateLiquiditySlot(
             marketId,
             lid,
