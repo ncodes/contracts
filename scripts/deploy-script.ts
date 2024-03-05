@@ -117,8 +117,8 @@ async function main() {
     deployer = accts[0];
     inventor = accts[0];
 
-    // await deployMainnet();
-    await deployLocal();
+    await deployMainnet();
+    // await deployLocal();
 }
 
 async function deployBadgeManager() {
@@ -183,7 +183,7 @@ async function deployP2PToken() {
     await deployOrAttach<TOKEN>(
         "TOKEN",
         undefined,
-        ["P2P Test Token", "P2P", "1000000000000000000000000000", 18],
+        ["Joint", "P2P", "10000000000000000000000000000", 18],
         async (contract) => {
             p2p = contract;
         },

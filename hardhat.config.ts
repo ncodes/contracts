@@ -51,6 +51,10 @@ module.exports = {
             //     type: 2,
             // },
         },
+        arbitrum: {
+            url: "https://arb1.arbitrum.io/rpc",
+            accounts: deployKey ? [process.env.DEPLOY_KEY] : undefined,
+        },
         "arbitrum-sepolia": {
             url: "https://sepolia-rollup.arbitrum.io/rpc",
             accounts: deployKey ? [process.env.DEPLOY_KEY] : undefined,
