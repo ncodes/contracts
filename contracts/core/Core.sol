@@ -18,7 +18,6 @@ import "../assetregistry/interfaces/IAssetRegistry.sol";
 import "../token/interfaces/IERC20.sol";
 import "./FungibleLiquidityLib.sol";
 import "./NonFungibleLiquidityLib.sol";
-import "hardhat/console.sol";
 
 /// Core manages market orders
 contract Core is Ownable, ERC1155Holder {
