@@ -781,6 +781,108 @@ describe("Core - Order", function () {
             });
         });
 
+        context("base = SYNTH while quote = NATIVE", () => {
+            it("should successfully release", async () => {
+                mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.NATIVE, false, false, marketCom, 0);
+                await provideLiquidity(provider, amountOfBase, pricePerBase);
+
+                // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
+                swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                swapCost = swapAmt.mul(pricePerBase).div(baseDec); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
+
+                // create swap order.
+                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0, {value: swapCost})).not.to.be.reverted;
+                const numOrders = (await core.state()).numOrders;
+                expect(numOrders.toNumber()).to.eql(1);
+                orderID = numOrders.toNumber() - 1;
+
+                await expect(core.connect(provider).markOrderAsPaid(orderID)).not.to.be.reverted;
+
+                const prevProviderBal = await provider.getBalance();
+                const prevSwapperBal = await swapper.getBalance();
+
+                const tx = await core.connect(swapper).releaseOrder(orderID);
+                await expect(tx).to.emit(core, "Swap").withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, swapper.address, [1, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
+
+                // calculate gas fee in eth
+                const txReceipt = await tx.wait();
+                const gasUsed = txReceipt.gasUsed.mul(tx.gasPrice as BigNumber);
+
+                // Calculate fee
+                const protoFee = toDec(swapCost).mul(toDec(synthSwapFee)).div(100).div(100);
+                const mktCreatorFee = toDec(swapCost).mul(toDec(marketCom).div(100)).div(100);
+                const totalFees = toBN(protoFee.add(mktCreatorFee));
+
+                // Protocol fee should be correct
+                expect((await core.inventorBalanceOf(quoteAddr)).eq(toBN(protoFee))).to.be.true;
+
+                // Market creator should be correct
+                expect(await core.feeBalanceOf(deployer.address, quoteAddr)).to.eql(toBN(mktCreatorFee));
+
+                // provider quote asset balance should be expected
+                expect(await core.provider.getBalance(provider.address)).to.eql(prevProviderBal.add(swapCost).sub(totalFees));
+
+                // swapper quote asset balance should be expected
+                expect(await core.provider.getBalance(swapper.address)).to.eql(prevSwapperBal.sub(gasUsed));
+
+                // contract quote asset balance should be expected
+                expect(await core.provider.getBalance(cAddr)).to.eql(totalFees);
+
+                const mkt = await mc.getMarket(mid);
+                expect(mkt.numLiquidity).to.eql(amountOfBase.sub(swapAmt));
+            });
+        });
+
+        context("base = NATIVE while quote = SYNTH", () => {
+            it("should successfully release", async () => {
+                mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, AssetType.SYNTH, false, false, marketCom, 0);
+                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0], {value: amountOfBase})).not.to.be
+                    .reverted;
+
+                // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
+                swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                swapCost = swapAmt.mul(pricePerBase).div(baseDec); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
+
+                // create swap order.
+                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                const numOrders = (await core.state()).numOrders;
+                expect(numOrders.toNumber()).to.eql(1);
+                orderID = numOrders.toNumber() - 1;
+
+                await expect(core.connect(swapper).markOrderAsPaid(orderID)).not.to.be.reverted;
+
+                const prevProviderBal = await provider.getBalance();
+                const prevSwapperBal = await swapper.getBalance();
+
+                const tx = await core.connect(provider).releaseOrder(orderID);
+                await expect(tx).to.emit(core, "Swap").withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, provider.address, [1, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
+
+                // Calculate fee
+                const protoFee = toDec(swapAmt).mul(toDec(synthSwapFee)).div(100).div(100);
+                const mktCreatorFee = toDec(swapAmt).mul(toDec(marketCom).div(100)).div(100);
+                const totalFees = toBN(protoFee.add(mktCreatorFee));
+
+                // Protocol fee should be correct
+                expect((await core.inventorBalanceOf(baseAddr)).eq(toBN(protoFee))).to.be.true;
+
+                // Market creator should be correct
+                expect(await core.feeBalanceOf(deployer.address, baseAddr)).to.eql(toBN(mktCreatorFee));
+
+                // swapper base asset balance should be expected
+                expect(await core.provider.getBalance(swapper.address)).to.eql(prevSwapperBal.add(swapAmt).sub(totalFees));
+
+                // amount of liquidity left
+                const liq = await core.getLiquidity(mid, provider.address, 0);
+                expect(liq.amount).to.eql(amountOfBase.sub(swapAmt));
+
+                // contract quote asset balance should be expected
+                expect(await core.provider.getBalance(cAddr)).to.eql(liq.amount.add(totalFees));
+
+                const mkt = await mc.getMarket(mid);
+                expect(mkt.numLiquidity).to.eql(amountOfBase.sub(swapAmt));
+            });
+        });
+
         context("base asset = SYNTH while quote = SYNTH", () => {
             it("should emit 'Swap' with expected arguments on success", async () => {
                 marketCom = "100000000000000000"; // 0.1
@@ -1435,6 +1537,62 @@ describe("Core - Order", function () {
             });
         });
 
+        context("base = SYNTH while quote = NATIVE", () => {
+            beforeEach(async () => {
+                await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.SYNTH, AssetType.NATIVE, false, false, 0, 0);
+                mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.NATIVE);
+            });
+
+            it("should successfully cancel order", async () => {
+                // Provide BASE liquidity
+                const provLiq = toBN(10).mul(baseDec);
+                const basePrice = toBN(1).mul(quoteDec);
+                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [provLiq, basePrice], [], [], [0, 0, 0, 0, 0]);
+
+                let mkt = await mc.getMarket(mid);
+                expect(mkt.numLiquidity).to.eql(provLiq);
+
+                // Provide QUOTE asset to swapper and unlock it
+                const swapAmt = toBN(10).mul(baseDec);
+                const swapCost = basePrice.mul(10);
+
+                // Create Order
+                await core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, basePrice, [], 0, 0, {value: swapCost});
+
+                mkt = await mc.getMarket(mid);
+                expect(mkt.numLiquidity).to.eql(provLiq.sub(swapAmt));
+
+                // Expect swap amount to be deducted
+                expect((await quoteAsset.balanceOf(swapper.address)).isZero()).to.be.true;
+
+                const prevSwapperBal = await core.provider.getBalance(swapper.address);
+
+                // // Cancel the order
+                await advanceBlockTime(orderLifeTime);
+                const tx = await core.connect(swapper).cancelOrder(0);
+                await expect(tx).to.emit(core, "OrderCancelled").withArgs(0, swapper.address, false);
+
+                // calculate gas used in eth
+                const txReceipt = await tx.wait();
+                const gasUsed = txReceipt.gasUsed.mul(tx.gasPrice as BigNumber);
+
+                mkt = await mc.getMarket(mid);
+                expect(mkt.numLiquidity).to.eql(provLiq);
+
+                // Expect swap amount to be returned
+                expect(await core.provider.getBalance(swapper.address)).to.eq(prevSwapperBal.add(swapCost).sub(gasUsed));
+
+                // contract should have no balance
+                expect(await core.provider.getBalance(core.address)).to.eq(0);
+
+                // Order should be cancelled
+                let order = await core.getOrder(0);
+                expect(order.cancelled).to.be.true;
+                const liq = await core.getLiquidity(mid, provider.address, 0);
+                expect(liq.openOrders.eq(0)).to.be.true;
+            });
+        });
+
         context("base = SYNTH while quote = SYNTH", () => {
             let orderID: number;
             let swapAmt: BigNumber;
@@ -1754,6 +1912,19 @@ describe("Core - Order", function () {
                     expect(res[0]).to.eql(toBN("6300000000000000"));
                     expect(res[1]).to.eql(toBN("450000000000000000"));
                 });
+            });
+        });
+
+        context.skip("for ERC20/NATIVE", () => {
+            it("should compute correct fee", async () => {
+                await core.setProtoFee(14, 0, 0, 0, 0, 0);
+                await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.NATIVE, false, false, 1000, 0);
+                mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, AssetType.ERC20, AssetType.NATIVE);
+                await provideLiquidity(provider, amountOfBase, pricePerBase);
+                const swapAmt = toBN(5).mul(baseDec);
+                const res = await core.computeSwapFee(mid, provider.address, 0, swapper.address, swapAmt, pricePerBase);
+                expect(res[0]).to.eql(toBN("7000000000000000"));
+                expect(res[1]).to.eql(toBN("500000000000000000"));
             });
         });
 

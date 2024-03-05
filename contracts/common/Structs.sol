@@ -6,7 +6,8 @@ library Structs {
         SYNTH,
         ERC20,
         ERC721,
-        ERC1155
+        ERC1155,
+        NATIVE
     }
 
     struct Asset {

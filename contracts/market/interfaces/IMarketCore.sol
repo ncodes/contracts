@@ -20,6 +20,8 @@ interface IMarketCore {
         uint256 numMediators
     ) external;
 
+    function getNativeAssetAddr() external view returns (address);
+
     function getMarket(address id) external view returns (Structs.Market memory);
 
     function permitPut(address id, address addr) external;

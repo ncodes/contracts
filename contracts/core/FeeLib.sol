@@ -50,8 +50,13 @@ library FeeLib {
     function computeFee(ComputeFeeParams memory p) public view returns (FeeInfo memory) {
         FeeInfo memory feeInfo;
 
-        // ERC20/ERC20 fee calculation.
-        if (p.mkt.base.isERC20() && p.mkt.quote.isERC20()) {
+        // ERC20/ERC20, ERC20/NATIVE, NATIVE/ERC20, NATIVE/NATIVE fee calculation.
+        if (
+            (p.mkt.base.isERC20() && p.mkt.quote.isERC20()) ||
+            (p.mkt.base.isERC20() && p.mkt.quote.isNative()) ||
+            (p.mkt.base.isNative() && p.mkt.quote.isERC20()) ||
+            (p.mkt.base.isNative() && p.mkt.quote.isNative())
+        ) {
             (feeInfo.feeBp, , ) = AuxLib.getFeeInfo(p.assetReg, p.mkt.base, p.instantSwapFeeBp);
             feeInfo.feeBp = AuxLib.isStable(p.assetReg, p.mkt) ? p.stableSwapFeeBp : feeInfo.feeBp;
             feeInfo.mktFeeBp = p.mkt.commission;
@@ -71,10 +76,11 @@ library FeeLib {
             return feeInfo;
         }
 
-        // ERC20/SYNTH & SYNTH/ERC20 fee calculation.
-        if (p.mkt.isFungible() && p.mkt.hasERC20()) {
+        // ERC20/SYNTH, SYNTH/ERC20, NATIVE/SYNTH, SYNTH/NATIVE fee calculation.
+        if (p.mkt.isFungible() && p.mkt.hasERC20OrNative()) {
             Structs.Asset memory asset = p.mkt.base.isOnchain() ? p.mkt.base : p.mkt.quote;
-            feeInfo.cost = (p.amount * p.price) / ((p.mkt.quote.isSynth()) ? 10 ** 18 : 10 ** IERC20(p.mkt.quote.addr).decimals());
+            uint decimals = (p.mkt.quote.isSynth() || p.mkt.quote.isNative()) ? 10 ** 18 : 10 ** IERC20(p.mkt.quote.addr).decimals();
+            feeInfo.cost = (p.amount * p.price) / decimals;
             feeInfo.mktFeeBp = p.mkt.commission;
             (feeInfo.feeBp, , ) = AuxLib.getFeeInfo(p.assetReg, asset, p.synthSwapFeeBp);
 
@@ -88,7 +94,7 @@ library FeeLib {
             }
 
             // Determine which amount is subject to fee deduction.
-            // When the base asset is ERC20, charge fee from order amount.
+            // When the base asset is ERC20 or Native, charge fee from order amount.
             // Otherwise charge fee from order cost.
             feeInfo.amtToCharge = (p.mkt.base.isSynth()) ? feeInfo.cost : p.amount;
 
@@ -99,8 +105,8 @@ library FeeLib {
             return feeInfo;
         }
 
-        // ERC20/NFT fee calculation.
-        if (p.mkt.base.isERC20() && p.mkt.quote.isNFT()) {
+        // ERC20/NFT, NATIVE/NFT fee calculation.
+        if ((p.mkt.base.isERC20() || p.mkt.base.isNative()) && p.mkt.quote.isNFT()) {
             (feeInfo.feeBp, , ) = AuxLib.getFeeInfo(p.assetReg, p.mkt.base, p.instantNFTSwapFeeBp);
             feeInfo.mktFeeBp = p.mkt.commission;
 
@@ -131,8 +137,8 @@ library FeeLib {
             return feeInfo;
         }
 
-        // NFT/ERC20 fee calculation
-        if (p.mkt.base.isNFT() && p.mkt.quote.isERC20()) {
+        // NFT/ERC20, NFT/NATIVE fee calculation
+        if (p.mkt.base.isNFT() && (p.mkt.quote.isERC20() || p.mkt.quote.isNative())) {
             (feeInfo.feeBp, , ) = AuxLib.getFeeInfo(p.assetReg, p.mkt.base, p.instantNFTSwapFeeBp);
             feeInfo.mktFeeBp = p.mkt.commission;
 

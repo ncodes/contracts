@@ -12,6 +12,7 @@ export enum AssetType {
     ERC20,
     ERC721,
     ERC1155,
+    NATIVE,
 }
 
 /**
@@ -96,6 +97,6 @@ export function powOf(n: BigNumberish, power: BigNumberish) {
     return toBN(
         toDec(n)
             .mul(toDec(pow10(power)))
-            .toFixed(0)
+            .toFixed(0),
     );
 }

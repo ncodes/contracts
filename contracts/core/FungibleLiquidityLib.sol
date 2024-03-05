@@ -41,7 +41,9 @@ library FungibleLiquidityLib {
     );
 
     /// @dev Create or update fungible liquidity.
-    ///      Covers ERC20/ERC20, ERC20/SYNTH, ERC20/NFT, SYNTH/ERC20, SYNTH/SYNTH, SYNTH/NFT
+    /// Covers ERC20/ERC20, ERC20/SYNTH, ERC20/NFT, ERC20/NATIVE,
+    /// SYNTH/ERC20, SYNTH/SYNTH, SYNTH/NFT,
+    /// NATIVE/ERC20, NATIVE/SYNTH, NATIVE/NFT, NATIVE/NATIVE
     /// @param s1 Storage struct.
     /// @param s2 Storage struct 2.
     /// @param slot The parameters needed to create or update liquidity.
@@ -94,7 +96,11 @@ library FungibleLiquidityLib {
                 IERC20(mkt.base.addr).safeTransferFrom(msg.sender, address(this), slot.amount);
             }
 
-            if (!mkt.hasERC20()) {
+            if (mkt.base.isNative()) {
+                require(msg.value >= slot.amount, "OC: LOW_DEPOSIT");
+            }
+
+            if (!mkt.hasERC20OrNative()) {
                 LiqAuxLib.lockFeeForProtocol(s1, s2, mkt, liq, slot.amount);
                 LiqAuxLib.lockFeeForMarketCreator(s2, mkt, liq, slot.amount);
             }
@@ -115,7 +121,11 @@ library FungibleLiquidityLib {
                 IERC20(mkt.base.addr).safeTransfer(msg.sender, slot.amount);
             }
 
-            if (!mkt.hasERC20()) {
+            if (mkt.base.isNative()) {
+                payable(msg.sender).transfer(slot.amount);
+            }
+
+            if (!mkt.hasERC20OrNative()) {
                 LiqAuxLib.unlockFeeForProtocol(s2, mkt, liq);
                 LiqAuxLib.unlockFeeForMarketCreator(s2, mkt, liq);
             }

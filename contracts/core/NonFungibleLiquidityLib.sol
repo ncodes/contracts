@@ -95,7 +95,7 @@ library NonFungibleLiquidityLib {
                 }
             }
 
-            if (!mkt.hasERC20()) {
+            if (!mkt.hasERC20OrNative()) {
                 LiqAuxLib.lockFeeForProtocol(s1, s2, mkt, liq, numIds);
                 LiqAuxLib.lockFeeForMarketCreator(s2, mkt, liq, numIds);
             }
@@ -121,7 +121,7 @@ library NonFungibleLiquidityLib {
                 }
             }
 
-            if (!mkt.hasERC20()) {
+            if (!mkt.hasERC20OrNative()) {
                 LiqAuxLib.unlockFeeForProtocol(s2, mkt, liq);
                 LiqAuxLib.unlockFeeForMarketCreator(s2, mkt, liq);
             }

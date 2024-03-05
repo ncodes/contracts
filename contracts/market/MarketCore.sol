@@ -16,6 +16,9 @@ contract MarketCore is Writable {
     /// @notice The mediator manager contract address
     IMediatorManager public mediatorManager;
 
+    /// @notice The address that represents the native asset
+    address public nativeAssetAddr;
+
     /// @notice Contains all known markets.
     mapping(address => Structs.Market) public markets;
 
@@ -66,6 +69,7 @@ contract MarketCore is Writable {
     event UpdatedMarketManager(address indexed id, address mgr);
     event RenouncedMarket(address id, address owner);
     event UpdatedMediatorManager(address addr);
+    event UpdatedNativeAssetAddr(address addr);
 
     /// @notice Modifier to ensure a market exist
     /// @param id The market ID
@@ -101,6 +105,15 @@ contract MarketCore is Writable {
         emit UpdatedBadgeAddr(addr);
     }
 
+    /// @notice Set the native asset address.
+    /// Note: This should be set to the same address used by the preferred AMM Dex used
+    /// for converting wrapped ETH to ETH or other output tokens.
+    /// @param addr The native asset address
+    function setNativeAssetAddr(address addr) public onlyOwner {
+        nativeAssetAddr = addr;
+        emit UpdatedNativeAssetAddr(addr);
+    }
+
     /// @notice Set the mediator manager contract address
     /// @param addr The mediator manager contract address
     function setMediatorManager(address addr) public onlyOwner {
@@ -132,6 +145,11 @@ contract MarketCore is Writable {
         return markets[id];
     }
 
+    /// @notice Get the native asset address
+    function getNativeAssetAddr() external view returns (address) {
+        return nativeAssetAddr;
+    }
+
     /// @notice Create a new market for swapping two asset types.
     /// @param base The base asset.
     /// @param quote The quote asset.
@@ -153,6 +171,8 @@ contract MarketCore is Writable {
     ) external {
         require(base != address(0), "MC: ZERO_BASE");
         require(quote != address(0), "MC: ZERO_QUOTE");
+        require(baseType != Structs.AssetType.NATIVE || nativeAssetAddr == address(0) || base == nativeAssetAddr, "MC: BAD_NATIVE_ADDR");
+        require(quoteType != Structs.AssetType.NATIVE || nativeAssetAddr == address(0) || quote == nativeAssetAddr, "MC: BAD_NATIVE_ADDR");
         require(mediatorManager.poolExists(mediatePoolId), "MC: UNKNW_POOL");
         address id = address(ripemd160(abi.encodePacked(msg.sender, base, quote, baseType, quoteType)));
         require(!mediatorManager.poolExists(mediatePoolId) || mediatorManager.isApprovedMarket(mediatePoolId, id), "MC: NOT_APPROVED");

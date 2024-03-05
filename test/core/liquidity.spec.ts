@@ -1120,6 +1120,70 @@ describe("Core - Liquidity", function () {
             });
         });
 
+        context("base asset is NATIVE", () => {
+            context("sender sent insufficient native value", () => {
+                it("should revert with reason='OC: LOW_DEPOSIT'", async () => {
+                    mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: LOW_DEPOSIT");
+                });
+            });
+
+            context("sender sent sufficient native value", () => {
+                it("should create liquidity successfully", async () => {
+                    mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0], {value: "100"} as any)).not.to.be.reverted;
+                    expect(await core.provider.getBalance(core.address)).to.eq(100);
+
+                    let liq = await core.getLiquidity(mid, provider.address, 0);
+                    expect(liq.amount.toNumber()).to.equal(100);
+                });
+            });
+
+            context("sender has existing liquidity", () => {
+                it("should update sender's liquidity correctly", async () => {
+                    mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
+                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0], {value: "100"} as any);
+
+                    let liq = await core.getLiquidity(mid, provider.address, 0);
+                    expect(liq.amount.toNumber()).to.equal(100);
+
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0], {value: "100"} as any)).not.to.be.reverted;
+                    expect(await core.provider.getBalance(core.address)).to.eq(200);
+
+                    liq = await core.getLiquidity(mid, provider.address, 0);
+                    expect(liq.amount.toNumber()).to.equal(200);
+                });
+            });
+
+            context("deduct=true", () => {
+                it("should remove liquidity correctly", async () => {
+                    mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
+                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0], {value: "100"} as any);
+
+                    let liq = await core.getLiquidity(mid, provider.address, 0);
+                    expect(liq.amount.toNumber()).to.equal(100);
+
+                    // get provider balance
+                    const providerBalance = await core.provider.getBalance(provider.address);
+
+                    const tx = await core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [50, 10045], [], [], [0, 0, 0, 0, 0]);
+                    liq = await core.getLiquidity(mid, provider.address, 0);
+                    expect(liq.amount.toNumber()).to.equal(50);
+
+                    // calculate gas fee in eth
+                    const txReceipt = await tx.wait();
+                    const gasUsed = txReceipt.gasUsed.mul(tx.gasPrice as BigNumber);
+
+                    // check if provider balance has increased by 50
+                    const curProviderBalance = await core.provider.getBalance(provider.address);
+                    expect(curProviderBalance).to.eq(providerBalance.add(50).sub(gasUsed));
+
+                    // check if contract balance has decreased by 50
+                    expect(await core.provider.getBalance(core.address)).to.eq(50);
+                });
+            });
+        });
+
         context("base asset is SYNTH and quote is ERC20", () => {
             it("should successfully add liquidity", async () => {
                 mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.ERC20, false, false, 0, 0);

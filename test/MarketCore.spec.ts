@@ -84,6 +84,23 @@ describe("MarketCore", function () {
             await expect(mc.createMarket(baseAddr, constants.AddressZero, 0, 1, false, false, 0, 0)).to.be.revertedWith("MC: ZERO_QUOTE");
         });
 
+        context("when native address is set", () => {
+            it("should revert with reason=BAD_NATIVE_ADDR, base type is native but base address did not match the set native base address", async () => {
+                await mc.setNativeAssetAddr(user2.address);
+                await expect(mc.createMarket(baseAddr, quoteAddr, AssetType.NATIVE, 1, false, false, 0, 0)).to.be.revertedWith("MC: BAD_NATIVE_ADDR");
+            });
+
+            it("should revert with reason=BAD_NATIVE_ADDR, base type is native but base address did not match the set native base address", async () => {
+                await mc.setNativeAssetAddr(user2.address);
+                await expect(mc.createMarket(user2.address, quoteAddr, AssetType.NATIVE, AssetType.NATIVE, false, false, 0, 0)).to.be.revertedWith("MC: BAD_NATIVE_ADDR");
+            });
+
+            it("should not revert with reason=BAD_NATIVE_ADDR, base/quote type is native and match the set native base address", async () => {
+                await mc.setNativeAssetAddr(user2.address);
+                await expect(mc.createMarket(user2.address, user2.address, AssetType.NATIVE, AssetType.NATIVE, false, false, 0, 0)).not.to.be.revertedWith("MC: BAD_NATIVE_ADDR");
+            });
+        });
+
         it("Should create new market if not existing", async function () {
             mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 0, 1);
             expect(await mc.hasMarket(mid)).to.be.false;
@@ -149,6 +166,17 @@ describe("MarketCore", function () {
             await expect(mc.markAsOfferOnly(mid)).not.to.be.reverted;
             market = await mc.markets(mid);
             expect(market.perms.offerOnly).to.be.true;
+        });
+    });
+
+    describe(".setNativeAssetAddr", () => {
+        it("should revert with reason=NOT_OWNER when sender is not owner of market", async () => {
+            await expect(mc.connect(provider).setNativeAssetAddr(mid)).to.be.revertedWith("OWNABLE: NOT_OWNER");
+        });
+
+        it("should enable successfully", async () => {
+            await expect(mc.setNativeAssetAddr(user2.address)).emit(mc, "UpdatedNativeAssetAddr").withArgs(user2.address);
+            expect(await mc.getNativeAssetAddr()).to.eql(user2.address);
         });
     });
 

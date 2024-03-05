@@ -59,7 +59,8 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
         uint256 instantNFTSwapFeeBp
     );
     event ProtocolFeeSplitUpdated(uint256 inventor, uint256 shared, uint256 operator);
-    event TransferInventorBalance(address asset, uint256 amount);
+    event TransferInventorBalance(address owner, address token, uint256 amount);
+    event TransferOperatorBalance(address owner, address token, uint256 amount);
     event UpdatedFungibleLiquidity(
         address indexed provider,
         address indexed marketId,
@@ -433,7 +434,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
         uint256[] memory ids,
         uint256 txDeadline,
         uint256 operator
-    ) external nonReentrant notExpired(txDeadline) marketMustExist(marketId) {
+    ) external payable nonReentrant notExpired(txDeadline) marketMustExist(marketId) {
         StructsLib.SwapSlotAddresses memory addrs = StructsLib.SwapSlotAddresses(marketId, provider, recipient);
         SwapLib.swapQuoteForBase(state, state2, StructsLib.SwapSlot(lid, amount, maxPrice, ids, 0, operator, addrs));
     }
@@ -480,7 +481,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
     /// @notice Withdraw fees accrued for the protocol inventor
     /// @param asset The address of the asset the fee is denominated in.
     function withdrawInventorBalance(address asset) external nonReentrant onlyInventor {
-        WithdrawLib.withdrawInventorBalance(state, asset);
+        WithdrawLib.withdrawInventorBalance(state, state2, asset);
     }
 
     /// @notice Release an order
@@ -654,7 +655,7 @@ contract Core is Ownable, ERC1155Holder, ReentrancyGuard {
         uint256[] memory wantOrIds,
         uint256[] memory wantAndIds,
         uint256[5] memory limits
-    ) external nonReentrant notExpired(limits[3]) marketMustExist(marketId) {
+    ) external payable nonReentrant notExpired(limits[3]) marketMustExist(marketId) {
         StructsLib.UpdateLiquiditySlot memory slot = StructsLib.UpdateLiquiditySlot(
             marketId,
             lid,

@@ -105,7 +105,7 @@ async function deployLocal() {
     await deployNFT();
     await deployEnergon();
 
-    if (network.name == Network.Localhost) {
+    if (network.name == Network.Localhost || network.name == Network.Hardhat) {
         await deployTestWETH9();
         await deployTestUNI();
         await deployTestNGN();
@@ -350,6 +350,7 @@ async function deployMediatorManager() {
             params.ticketCancelDur,
             params.ticketMatureDur,
             params.ticketExpireDur,
+            params.ticketPauseDur,
         ],
         async (contract, attached) => {
             mediatorMgr = contract;
@@ -379,6 +380,10 @@ async function deployMediatorManager() {
                         params.poolNoVoteSlashBP,
                         params.poolLoseVoteSlashBP,
                         params.poolNumDraftee,
+                        params.poolEvidenceDur,
+                        params.poolPredictDur,
+                        false,
+                        false,
                     );
                 });
             });

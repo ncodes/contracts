@@ -5,6 +5,7 @@
     "test": "npx hardhat test",
     "cover": "npx hardhat coverage",
     "run-local-node": "npx hardhat node",
+    "run-fork": "npx hardhat node --network hardhat",
     "deploy-fork": "npx hardhat run scripts/deploy-script.ts --network hardhat",
     "deploy-local": "npx hardhat run scripts/deploy-script.ts --network localhost",
     "deploy-goerli": "npx hardhat run scripts/deploy-script.ts --network goerli",

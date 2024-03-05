@@ -30,7 +30,7 @@ library OrderLib {
     event SwapOrderPaid(uint256 indexed orderID, address payer, uint256 disputeDelayDur);
     event FinalizedByManagerSig(address manager, address finalizer, uint256 orderId, uint action);
 
-    /// @notice Create order for ERC20/SYNTH, SYNTH/ERC20, SYNTH/SYNTH, SYNTH/NFT & NFT/SYNTH
+    /// @notice Create order for ERC20/SYNTH, SYNTH/ERC20, SYNTH/SYNTH, SYNTH/NFT, NFT/SYNTH, NATIVE/SYNTH, SYNTH/NATIVE
     /// @param s1 The State object
     /// @param s2 The State2 object
     /// @param sp The swap parameters
@@ -65,11 +65,14 @@ library OrderLib {
             }
         }
 
-        // When quote is ERC20, transfer quote into contract
+        // When quote is ERC20, transfer quote into contract.
+        // When quote is native, make sure the deposit sent is enough.
         if (mkt.quote.isERC20()) {
-            IERC20 qAsset = IERC20(mkt.quote.addr);
-            uint256 cost = (sp.amount * o.price) / 10 ** qAsset.decimals();
-            qAsset.transferFrom(msg.sender, address(this), cost);
+            uint256 cost = (sp.amount * o.price) / 10 ** IERC20(mkt.quote.addr).decimals();
+            IERC20(mkt.quote.addr).transferFrom(msg.sender, address(this), cost);
+        } else if (mkt.quote.isNative()) {
+            uint256 cost = (sp.amount * o.price) / 10 ** IERC20(mkt.quote.addr).decimals();
+            require(msg.value >= cost, "OC: LOW_DEPOSIT");
         }
 
         // Update liquidity
@@ -103,6 +106,7 @@ library OrderLib {
         liq.openOrders += 1;
         s2.marketCore.setCounters(sp.addrs.marketId, true, false, false, mkt.numOrders + 1);
         s2.marketCore.setCounters(sp.addrs.marketId, false, false, true, mkt.numLiquidity - deduction);
+
         emit SwapOrder(
             sp.addrs.marketId,
             sp.addrs.provider,
@@ -171,14 +175,19 @@ library OrderLib {
 
         Structs.Liquidity storage liq = s1.liquidity[o.marketId][o.provider][o.lid];
 
-        // Handle ERC20/SYNTH & SYNTH/ERC20
-        if (mkt.isFungible() && mkt.hasERC20()) {
+        // Handle ERC20/SYNTH, SYNTH/ERC20, SYNTH/NATIVE, NATIVE/SYNTH
+        if (mkt.isFungible() && mkt.hasERC20OrNative()) {
             liq.amount += o.amount;
             s2.marketCore.setCounters(o.marketId, false, false, true, mkt.numLiquidity + o.amount);
+
             if (mkt.quote.isERC20()) {
-                IERC20 qAsset = IERC20(mkt.quote.addr);
-                uint256 cost = (o.amount * o.price) / 10 ** qAsset.decimals();
-                qAsset.transfer(o.taker, cost);
+                uint256 cost = (o.amount * o.price) / 10 ** IERC20(mkt.quote.addr).decimals();
+                IERC20(mkt.quote.addr).transfer(o.taker, cost);
+            }
+
+            if (mkt.quote.isNative()) {
+                uint256 cost = (o.amount * o.price) / 10 ** IERC20(mkt.quote.addr).decimals();
+                payable(o.taker).transfer(cost);
             }
         }
 

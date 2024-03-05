@@ -84,8 +84,8 @@ library OrderReleaseLib {
 
         Structs.Asset memory asset;
 
-        // Handle ERC20/SYNTH & SYNTH/ERC20
-        if (mkt.isFungible() && mkt.hasERC20()) {
+        // Handle ERC20/SYNTH, SYNTH/ERC20, SYNTH/NATIVE, NATIVE/SYNTH
+        if (mkt.isFungible() && mkt.hasERC20OrNative()) {
             asset = releaseForFungibles(s1, s2, o, mkt);
         }
 
@@ -350,9 +350,11 @@ library OrderReleaseLib {
         s1.inventorBalance[asset.addr] += (feeInfo.protoFee * totalFeeBps) / 10000;
 
         // Transfer the order amount
+        address receiver = (!mkt.base.isSynth()) ? o.taker : o.provider;
         if (asset.isERC20()) {
-            address receiver = (!mkt.base.isSynth()) ? o.taker : o.provider;
             IERC20(asset.addr).transfer(o.recipient.setOrDef(receiver), feeInfo.amtToCharge - feeInfo.totalFees);
+        } else if (asset.isNative()) {
+            payable(o.recipient.setOrDef(receiver)).transfer(feeInfo.amtToCharge - feeInfo.totalFees);
         }
 
         return asset;
