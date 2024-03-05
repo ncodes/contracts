@@ -270,12 +270,6 @@ async function deployCore() {
                 });
             });
 
-            await runStep(1, "Adding Core as P2P minter", async () => {
-                await call(p2p, deployer, (c) => {
-                    return c.addMinters([core.address]);
-                });
-            });
-
             await runStep(1, "Setting Core as MarketCore writer", async () => {
                 await call(marketCore, deployer, (c) => {
                     return c.updateWriter(core.address, true);
