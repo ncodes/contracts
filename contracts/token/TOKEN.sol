@@ -24,12 +24,7 @@ contract TOKEN is ERC20, ERC20Burnable, Ownable {
     /// @param _symbol The token symbol
     /// @param _initialSupply The initial supply
     /// @param _decimals The token's decimals
-    constructor(
-        string memory _name,
-        string memory _symbol,
-        uint256 _initialSupply,
-        uint8 _decimals
-    ) ERC20(_name, _symbol) {
+    constructor(string memory _name, string memory _symbol, uint256 _initialSupply, uint8 _decimals) ERC20(_name, _symbol) {
         _tokenDecimals = _decimals;
         _mint(msg.sender, _initialSupply);
     }

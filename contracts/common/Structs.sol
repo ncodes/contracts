@@ -6,7 +6,8 @@ library Structs {
         SYNTH,
         ERC20,
         ERC721,
-        ERC1155
+        ERC1155,
+        NATIVE
     }
 
     struct Asset {
@@ -17,10 +18,6 @@ library Structs {
     struct MarketDur {
         // Time to wait before a dispute can be started
         uint256 disputeDelayDur;
-        // The duration for evidence collection
-        uint256 evidenceDur;
-        // The duration for voting (includes committing and revealing)
-        uint256 predictDur;
     }
 
     // Market represents a pair of assets where one
@@ -196,25 +193,34 @@ library Structs {
     }
 
     struct Ticket {
-        address owner;
         uint256 idx;
         uint256 poolId;
         uint256 bond;
         uint256 matureAt;
-        uint256 poolIdx;
+        int256 poolIdx;
         uint256 cancelAt;
         uint256 joinBy;
+        uint256 numPaused;
+        address owner;
         bool drafted;
         bool joined;
+        bool blocked;
+        bool slashed;
+        bool paused;
     }
 
     struct TicketPool {
+        bool exists;
+        bool approvedMediatorOnly;
+        bool approvedMarketOnly;
         uint256 reqBond;
         uint256 draftReward;
         uint256 winReward;
         uint256 noVoteSlashBP;
         uint256 loseVoteSlashBP;
         uint256 numDraftees;
+        uint256 evidenceDur;
+        uint256 predictDur;
     }
 
     struct DelegateTicket {

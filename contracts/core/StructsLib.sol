@@ -9,6 +9,7 @@ import "../pools/interfaces/IFeePool.sol";
 import "../feepurse/interfaces/IFeePurse.sol";
 import "../badge/interfaces/IBadge.sol";
 import "../operator/interfaces/IOperator.sol";
+import "../minerregisty/interfaces/IMinerRegistry.sol";
 
 library StructsLib {
     struct UserRewardLog {
@@ -108,6 +109,8 @@ library StructsLib {
         IBadge badge;
         // Operator manager contract
         IOperator operatorMgr;
+        // Miner registry contract
+        IMinerRegistry minerReg;
         // List of offers
         Structs.Offer[] offers;
         // Liquidity-level badges required of swappers.

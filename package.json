@@ -5,6 +5,7 @@
     "test": "npx hardhat test",
     "cover": "npx hardhat coverage",
     "run-local-node": "npx hardhat node",
+    "run-fork": "npx hardhat node --network hardhat",
     "deploy-fork": "npx hardhat run scripts/deploy-script.ts --network hardhat",
     "deploy-local": "npx hardhat run scripts/deploy-script.ts --network localhost",
     "deploy-goerli": "npx hardhat run scripts/deploy-script.ts --network goerli",
@@ -30,7 +31,7 @@
     "ethers": "^5.5.3",
     "hardhat": "^2.12.3",
     "hardhat-contract-sizer": "^2.4.0",
-    "prettier-plugin-solidity": "^1.0.0-beta.19",
+    "prettier-plugin-solidity": "^1.3.1",
     "ts-node": "^10.9.2",
     "typechain": "^8.2.0",
     "typescript": "^5.1.3"

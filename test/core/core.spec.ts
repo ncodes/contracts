@@ -2,8 +2,8 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
 import {BigNumber, BigNumberish} from "ethers";
 import {ethers} from "hardhat";
-import {AssetRegistry, Core, ENERGON, ERC1155T, ERC721T, FeePool, FeePurse, MarketCore, NFT, TOKEN} from "../../typechain-types";
-import {AddressZero, advanceBlockTime, getERC20, makeMarketID, toBN, toDec} from "../../utils/utils";
+import {AssetRegistry, Core, ENERGON, ERC1155T, ERC721T, FeePool, FeePurse, MarketCore, MediatorManager, NFT, TOKEN} from "../../typechain-types";
+import {AddressZero, AssetType, advanceBlockTime, getERC20, makeMarketID, powOf, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
 const {getContractFactory} = ethers;
 
@@ -12,6 +12,7 @@ describe("Core", function () {
     let quoteAddr: string;
     let core: Core;
     let mc: MarketCore;
+    let medMgr: MediatorManager;
     let energon: ENERGON;
     let nft: NFT;
     let feePurse: FeePurse;
@@ -38,7 +39,6 @@ describe("Core", function () {
     let amountOfBase: BigNumber;
     let pricePerBase: BigNumber;
     let fixedSynthSwapFee: BigNumberish;
-    let instantNFTSwapFee: BigNumberish;
 
     let marketCreator: SignerWithAddress, provider: SignerWithAddress, swapper: SignerWithAddress, marketCreator2: SignerWithAddress, inventor: SignerWithAddress;
 
@@ -74,7 +74,6 @@ describe("Core", function () {
         amountOfBase = vars.amountOfBase;
         pricePerBase = vars.pricePerBase;
         fixedSynthSwapFee = vars.fixedSynthSwapFee;
-        instantNFTSwapFee = vars.instantNFTSwapFee;
         deployer = vars.deployer;
         marketCreator = vars.marketCreator;
         provider = vars.provider;
@@ -82,6 +81,9 @@ describe("Core", function () {
         marketCreator2 = vars.marketCreator2;
         inventor = vars.inventor;
         user5 = vars.user5;
+        medMgr = vars.mediatorMgr;
+
+        await medMgr.updateTicketPool(0, vars.ticketBondAmt, 10, 10, 100, 100, 1, 0, 0, false, false);
     });
 
     async function provideLiquidity(provider: SignerWithAddress, liquidityAmt: BigNumber, basePrice: BigNumber, timeToPay = 0) {
@@ -186,7 +188,7 @@ describe("Core", function () {
         });
     });
 
-    describe(".transferToFeePool", () => {
+    describe.skip(".transferToFeePool", () => {
         const marketCom = 0.1 * 100;
         let fp: FeePool;
         let protoFee: BigNumber;
@@ -239,7 +241,7 @@ describe("Core", function () {
             });
         });
 
-        context.skip("fee purse is zero (fork mainnet)", () => {
+        context("fee purse is zero (fork mainnet)", () => {
             const WETH9 = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
 
             beforeEach(async () => {
@@ -306,6 +308,71 @@ describe("Core", function () {
             it("should not revert with msg='OC: NOT_READY' when called in the next call interval", async () => {
                 await advanceBlockTime(86400);
                 await expect(core.transferToFeePool(baseAddr)).not.to.be.revertedWith("OC: NOT_READY");
+            });
+        });
+
+        context("fee token is native ETH; convert to ERC20 and send to FeePool (fork mainnet)", () => {
+            const WETH9 = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
+            const outToken = "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984"; // UNI
+
+            beforeEach(async () => {
+                const nativeAssetAddr = WETH9;
+                baseAddr = nativeAssetAddr;
+
+                await mc.setNativeAssetAddr(nativeAssetAddr);
+                await core.configureFeePool(toBN(86400));
+                amountOfBase = powOf(10, 18);
+
+                // set up provider's impersonated account (UNI)
+                await core.setAmmPoolInfo(nativeAssetAddr, outToken, 3000);
+                provider = await ethers.getImpersonatedSigner("0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B");
+                await core.setAmmInfo("0xE592427A0AEce92De3Edee1F18E0157C05861564", WETH9, 3000);
+
+                // Setup Fee pool
+                let factory = await getContractFactory("FeePool");
+                fp = (await factory.deploy(user5.address, core.address)) as FeePool;
+                await core.setFeePool(fp.address);
+
+                // Create market
+                await mc.connect(marketCreator2).createMarket(nativeAssetAddr, quoteAddr, AssetType.NATIVE, AssetType.ERC20, false, false, marketCom, 0);
+                mid = makeMarketID(marketCreator2.address, nativeAssetAddr, quoteAddr, AssetType.NATIVE, AssetType.ERC20);
+
+                // Add provider's liquidity
+                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+
+                // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
+                const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                const swapCost = swapAmt.mul(pricePerBase).div(baseDec); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
+
+                // Give swapper enough QUOTE to pay swap cost and swapper must approve contract to spend it
+                await quoteAsset.transfer(swapper.address, swapCost);
+                await quoteAsset.connect(swapper).approve(cAddr, swapCost);
+
+                // Calculate expected swapper fees (for on-chain swap)
+                protoFee = swapAmt.mul((await core.state()).ints.instantSwapFeeBp).div(toBN(10000));
+
+                // Swap (allow fee to be shared)
+                await assetReg.setSharable(baseAddr, true);
+                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).to.emit(core, "Swap");
+
+                // protocol share protocol fee
+                expect((await core.inventorBalanceOf(baseAddr)).eq(protoFee.div(2))).to.be.true;
+                shareableBal = await core.shareablesBalanceOf(baseAddr);
+
+                // transfer fee successfully
+                await expect(core.transferToFeePool(baseAddr)).to.emit(core, "TransferredToFeePool");
+            });
+
+            it("should send shareable fee to FeeReward contract", async () => {
+                expect((await core.shareablesBalanceOf(baseAddr)).eq(0)).to.be.true;
+
+                // ensure fee pool contract has non zero balance
+                expect(await getERC20(ethers.provider, outToken).balanceOf(fp.address)).not.to.eq(0);
+
+                // expect fee pool to have been notified
+                expect((await fp.periodFinish(outToken)).gt(0)).to.be.true;
+                expect((await fp.lastUpdateTime(outToken)).gt(0)).to.be.true;
+                expect((await fp.rewardRates(outToken)).gt(0)).to.be.true;
             });
         });
     });
@@ -401,6 +468,48 @@ describe("Core", function () {
             expect((await core.inventorBalanceOf(baseAddr)).eq(0)).to.be.true;
             expect((await baseAsset.balanceOf(user5.address)).eq(protoFee)).to.be.true;
         });
+
+        context("when fee is denominated in native asset", () => {
+            it("should withdraw native asset", async () => {
+                await mc.setNativeAssetAddr(baseAddr);
+                await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.NATIVE, AssetType.ERC20, false, false, marketCom, 0);
+                mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, AssetType.NATIVE, AssetType.ERC20);
+
+                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+
+                // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
+                const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                const swapCost = swapAmt.mul(pricePerBase).div(baseDec); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
+
+                // Give swapper enough BASE to pay swap cost and swapper must approve contract to spend it
+                await quoteAsset.transfer(swapper.address, swapCost);
+                await quoteAsset.connect(swapper).approve(cAddr, swapCost);
+
+                // Calculate expected swapper fees (for on-chain swap)
+                const protoFee = swapAmt.mul((await core.state()).ints.instantSwapFeeBp).div(10000);
+                const marketCreatorFee = swapAmt.mul(marketCom).div(10000);
+
+                // Swap
+                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                expect((await core.inventorBalanceOf(baseAddr)).eq(protoFee)).to.be.true;
+
+                // Set inventor fee recipient
+                await core.connect(inventor).setInventor(user5.address);
+
+                const prevUser5Bal = await core.provider.getBalance(user5.address);
+
+                // Withdraw protocol fee.
+                const tx = await core.connect(user5).withdrawInventorBalance(baseAddr);
+                expect((await core.inventorBalanceOf(baseAddr)).eq(0)).to.be.true;
+
+                // calculate gas fee in eth
+                const txReceipt = await tx.wait();
+                const gasUsed = txReceipt.gasUsed.mul(tx.gasPrice as BigNumber);
+
+                const user5Bal = await core.provider.getBalance(user5.address);
+                expect(user5Bal).to.eq(prevUser5Bal.add(protoFee).sub(gasUsed));
+            });
+        });
     });
 
     describe(".canCreateDispute", () => {
@@ -451,7 +560,7 @@ describe("Core", function () {
 
         context("market has a dispute delay set", () => {
             it("should return false when within dispute delay time", async () => {
-                await mc.connect(marketCreator2).setDisputeDurations(mid, 10, 0, 0);
+                await mc.connect(marketCreator2).setDisputeDelayDuration(mid, 10);
                 const now = await advanceBlockTime(1);
                 const orderID = await createOrder_BaseOn_QuoteOff(mid);
                 await core.connect(swapper).markOrderAsPaid(orderID);

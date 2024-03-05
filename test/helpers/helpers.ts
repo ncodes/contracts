@@ -14,6 +14,8 @@ import {
     FeePurse,
     FungibleLiquidityLib,
     MarketCore,
+    MediatorManager,
+    MinerRegistry,
     NFT,
     NonFungibleLiquidityLib,
     OfferLib,
@@ -261,11 +263,14 @@ export async function initCoreTestSuite() {
     let baseAddr: string;
     let quoteAddr: string;
     let core: Core;
+    let minerReg: MinerRegistry;
     let coreMock: MockContract;
     let mc: MarketCore;
     let energon: ENERGON;
     let nft: NFT;
     let badgeMgr: BadgeManager;
+    let mediatorMgr: MediatorManager;
+    let randomness: MockContract;
     let testERC721: ERC721T;
     let testERC1155: ERC1155T;
     let assetReg: AssetRegistry;
@@ -299,6 +304,19 @@ export async function initCoreTestSuite() {
     let synthSwapFee = 14;
     let stableSwapFee = 10;
     let operatorBond = 100;
+    let supply = toBN("1000000000000000000000000");
+    let minerBond = 1000;
+    let minerMatureDur = 600;
+    let minerCancelDur = 600;
+    let minerDraftReward = 1000;
+    let minerUndraftReward = 1000;
+    let minerExecuteReward = 1000;
+    let minerCancelReward = 1000;
+    let ticketBondAmt = 100;
+    let ticketCancelDur = 86400;
+    let ticketMatureDur = 86400;
+    let ticketExpireDur = 86400;
+    let ticketPauseDur = 86400;
 
     accts = await ethers.getSigners();
     deployer = accts[0];
@@ -309,7 +327,6 @@ export async function initCoreTestSuite() {
     inventor = accts[4];
     user5 = accts[5];
 
-    let supply = toBN("1000000000000000000000000");
     let TOKEN = await getContractFactory("TOKEN");
     token = (await TOKEN.deploy("TEST", "TEST", supply, 18)) as TOKEN;
     tokenDec = toBN(10).pow(await token.decimals());
@@ -326,9 +343,8 @@ export async function initCoreTestSuite() {
 
     coreMock = await deployMockContract(accts[0], CoreArtifact.abi);
 
-    let supply2 = toBN("1000000000000000000000000");
     let ENERGON = await getContractFactory("ENERGON");
-    energon = (await ENERGON.deploy("ENERGON", "ENR", supply2, 18)) as ENERGON;
+    energon = (await ENERGON.deploy("ENERGON", "ENR", supply, 18)) as ENERGON;
 
     let nftFact = await getContractFactory("NFT");
     nft = (await nftFact.deploy("NFT", "NFT", baseURI, maxSupply, 0, constants.AddressZero, deployer.address, energon.address, token.address)) as NFT;
@@ -356,7 +372,6 @@ export async function initCoreTestSuite() {
     orderLifeTime = minTimeToPay + orderGracePeriod;
     defaultDisputeDelayDur = await mc.defaultDisputeDelayDur();
 
-    supply = toBN("1000000000000000000000000");
     let dummyTokenFactory = await getContractFactory("TOKEN");
     baseAsset = (await dummyTokenFactory.deploy("BASE_TOKEN", "BASE_TOKEN", supply, 18)) as TOKEN;
     baseAddr = baseAsset.address;
@@ -382,6 +397,20 @@ export async function initCoreTestSuite() {
     operator = (await factory.deploy(token.address, operatorBond)) as Operator;
     await core.setOperator(operator.address);
 
+    let minerRegFact = await getContractFactory("MinerRegistry");
+    minerReg = (await minerRegFact.deploy(token.address, minerBond, minerMatureDur, minerCancelDur)) as MinerRegistry;
+    await minerReg.updateOpsReward([0, 1, 2, 3], [minerDraftReward, minerUndraftReward, minerExecuteReward, minerCancelReward]);
+    await core.setMinerRegistry(minerReg.address);
+    await minerReg.updateWriter(core.address, true);
+
+    const Randomness = require("../../artifacts/contracts/randomness/Randomness.sol/Randomness.json");
+    randomness = await deployMockContract(deployer, Randomness.abi);
+    await randomness.mock.randomN.returns(0);
+
+    let factory3 = await ethers.getContractFactory("MediatorManager");
+    mediatorMgr = (await factory3.deploy(token.address, mc.address, randomness.address, ticketCancelDur, ticketMatureDur, ticketExpireDur, ticketPauseDur)) as MediatorManager;
+    mc.setMediatorManager(mediatorMgr.address);
+
     mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 1, 0);
 
     return Promise.resolve({
@@ -402,6 +431,10 @@ export async function initCoreTestSuite() {
         user5,
         cAddr,
         accts,
+        minerReg,
+        minerBond,
+        minerCancelDur,
+        minerMatureDur,
         token,
         baseAsset,
         quoteAsset,
@@ -420,16 +453,28 @@ export async function initCoreTestSuite() {
         pricePerBase,
         marketCreator,
         provider,
+        supply,
         swapper,
         marketCreator2,
         inventor,
         fixedSynthSwapFee,
         fixedNFTSwapFee,
         instantNFTSwapFee,
+        mediatorMgr,
         feePurse,
         nftDiscountBp,
         instantSwapFee,
         synthSwapFee,
+        randomness,
         stableSwapFee,
+        minerDraftReward,
+        minerUndraftReward,
+        minerExecuteReward,
+        minerCancelReward,
+        ticketCancelDur,
+        ticketMatureDur,
+        ticketExpireDur,
+        ticketPauseDur,
+        ticketBondAmt,
     });
 }

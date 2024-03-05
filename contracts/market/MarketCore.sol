@@ -5,9 +5,20 @@ import "../common/Writable.sol";
 import "../common/Structs.sol";
 import "./MarketAuxLib.sol";
 import "../badge/interfaces/IBadge.sol";
+import "../mediator/interfaces/IMediatorManager.sol";
+import "hardhat/console.sol";
 
 /// MarketCore manages market state
 contract MarketCore is Writable {
+    /// @notice The badge contract address
+    IBadge public badge;
+
+    /// @notice The mediator manager contract address
+    IMediatorManager public mediatorManager;
+
+    /// @notice The address that represents the native asset
+    address public nativeAssetAddr;
+
     /// @notice Contains all known markets.
     mapping(address => Structs.Market) public markets;
 
@@ -30,9 +41,6 @@ contract MarketCore is Writable {
 
     /// @notice Time to wait before dispute can be started
     uint256 public defaultDisputeDelayDur;
-
-    /// @notice The badge contract address
-    IBadge public badge;
 
     event NewMarket(
         address indexed id,
@@ -57,9 +65,11 @@ contract MarketCore is Writable {
     event UpdatedMarketBadges(address indexed id, string[2][], string[2][]);
     event UpdatedBadgeAddr(address addr);
     event UpdatedDefaultDisputeDelayDur(uint256 val);
-    event UpdatedDisputeDurations(address indexed id, uint256 disputeDelayDur, uint256 evidenceDur, uint256 predictDur);
+    event UpdatedDisputeDelayDuration(address indexed id, uint256 disputeDelayDur);
     event UpdatedMarketManager(address indexed id, address mgr);
     event RenouncedMarket(address id, address owner);
+    event UpdatedMediatorManager(address addr);
+    event UpdatedNativeAssetAddr(address addr);
 
     /// @notice Modifier to ensure a market exist
     /// @param id The market ID
@@ -95,6 +105,22 @@ contract MarketCore is Writable {
         emit UpdatedBadgeAddr(addr);
     }
 
+    /// @notice Set the native asset address.
+    /// Note: This should be set to the same address used by the preferred AMM Dex used
+    /// for converting wrapped ETH to ETH or other output tokens.
+    /// @param addr The native asset address
+    function setNativeAssetAddr(address addr) public onlyOwner {
+        nativeAssetAddr = addr;
+        emit UpdatedNativeAssetAddr(addr);
+    }
+
+    /// @notice Set the mediator manager contract address
+    /// @param addr The mediator manager contract address
+    function setMediatorManager(address addr) public onlyOwner {
+        mediatorManager = IMediatorManager(addr);
+        emit UpdatedMediatorManager(addr);
+    }
+
     /// @notice Change default dispute delay time
     /// @param val The new default dispute delay time
     function setDefaultDisputeDelayDuration(uint256 val) external onlyOwner {
@@ -119,6 +145,11 @@ contract MarketCore is Writable {
         return markets[id];
     }
 
+    /// @notice Get the native asset address
+    function getNativeAssetAddr() external view returns (address) {
+        return nativeAssetAddr;
+    }
+
     /// @notice Create a new market for swapping two asset types.
     /// @param base The base asset.
     /// @param quote The quote asset.
@@ -140,8 +171,13 @@ contract MarketCore is Writable {
     ) external {
         require(base != address(0), "MC: ZERO_BASE");
         require(quote != address(0), "MC: ZERO_QUOTE");
+        require(baseType != Structs.AssetType.NATIVE || nativeAssetAddr == address(0) || base == nativeAssetAddr, "MC: BAD_NATIVE_ADDR");
+        require(quoteType != Structs.AssetType.NATIVE || nativeAssetAddr == address(0) || quote == nativeAssetAddr, "MC: BAD_NATIVE_ADDR");
+        require(mediatorManager.poolExists(mediatePoolId), "MC: UNKNW_POOL");
         address id = address(ripemd160(abi.encodePacked(msg.sender, base, quote, baseType, quoteType)));
+        require(!mediatorManager.poolExists(mediatePoolId) || mediatorManager.isApprovedMarket(mediatePoolId, id), "MC: NOT_APPROVED");
         require(markets[id].createdAt == 0, "MC: MARKET_EXIST");
+
         Structs.Asset memory baseAsset = Structs.Asset(base, baseType);
         Structs.Asset memory quoteAsset = Structs.Asset(quote, quoteType);
         markets[id].creator = msg.sender;
@@ -153,6 +189,7 @@ contract MarketCore is Writable {
         markets[id].perms.swap = permSwap;
         markets[id].dur.disputeDelayDur = defaultDisputeDelayDur;
         markets[id].poolId = mediatePoolId;
+
         emit NewMarket(id, msg.sender, baseAsset.addr, quoteAsset.addr, baseType, quoteType, permPut, permSwap, commission, mediatePoolId);
     }
 
@@ -178,21 +215,12 @@ contract MarketCore is Writable {
         emit OfferOnlyEnabled(id);
     }
 
-    /// @notice Set dispute durations for a market
+    /// @notice Set dispute delat duration for a market
     /// @param id The market ID.
-    /// @param disputeDelayDur The time to wait before a dispute can be started.
-    /// @param evidenceDur The duration for evidence collection.
-    /// @param predictDur The duration for voting (includes committing and revealing).
-    function setDisputeDurations(
-        address id,
-        uint256 disputeDelayDur,
-        uint256 evidenceDur,
-        uint256 predictDur
-    ) external marketMustExist(id) isMarketCreator(id) isNotRenounced(id) {
-        markets[id].dur.disputeDelayDur = disputeDelayDur;
-        markets[id].dur.evidenceDur = evidenceDur;
-        markets[id].dur.predictDur = predictDur;
-        emit UpdatedDisputeDurations(id, disputeDelayDur, evidenceDur, predictDur);
+    /// @param duration The time to wait before a dispute can be started.
+    function setDisputeDelayDuration(address id, uint256 duration) external marketMustExist(id) isMarketCreator(id) isNotRenounced(id) {
+        markets[id].dur.disputeDelayDur = duration;
+        emit UpdatedDisputeDelayDuration(id, duration);
     }
 
     /// @notice Updated market manager

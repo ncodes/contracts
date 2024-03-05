@@ -27,12 +27,7 @@ contract ENERGON is ERC20, ERC20Burnable, Ownable {
     /// @param _symbol The token symbol
     /// @param _initialSupply The initial supply
     /// @param _decimals The token's decimals
-    constructor(
-        string memory _name,
-        string memory _symbol,
-        uint256 _initialSupply,
-        uint8 _decimals
-    ) ERC20(_name, _symbol) {
+    constructor(string memory _name, string memory _symbol, uint256 _initialSupply, uint8 _decimals) ERC20(_name, _symbol) {
         _tokenDecimals = _decimals;
         _mint(msg.sender, _initialSupply);
         recipientsBlocked = true;
@@ -109,11 +104,7 @@ contract ENERGON is ERC20, ERC20Burnable, Ownable {
     /// @param _amount The amount to claim
     /// @param _signature The claim signature created by the allocator
     /// @param _sigNonce The unique signature nonce
-    function claim(
-        uint256 _amount,
-        bytes memory _signature,
-        uint8 _sigNonce
-    ) public {
+    function claim(uint256 _amount, bytes memory _signature, uint8 _sigNonce) public {
         require(!allocDisabled, "ENERGON: DISABLED");
         require(usedNonce[msg.sender][_sigNonce] == 0, "ENERGON: SIG_NONCE_USED");
         require(verifySig(allocator, msg.sender, _amount, _sigNonce, _signature), "ENERGON: BAD_SIG");
@@ -126,20 +117,12 @@ contract ENERGON is ERC20, ERC20Burnable, Ownable {
         return ERC20.transfer(recipient, amount);
     }
 
-    function transferFrom(
-        address sender,
-        address recipient,
-        uint256 amount
-    ) public virtual override canReceive(recipient) returns (bool) {
+    function transferFrom(address sender, address recipient, uint256 amount) public virtual override canReceive(recipient) returns (bool) {
         return ERC20.transferFrom(sender, recipient, amount);
     }
 
     /// @dev Construct mint message hash
-    function getMessageHash(
-        address addr,
-        uint256 _amount,
-        uint8 nonce
-    ) internal pure returns (bytes32) {
+    function getMessageHash(address addr, uint256 _amount, uint8 nonce) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(addr, _amount, nonce));
     }
 
@@ -155,28 +138,14 @@ contract ENERGON is ERC20, ERC20Burnable, Ownable {
     }
 
     /// @dev Verify mint signature
-    function verifySig(
-        address _signer,
-        address _addr,
-        uint256 _amount,
-        uint8 _nonce,
-        bytes memory signature
-    ) internal pure returns (bool) {
+    function verifySig(address _signer, address _addr, uint256 _amount, uint8 _nonce, bytes memory signature) internal pure returns (bool) {
         if (address(0) == _signer) return false;
         bytes32 messageHash = getMessageHash(_addr, _amount, _nonce);
         bytes32 ethSignedMessageHash = getEthSignedMessageHash(messageHash);
         return recoverSigner(ethSignedMessageHash, signature) == _signer;
     }
 
-    function splitSignature(bytes memory sig)
-        internal
-        pure
-        returns (
-            bytes32 r,
-            bytes32 s,
-            uint8 v
-        )
-    {
+    function splitSignature(bytes memory sig) internal pure returns (bytes32 r, bytes32 s, uint8 v) {
         require(sig.length == 65, "invalid signature length");
         assembly {
             r := mload(add(sig, 32))

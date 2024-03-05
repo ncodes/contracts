@@ -18,6 +18,7 @@ import "../assetregistry/interfaces/IAssetRegistry.sol";
 import "../token/interfaces/IERC20.sol";
 import "./FungibleLiquidityLib.sol";
 import "./NonFungibleLiquidityLib.sol";
+import "hardhat/console.sol";
 
 /// Core manages market orders
 contract Core is Ownable, ERC1155Holder {
@@ -44,10 +45,10 @@ contract Core is Ownable, ERC1155Holder {
         uint256[] idsFromProvider,
         uint256[] idsFromTaker
     );
-    event SwapOrderPaid(uint256 indexed orderID, uint256 disputeDelayDur);
+    event SwapOrderPaid(uint256 indexed orderID, address payer, uint256 disputeDelayDur);
     event OrderCancelled(uint256 indexed orderID, address indexed canceller, bool indexed byDispute);
     event TransferredToFeePool(address indexed token, uint256 amount, address convAsset, uint256 convAmount);
-    event FinalizedByManagerSig(address manager, address finalizer, uint256 orderId, bool released);
+    event FinalizedByManagerSig(address manager, address finalizer, uint256 orderId, uint action);
     event ProtocolFeeUpdated(
         uint256 instantSwapFeeBp,
         uint256 synthSwapFeeBp,
@@ -57,7 +58,8 @@ contract Core is Ownable, ERC1155Holder {
         uint256 instantNFTSwapFeeBp
     );
     event ProtocolFeeSplitUpdated(uint256 inventor, uint256 shared, uint256 operator);
-    event TransferInventorBalance(address asset, uint256 amount);
+    event TransferInventorBalance(address owner, address token, uint256 amount);
+    event TransferOperatorBalance(address owner, address token, uint256 amount);
     event UpdatedFungibleLiquidity(
         address indexed provider,
         address indexed marketId,
@@ -128,6 +130,7 @@ contract Core is Ownable, ERC1155Holder {
     event UpdatedDisputeManager(address addr);
     event UpdatedNFT(address addr);
     event UpdatedOperator(address addr);
+    event UpdatedMinerRegistry(address addr);
     event UpdatedAMMInfo(address swapRouter, address ethErc20Addr, uint256 poolFee);
     event UpdatedAMMPoolInfo(address input, address output, uint256 poolFee);
 
@@ -235,6 +238,13 @@ contract Core is Ownable, ERC1155Holder {
     function setOperator(address addr) external onlyOwner {
         state2.operatorMgr = IOperator(addr);
         emit UpdatedOperator(addr);
+    }
+
+    /// @notice Updated the MinerRegistry contract
+    /// @param addr The new address
+    function setMinerRegistry(address addr) external onlyOwner {
+        state2.minerReg = IMinerRegistry(addr);
+        emit UpdatedMinerRegistry(addr);
     }
 
     /// @notice Updated the NFT contract
@@ -423,7 +433,7 @@ contract Core is Ownable, ERC1155Holder {
         uint256[] memory ids,
         uint256 txDeadline,
         uint256 operator
-    ) external  notExpired(txDeadline) marketMustExist(marketId) {
+    ) external payable notExpired(txDeadline) marketMustExist(marketId) {
         StructsLib.SwapSlotAddresses memory addrs = StructsLib.SwapSlotAddresses(marketId, provider, recipient);
         SwapLib.swapQuoteForBase(state, state2, StructsLib.SwapSlot(lid, amount, maxPrice, ids, 0, operator, addrs));
     }
@@ -469,52 +479,51 @@ contract Core is Ownable, ERC1155Holder {
 
     /// @notice Withdraw fees accrued for the protocol inventor
     /// @param asset The address of the asset the fee is denominated in.
-    function withdrawInventorBalance(address asset) external  onlyInventor {
-        WithdrawLib.withdrawInventorBalance(state, asset);
+    function withdrawInventorBalance(address asset) external onlyInventor {
+        WithdrawLib.withdrawInventorBalance(state, state2, asset);
     }
 
     /// @notice Release an order
     /// @param id The order ID
-    function releaseOrder(uint256 id) external  {
+    function releaseOrder(uint256 id) external {
         require(id <= state.orders.length - 1, "OC: UNKNOWN_ORDER");
-        SwapLib.releaseOrder(state, state2, id, false);
+        SwapLib.releaseOrder(state, state2, owner(), id, false);
     }
 
     /// @notice Release an order using a market manager's signature
     /// @param id The order ID
     /// @param expireAt The expire time of the signature
     /// @param signature The signature created by the manager
-    function releaseOrderByManagerSig(uint256 id, uint256 expireAt, bytes calldata signature) external  {
+    function releaseOrderByManagerSig(uint256 id, uint256 expireAt, bytes calldata signature) external {
         require(id <= state.orders.length - 1, "OC: UNKNOWN_ORDER");
-        SwapLib.releaseOrderByManagerSig(state, state2, id, expireAt, signature);
+        SwapLib.releaseOrderByManagerSig(state, state2, owner(), id, expireAt, signature);
+    }
+    /// @notice Allow the dispute manager to release an order.
+    /// @param id The order ID.
+    function releaseOrderByDispute(uint256 id) external onlyDisputeManager {
+        SwapLib.releaseOrder(state, state2, owner(), id, true);
     }
 
     /// @notice Cancel an order
     /// @param id The order ID
-    function cancelOrder(uint256 id) external  {
+    function cancelOrder(uint256 id) external {
         require(hasOrder(id), "OC: UNKNOWN_ORDER");
-        SwapLib.cancelOrder(state, state2.marketCore, id, false);
+        SwapLib.cancelOrder(state, state2, owner(), id, false);
     }
 
     /// @notice Cancel an order using a market manager's signature
     /// @param id The order ID
     /// @param expireAt The expire time of the signature
     /// @param signature The signature created by the manager
-    function cancelOrderByManagerSig(uint256 id, uint256 expireAt, bytes calldata signature) external  {
+    function cancelOrderByManagerSig(uint256 id, uint256 expireAt, bytes calldata signature) external {
         require(id <= state.orders.length - 1, "OC: UNKNOWN_ORDER");
-        SwapLib.cancelOrderByManagerSig(state, state2, id, expireAt, signature);
-    }
-
-    /// @notice Allow the dispute manager to release an order.
-    /// @param id The order ID.
-    function releaseOrderByDispute(uint256 id) external onlyDisputeManager {
-        SwapLib.releaseOrder(state, state2, id, true);
+        SwapLib.cancelOrderByManagerSig(state, state2, owner(), id, expireAt, signature);
     }
 
     /// @notice Allow the dispute manager to cancel an order.
     /// @param id The order ID.
     function cancelOrderByDispute(uint256 id) external onlyDisputeManager {
-        SwapLib.cancelOrder(state, state2.marketCore, id, true);
+        SwapLib.cancelOrder(state, state2, owner(), id, true);
     }
 
     /// @notice Mark a swap order as paid.
@@ -523,7 +532,16 @@ contract Core is Ownable, ERC1155Holder {
     /// When the base asset is synthetic,the sender must be the provider.
     /// @param id The order ID.
     function markOrderAsPaid(uint256 id) external {
-        SwapLib.markOrderAsPaid(state, state2.marketCore, id);
+        SwapLib.markOrderAsPaid(state, state2.marketCore, id, false);
+    }
+
+    /// @notice Mark a swap order as paid using a market manager's signature.
+    /// @param id The order ID.
+    /// @param expireAt The expire time of the signature
+    /// @param signature The signature created by the manager
+    function markOrderAsPaidByManagerSig(uint256 id, uint256 expireAt, bytes calldata signature) external {
+        require(id <= state.orders.length - 1, "OC: UNKNOWN_ORDER");
+        SwapLib.markOrderAsPaidByManagerSig(state, state2, id, expireAt, signature);
     }
 
     /// @notice Checks if at order at index id exist
@@ -636,7 +654,7 @@ contract Core is Ownable, ERC1155Holder {
         uint256[] memory wantOrIds,
         uint256[] memory wantAndIds,
         uint256[5] memory limits
-    ) external  notExpired(limits[3]) marketMustExist(marketId) {
+    ) external payable notExpired(limits[3]) marketMustExist(marketId) {
         StructsLib.UpdateLiquiditySlot memory slot = StructsLib.UpdateLiquiditySlot(
             marketId,
             lid,
@@ -678,7 +696,7 @@ contract Core is Ownable, ERC1155Holder {
         uint256[] memory wantOrIds,
         uint256[] memory wantAndIds,
         uint256[3] memory limits
-    ) external  notExpired(limits[1]) marketMustExist(marketId) {
+    ) external notExpired(limits[1]) marketMustExist(marketId) {
         StructsLib.UpdateLiquiditySlot memory slot = StructsLib.UpdateLiquiditySlot(
             marketId,
             lid,

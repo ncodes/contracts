@@ -20,6 +20,8 @@ interface IMarketCore {
         uint256 numMediators
     ) external;
 
+    function getNativeAssetAddr() external view returns (address);
+
     function getMarket(address id) external view returns (Structs.Market memory);
 
     function permitPut(address id, address addr) external;
@@ -32,23 +34,13 @@ interface IMarketCore {
 
     function hasMarket(address id) external view returns (bool);
 
-    function setCounters(
-        address id,
-        bool numOrders,
-        bool numDisputes,
-        bool numLiquidity,
-        uint256 value
-    ) external;
+    function setCounters(address id, bool numOrders, bool numDisputes, bool numLiquidity, uint256 value) external;
 
     function setCommission(address id, uint256 val) external;
 
     function setLiquidityManager(address marketId, address manager) external;
 
-    function getLiquidityManager(
-        address marketId,
-        address provider,
-        uint256 lid
-    ) external view returns (address);
+    function getLiquidityManager(address marketId, address provider, uint256 lid) external view returns (address);
 
     function isPutPermitted(address id, address sender) external view returns (bool);
 

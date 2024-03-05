@@ -12,6 +12,7 @@ describe("Badge", function () {
     let badgeMgr: BadgeManager;
     let testBadge = "cod_player";
     let testPath = "path";
+    const chainId = 31337;
 
     beforeEach(async () => {
         accts = await ethers.getSigners();
@@ -197,13 +198,17 @@ describe("Badge", function () {
 
             it("should successfully add metadata to badge when sender is the issuer", async () => {
                 await expect(badgeMgr.registerIssuer(user2.address, testBadge, ["k1", "k2"], ["v1", "v2"])).emit(badgeMgr, "AddedIssuer");
-                await expect(badgeMgr.connect(user2).upsertMeta(testBadge, "", "k3", "v3")).emit(badgeMgr, "BadgeMetaUpdated").withArgs(user2.address, testBadge, "", "k3", "v3");
+                await expect(badgeMgr.connect(user2).upsertMeta(testBadge, "", "k3", "v3"))
+                    .emit(badgeMgr, "BadgeMetaUpdated")
+                    .withArgs(user2.address, testBadge, "", "k3", "v3");
                 expect(await badgeMgr.getMetaKeys(testBadge, "")).to.eql(["k1", "k2", "k3"]);
             });
 
             it("should successfully overwrite badge metadata when key already exists", async () => {
                 await expect(badgeMgr.registerIssuer(user2.address, testBadge, ["k1", "k2"], ["v1", "v2"])).emit(badgeMgr, "AddedIssuer");
-                await expect(badgeMgr.connect(user2).upsertMeta(testBadge, "", "k1", "vv1")).emit(badgeMgr, "BadgeMetaUpdated").withArgs(user2.address, testBadge, "", "k1", "vv1");
+                await expect(badgeMgr.connect(user2).upsertMeta(testBadge, "", "k1", "vv1"))
+                    .emit(badgeMgr, "BadgeMetaUpdated")
+                    .withArgs(user2.address, testBadge, "", "k1", "vv1");
                 expect(await badgeMgr.getMetaKeys(testBadge, "")).to.eql(["k1", "k2"]);
                 expect(await badgeMgr.getMetaValue(testBadge, "", "k1")).to.eql("vv1");
             });
@@ -226,7 +231,9 @@ describe("Badge", function () {
                 await expect(badgeMgr.registerIssuer(user2.address, testBadge, ["k1", "k2"], ["v1", "v2"])).emit(badgeMgr, "AddedIssuer");
                 await expect(badgeMgr.connect(user2).registerCoIssuer(testBadge, user3.address)).not.to.be.reverted;
                 await expect(badgeMgr.connect(user3).registerPath(testBadge, testPath, [], [])).not.to.be.reverted;
-                await expect(badgeMgr.connect(user3).upsertMeta(testBadge, testPath, "k3", "v3")).emit(badgeMgr, "BadgeMetaUpdated").withArgs(user3.address, testBadge, testPath, "k3", "v3");
+                await expect(badgeMgr.connect(user3).upsertMeta(testBadge, testPath, "k3", "v3"))
+                    .emit(badgeMgr, "BadgeMetaUpdated")
+                    .withArgs(user3.address, testBadge, testPath, "k3", "v3");
                 expect(await badgeMgr.getMetaKeys(testBadge, "")).to.eql(["k1", "k2"]);
                 expect(await badgeMgr.getMetaKeys(testBadge, testPath)).to.eql(["k3"]);
             });
@@ -235,14 +242,18 @@ describe("Badge", function () {
                 await expect(badgeMgr.registerIssuer(user2.address, testBadge, ["k1", "k2"], ["v1", "v2"])).emit(badgeMgr, "AddedIssuer");
                 await expect(badgeMgr.connect(user2).registerCoIssuer(testBadge, user3.address)).not.to.be.reverted;
                 await expect(badgeMgr.connect(user3).registerPath(testBadge, testPath, [], [])).not.to.be.reverted;
-                await expect(badgeMgr.connect(user2).upsertMeta(testBadge, testPath, "k3", "v3")).emit(badgeMgr, "BadgeMetaUpdated").withArgs(user2.address, testBadge, testPath, "k3", "v3");
+                await expect(badgeMgr.connect(user2).upsertMeta(testBadge, testPath, "k3", "v3"))
+                    .emit(badgeMgr, "BadgeMetaUpdated")
+                    .withArgs(user2.address, testBadge, testPath, "k3", "v3");
                 expect(await badgeMgr.getMetaKeys(testBadge, "")).to.eql(["k1", "k2"]);
                 expect(await badgeMgr.getMetaKeys(testBadge, testPath)).to.eql(["k3"]);
             });
 
             it("should successfully overwrite badge metadata when key already exists", async () => {
                 await expect(badgeMgr.registerIssuer(user2.address, testBadge, ["k1", "k2"], ["v1", "v2"])).emit(badgeMgr, "AddedIssuer");
-                await expect(badgeMgr.connect(user2).upsertMeta(testBadge, "", "k1", "vv1")).emit(badgeMgr, "BadgeMetaUpdated").withArgs(user2.address, testBadge, "", "k1", "vv1");
+                await expect(badgeMgr.connect(user2).upsertMeta(testBadge, "", "k1", "vv1"))
+                    .emit(badgeMgr, "BadgeMetaUpdated")
+                    .withArgs(user2.address, testBadge, "", "k1", "vv1");
                 expect(await badgeMgr.getMetaKeys(testBadge, "")).to.eql(["k1", "k2"]);
                 expect(await badgeMgr.getMetaValue(testBadge, "", "k1")).to.eql("vv1");
             });
@@ -252,7 +263,9 @@ describe("Badge", function () {
                 await expect(badgeMgr.connect(user2).registerCoIssuer(testBadge, user3.address)).not.to.be.reverted;
                 await expect(badgeMgr.connect(user3).registerPath(testBadge, testPath, ["k1", "k2"], ["v1", "v2"])).not.to.be.reverted;
 
-                await expect(badgeMgr.connect(user3).upsertMeta(testBadge, testPath, "k1", "vv1")).emit(badgeMgr, "BadgeMetaUpdated").withArgs(user3.address, testBadge, testPath, "k1", "vv1");
+                await expect(badgeMgr.connect(user3).upsertMeta(testBadge, testPath, "k1", "vv1"))
+                    .emit(badgeMgr, "BadgeMetaUpdated")
+                    .withArgs(user3.address, testBadge, testPath, "k1", "vv1");
                 expect(await badgeMgr.getMetaKeys(testBadge, testPath)).to.eql(["k1", "k2"]);
                 expect(await badgeMgr.getMetaValue(testBadge, testPath, "k1")).to.eql("vv1");
             });
@@ -354,9 +367,9 @@ describe("Badge", function () {
 
             const msgHash = ethers.utils.keccak256(
                 ethers.utils.defaultAbiCoder.encode(
-                    ["string", "string", "address", "uint256", "string[]", "string[]", "uint256"],
-                    [testBadge, "", user3.address, badgeExpireAt, metaKeys, metaValues, toBN(sigExpireAt)]
-                )
+                    ["uint", "string", "string", "address", "uint256", "string[]", "string[]", "uint256"],
+                    [chainId, testBadge, "", user3.address, badgeExpireAt, metaKeys, metaValues, toBN(sigExpireAt)],
+                ),
             );
             const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
             const signedMsg = await user2.signMessage(msgHashBytes);
@@ -379,9 +392,9 @@ describe("Badge", function () {
                 let badgeExpireAt = 0;
                 const msgHash = ethers.utils.keccak256(
                     ethers.utils.defaultAbiCoder.encode(
-                        ["string", "string", "address", "uint256", "string[]", "string[]", "uint256"],
-                        [testBadge, testPath, user3.address, badgeExpireAt, metaKeys, metaValues, toBN(sigExpireAt)]
-                    )
+                        ["uint", "string", "string", "address", "uint256", "string[]", "string[]", "uint256"],
+                        [chainId, testBadge, testPath, user3.address, badgeExpireAt, metaKeys, metaValues, toBN(sigExpireAt)],
+                    ),
                 );
                 const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
                 const signedMsg = await user3.signMessage(msgHashBytes);
@@ -410,7 +423,9 @@ describe("Badge", function () {
         it("should successfully revoke badge", async () => {
             await expect(badgeMgr.registerIssuer(user2.address, testBadge, ["k1", "k2"], ["v1", "v2"])).emit(badgeMgr, "AddedIssuer");
             await expect(badgeMgr.connect(user2).grantBadge(testBadge, "", user3.address, 0, ["k1"], ["v1"])).not.to.be.reverted;
-            await expect(badgeMgr.connect(user2).revokeBadge(testBadge, "", user3.address)).emit(badgeMgr, "RevokedBadge").withArgs(testBadge, "", user3.address);
+            await expect(badgeMgr.connect(user2).revokeBadge(testBadge, "", user3.address))
+                .emit(badgeMgr, "RevokedBadge")
+                .withArgs(testBadge, "", user3.address);
 
             expect(await badgeMgr.hasBadge(user3.address, testBadge, "")).to.be.false;
             expect(await badgeMgr.getGranteeMetaValue(testBadge, "", user3.address, "k1")).to.eql("");
@@ -427,7 +442,9 @@ describe("Badge", function () {
             await expect(badgeMgr.connect(user3).registerPath(testBadge, testPath, ["k1", "k2"], ["v1", "v2"])).not.to.be.reverted;
 
             await expect(badgeMgr.connect(user3).grantBadge(testBadge, testPath, deployer.address, 0, ["k1"], ["v1"])).not.to.be.reverted;
-            await expect(badgeMgr.connect(user3).revokeBadge(testBadge, testPath, deployer.address)).emit(badgeMgr, "RevokedBadge").withArgs(testBadge, testPath, deployer.address);
+            await expect(badgeMgr.connect(user3).revokeBadge(testBadge, testPath, deployer.address))
+                .emit(badgeMgr, "RevokedBadge")
+                .withArgs(testBadge, testPath, deployer.address);
             expect(await badgeMgr.getGranteeMetaKeys(testBadge, testPath, deployer.address)).to.eql([]);
 
             expect(await badgeMgr.hasBadge(deployer.address, testBadge, testPath)).to.be.false;
@@ -459,7 +476,7 @@ describe("Badge", function () {
             await expect(badgeMgr.connect(user2).grantBadge(testBadge, "", user3.address, 0, ["k1"], ["v1"])).not.to.be.reverted;
 
             let expireAt = (await advanceBlockTime(1)) + 2;
-            const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string", "string", "address", "uint256"], [testBadge, "", user3.address, toBN(expireAt)]));
+            const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint", "string", "string", "address", "uint256"], [chainId, testBadge, "", user3.address, toBN(expireAt)]));
             const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
             const signedMsg = await user2.signMessage(msgHashBytes);
             await expect(badgeMgr.revokeBadgeBySig(testBadge, "", user3.address, expireAt, signedMsg)).emit(badgeMgr, "RevokedBadge");
@@ -479,7 +496,9 @@ describe("Badge", function () {
                 await expect(badgeMgr.connect(user3).grantBadge(testBadge, testPath, user3.address, 0, ["k1"], ["v1"])).not.to.be.reverted;
 
                 let expireAt = (await advanceBlockTime(1)) + 2;
-                const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string", "string", "address", "uint256"], [testBadge, testPath, user3.address, toBN(expireAt)]));
+                const msgHash = ethers.utils.keccak256(
+                    ethers.utils.defaultAbiCoder.encode(["uint", "string", "string", "address", "uint256"], [chainId, testBadge, testPath, user3.address, toBN(expireAt)]),
+                );
                 const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
                 const signedMsg = await user3.signMessage(msgHashBytes);
                 await expect(badgeMgr.revokeBadgeBySig(testBadge, testPath, user3.address, expireAt, signedMsg)).emit(badgeMgr, "RevokedBadge");
@@ -547,7 +566,7 @@ describe("Badge", function () {
 
             let expireAt = (await advanceBlockTime(1)) + 2;
             const msgHash = ethers.utils.keccak256(
-                ethers.utils.defaultAbiCoder.encode(["string", "string", "address", "string", "string", "uint256"], [testBadge, "", user2.address, "k1", "x1", toBN(expireAt)])
+                ethers.utils.defaultAbiCoder.encode(["uint", "string", "string", "address", "string", "string", "uint256"], [chainId, testBadge, "", user2.address, "k1", "x1", toBN(expireAt)]),
             );
             const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
             const signedMsg = await user2.signMessage(msgHashBytes);
@@ -565,7 +584,10 @@ describe("Badge", function () {
 
                 let expireAt = (await advanceBlockTime(1)) + 2;
                 const msgHash = ethers.utils.keccak256(
-                    ethers.utils.defaultAbiCoder.encode(["string", "string", "address", "string", "string", "uint256"], [testBadge, testPath, user3.address, "k1", "x1", toBN(expireAt)])
+                    ethers.utils.defaultAbiCoder.encode(
+                        ["uint", "string", "string", "address", "string", "string", "uint256"],
+                        [chainId, testBadge, testPath, user3.address, "k1", "x1", toBN(expireAt)],
+                    ),
                 );
                 const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
                 const signedMsg = await user3.signMessage(msgHashBytes);

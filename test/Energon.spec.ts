@@ -2,7 +2,7 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
 import {BigNumber} from "ethers";
 import {ethers} from "hardhat";
-import {NFT, ENERGON} from "../typechain-types";
+import {ENERGON} from "../typechain-types";
 import {toBN} from "../utils/utils";
 
 describe("NFT", function () {

@@ -3,7 +3,7 @@ import {expect} from "chai";
 import {BigNumber, BigNumberish, constants} from "ethers";
 import {getAddress} from "ethers/lib/utils";
 import {randomAddressString} from "hardhat/internal/hardhat-network/provider/utils/random";
-import {AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, NFT, TOKEN} from "../../typechain-types";
+import {AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MediatorManager, NFT, TOKEN} from "../../typechain-types";
 import {AddressZero, AssetType, advanceBlockTime, makeMarketID, pow10str, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
 
@@ -12,6 +12,7 @@ describe("Core - Liquidity", function () {
     let quoteAddr: string;
     let core: Core;
     let mc: MarketCore;
+    let medMgr: MediatorManager;
     let badgeMgr: BadgeManager;
     let testERC721: ERC721T;
     let testERC1155: ERC1155T;
@@ -25,14 +26,6 @@ describe("Core - Liquidity", function () {
     let token: TOKEN;
     let mid: string;
     let tokenDec: BigNumber;
-    let baseDec: BigNumber;
-    let quoteDec: BigNumber;
-    let minTimeToPay: number;
-    let orderGracePeriod: number;
-    let orderLifeTime: number;
-    let maxSupply = 3;
-    let hiddenURI: string;
-    let baseURI: string;
     let amountOfBase: BigNumber;
     let pricePerBase: BigNumber;
     let instantNFTSwapFee: BigNumberish;
@@ -66,14 +59,6 @@ describe("Core - Liquidity", function () {
         quoteAsset = vars.quoteAsset;
         mid = vars.mid;
         tokenDec = vars.tokenDec;
-        baseDec = vars.baseDec;
-        quoteDec = vars.quoteDec;
-        minTimeToPay = vars.minTimeToPay;
-        orderGracePeriod = vars.orderGracePeriod;
-        orderLifeTime = vars.orderLifeTime;
-        maxSupply = vars.maxSupply;
-        hiddenURI = vars.hiddenURI;
-        baseURI = vars.baseURI;
         amountOfBase = vars.amountOfBase;
         pricePerBase = vars.pricePerBase;
         instantNFTSwapFee = vars.instantNFTSwapFee;
@@ -88,9 +73,12 @@ describe("Core - Liquidity", function () {
         token = vars.token;
         nftDiscountBp = vars.nftDiscountBp;
         fixedNFTSwapFee = vars.fixedNFTSwapFee;
+        medMgr = vars.mediatorMgr;
 
         fixedFee = toBN("100000000000000000"); // 0.1
         curRate = toBN("100000000000000000"); // 0.1
+
+        await medMgr.updateTicketPool(0, vars.ticketBondAmt, 10, 10, 100, 100, 1, 0, 0, false, false);
     });
 
     async function createMarket(
@@ -378,7 +366,7 @@ describe("Core - Liquidity", function () {
                 await testERC721.mint();
                 await testERC721.setApprovalForAll(core.address, true);
 
-                await assetReg.set(baseAddr, curRate, 0, fixedFee, 0, true, false, false); // rate: 100, bp: 0.1
+                await assetReg.set(baseAddr, curRate, 0, fixedFee, true, false, false); // rate: 100, bp: 0.1
 
                 const ids = [1, 2];
                 mid = await createMarket(undefined, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.SYNTH, false, false, 0, 0);
@@ -392,7 +380,7 @@ describe("Core - Liquidity", function () {
                     await testERC721.mint();
                     await testERC721.setApprovalForAll(core.address, true);
 
-                    await assetReg.set(testERC721.address, curRate, 0, fixedFee, 0, true, false, false); // rate: 100, bp: 0.1
+                    await assetReg.set(testERC721.address, curRate, 0, fixedFee, true, false, false); // rate: 100, bp: 0.1
 
                     const ids = [1, 2];
                     const expectedFee = toDec(fixedFee).mul(ids.length);
@@ -419,7 +407,7 @@ describe("Core - Liquidity", function () {
                     await testERC721.setApprovalForAll(core.address, true);
                     await nft.mint(1, false, Buffer.alloc(0), 0);
 
-                    await assetReg.set(testERC721.address, curRate, 0, fixedFee, 0, true, false, false); // rate: 100, bp: 0.1
+                    await assetReg.set(testERC721.address, curRate, 0, fixedFee, true, false, false); // rate: 100, bp: 0.1
 
                     const ids = [1, 2];
                     const expectedFee = toDec(fixedFee).mul(ids.length);
@@ -1132,6 +1120,70 @@ describe("Core - Liquidity", function () {
             });
         });
 
+        context("base asset is NATIVE", () => {
+            context("sender sent insufficient native value", () => {
+                it("should revert with reason='OC: LOW_DEPOSIT'", async () => {
+                    mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: LOW_DEPOSIT");
+                });
+            });
+
+            context("sender sent sufficient native value", () => {
+                it("should create liquidity successfully", async () => {
+                    mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0], {value: "100"} as any)).not.to.be.reverted;
+                    expect(await core.provider.getBalance(core.address)).to.eq(100);
+
+                    let liq = await core.getLiquidity(mid, provider.address, 0);
+                    expect(liq.amount.toNumber()).to.equal(100);
+                });
+            });
+
+            context("sender has existing liquidity", () => {
+                it("should update sender's liquidity correctly", async () => {
+                    mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
+                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0], {value: "100"} as any);
+
+                    let liq = await core.getLiquidity(mid, provider.address, 0);
+                    expect(liq.amount.toNumber()).to.equal(100);
+
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0], {value: "100"} as any)).not.to.be.reverted;
+                    expect(await core.provider.getBalance(core.address)).to.eq(200);
+
+                    liq = await core.getLiquidity(mid, provider.address, 0);
+                    expect(liq.amount.toNumber()).to.equal(200);
+                });
+            });
+
+            context("deduct=true", () => {
+                it("should remove liquidity correctly", async () => {
+                    mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
+                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0], {value: "100"} as any);
+
+                    let liq = await core.getLiquidity(mid, provider.address, 0);
+                    expect(liq.amount.toNumber()).to.equal(100);
+
+                    // get provider balance
+                    const providerBalance = await core.provider.getBalance(provider.address);
+
+                    const tx = await core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [50, 10045], [], [], [0, 0, 0, 0, 0]);
+                    liq = await core.getLiquidity(mid, provider.address, 0);
+                    expect(liq.amount.toNumber()).to.equal(50);
+
+                    // calculate gas fee in eth
+                    const txReceipt = await tx.wait();
+                    const gasUsed = txReceipt.gasUsed.mul(tx.gasPrice as BigNumber);
+
+                    // check if provider balance has increased by 50
+                    const curProviderBalance = await core.provider.getBalance(provider.address);
+                    expect(curProviderBalance).to.eq(providerBalance.add(50).sub(gasUsed));
+
+                    // check if contract balance has decreased by 50
+                    expect(await core.provider.getBalance(core.address)).to.eq(50);
+                });
+            });
+        });
+
         context("base asset is SYNTH and quote is ERC20", () => {
             it("should successfully add liquidity", async () => {
                 mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.ERC20, false, false, 0, 0);
@@ -1219,7 +1271,7 @@ describe("Core - Liquidity", function () {
                     it("should successfully apply discount and lock correct fee (feeFixed: 0.1, nftDiscountBp: 2500)", async () => {
                         await nft.mint(1, false, Buffer.alloc(0), 0);
 
-                        await assetReg.set(baseAddr, curRate, 0, fixedFee, 0, false, false, false);
+                        await assetReg.set(baseAddr, curRate, 0, fixedFee, false, false, false);
                         const liqAmt = tokenDec.mul(2);
                         let protoFee = toDec(toDec(liqAmt).mul(toDec(fixedFee)).div(pow10str(18)));
                         let mktCreatorFee = toDec(toDec(liqAmt).mul(toDec(marketCom)).div(pow10str(18)));
@@ -1242,7 +1294,7 @@ describe("Core - Liquidity", function () {
                         await nft.mint(1, false, Buffer.alloc(0), 0);
 
                         fixedFee = toBN("500000000000000000");
-                        await assetReg.set(baseAddr, curRate, 0, fixedFee, 0, false, false, false);
+                        await assetReg.set(baseAddr, curRate, 0, fixedFee, false, false, false);
                         const liqAmt = tokenDec.mul(2);
                         let protoFee = toDec(toDec(liqAmt).mul(toDec(fixedFee)).div(pow10str(18)));
                         let mktCreatorFee = toDec(toDec(liqAmt).mul(toDec(marketCom)).div(pow10str(18)));
@@ -1263,7 +1315,7 @@ describe("Core - Liquidity", function () {
 
                 describe("sender does not have NFT and base asset has asset registry record", () => {
                     it("should successfully apply discount and lock correct fee (feeFixed: 0.1)", async () => {
-                        await assetReg.set(baseAddr, curRate, 0, fixedFee, 0, false, false, false);
+                        await assetReg.set(baseAddr, curRate, 0, fixedFee, false, false, false);
 
                         const liqAmt = tokenDec.mul(2);
                         let protoFee = toBN(toDec(liqAmt).mul(toDec(fixedFee)).div(pow10str(18)));

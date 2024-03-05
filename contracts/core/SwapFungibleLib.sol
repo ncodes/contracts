@@ -31,7 +31,10 @@ library SwapFungibleLib {
     );
 
     /// @dev Swap quote asset for a fungible base asset.
-    /// Covers ERC20/ERC20, ERC20/SYNTH, ERC20/NFT, SYNTH/ERC20, SYNTH/SYNTH, SYNTH/NFT
+    /// Covers:
+    /// ERC20/ERC20, ERC20/SYNTH, ERC20/NATIVE, ERC20/NFT, SYNTH/ERC20,
+    /// SYNTH/NATIVE, SYNTH/SYNTH, SYNTH/NFT,
+    /// NATIVE/ERC20, NATIVE/SYNTH, NATIVE/NATIVE, NATIVE/NFT
     /// @param state Storage state.
     /// @param state2 Storage state 2.
     /// @param sp The parameters needed to swap.
@@ -48,17 +51,20 @@ library SwapFungibleLib {
         AuxLib.checkFungibleSwapParams(sp, mkt, liq);
         require(sp.operator == 0 || state2.operatorMgr.isOperator(sp.operator), "OC: UNKNOWN_OPERATOR");
 
-        // Handle ERC20/ERC20
-        if (mkt.base.isERC20() && mkt.quote.isERC20()) {
-            return swapERC20(state, state2, sp, mkt, liq);
+        // Handle ERC20/ERC20, ERC20/NATIVE, NATIVE/ERC20, NATIVE/NATIVE
+        if (
+            (mkt.base.isERC20() && (mkt.quote.isERC20() || mkt.quote.isNative())) ||
+            (mkt.base.isNative() && (mkt.quote.isERC20() || mkt.quote.isNative()))
+        ) {
+            return swapERC20OrNativeForERC20OrNative(state, state2, sp, mkt, liq);
         }
 
-        // Handle ERC20/NFT
-        if (mkt.base.isERC20() && mkt.quote.isNFT()) {
-            return swapNFT(state, state2, sp, mkt, liq);
+        // Handle ERC20/NFT, NATIVE/NFT
+        if ((mkt.base.isERC20() || mkt.base.isNative()) && mkt.quote.isNFT()) {
+            return swapNFTForERC20OrNative(state, state2, sp, mkt, liq);
         }
 
-        // Create order for ERC20/SYNTH, SYNTH/ERC20, SYNTH/SYNTH & SYNTH/NFT
+        // Create order for ERC20/SYNTH, SYNTH/ERC20, SYNTH/SYNTH, SYNTH/NFT, NATIVE/SYNTH, SYNTH/NATIVE
         OrderLib.createOrder(state, state2, sp, mkt, liq);
     }
 
@@ -67,13 +73,13 @@ library SwapFungibleLib {
         bool isOperator;
     }
 
-    /// @dev Handle ERC20/ERC20 swap (Instant Swap)
+    /// @dev Handle ERC20/ERC20, ERC20/NATIVE, NATIVE/NATIVE, NATIVE/ERC20 swap (Instant Swap)
     /// @param s1 Storage state.
     /// @param s2 Storage state 2.
     /// @param sp The parameters needed to swap.
     /// @param mkt The market object for the market being swapped on.
     /// @param liq The liquidity object for the liquidity being swapped on.
-    function swapERC20(
+    function swapERC20OrNativeForERC20OrNative(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
         StructsLib.SwapSlot memory sp,
@@ -85,7 +91,8 @@ library SwapFungibleLib {
 
         // Compute cost of swapping for base. Ensure swapper's quote balance is sufficient.
         uint256 cost = (sp.amount * price) / 10 ** IERC20(mkt.quote.addr).decimals();
-        require(IERC20(mkt.quote.addr).balanceOf(msg.sender) >= cost, "OC: LOW_QUOTE_BAL");
+        require(!mkt.quote.isERC20() || IERC20(mkt.quote.addr).balanceOf(msg.sender) >= cost, "OC: LOW_QUOTE_BAL");
+        require(!mkt.quote.isNative() || msg.value >= cost, "OC: LOW_QUOTE_BAL");
 
         // Compute fee
         FeeInfo memory feeInfo = FeeLib.computeFee(
@@ -135,10 +142,18 @@ library SwapFungibleLib {
         s2.marketCore.setCounters(sp.addrs.marketId, false, false, true, mkt.numLiquidity - sp.amount);
 
         // Transfer quote asset (swap cost) from swapper to liquidity provider
-        IERC20(mkt.quote.addr).safeTransferFrom(msg.sender, sp.addrs.provider, cost);
+        if (mkt.quote.isERC20()) {
+            IERC20(mkt.quote.addr).safeTransferFrom(msg.sender, sp.addrs.provider, cost);
+        } else if (mkt.quote.isNative()) {
+            payable(sp.addrs.provider).transfer(cost);
+        }
 
-        // Transfer base asset (swap amount) to recipient,
-        IERC20(mkt.base.addr).safeTransfer(sp.addrs.recipient.setOrDef(msg.sender), sp.amount - feeInfo.totalFees);
+        // Transfer base asset (swap amount) to recipient
+        if (mkt.base.isERC20()) {
+            IERC20(mkt.base.addr).safeTransfer(sp.addrs.recipient.setOrDef(msg.sender), sp.amount - feeInfo.totalFees);
+        } else if (mkt.base.isNative()) {
+            payable(sp.addrs.recipient.setOrDef(msg.sender)).transfer(sp.amount - feeInfo.totalFees);
+        }
 
         emit Swap(
             sp.addrs.marketId,
@@ -153,13 +168,13 @@ library SwapFungibleLib {
         );
     }
 
-    /// @dev Handle ERC20/NFT swap (Instant Swap)
+    /// @dev Handle ERC20/NFT, NATIVE/NFT swap (Instant Swap)
     /// @param s1 Storage state.
     /// @param s2 Storage state 2.
     /// @param sp The parameters needed to swap.
     /// @param mkt The market object for the market being swapped on.
     /// @param liq The liquidity object for the liquidity being swapped on.
-    function swapNFT(
+    function swapNFTForERC20OrNative(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
         StructsLib.SwapSlot memory sp,
@@ -217,7 +232,11 @@ library SwapFungibleLib {
         s1.inventorBalance[mkt.base.addr] += (feeInfo.protoFee * totalFeeBps) / 10000;
 
         // Transfer base asset to recipient
-        IERC20(mkt.base.addr).safeTransfer(sp.addrs.recipient.setOrDef(msg.sender), liq.amount - feeInfo.totalFees);
+        if (mkt.base.isERC20()) {
+            IERC20(mkt.base.addr).safeTransfer(sp.addrs.recipient.setOrDef(msg.sender), liq.amount - feeInfo.totalFees);
+        } else if (mkt.base.isNative()) {
+            payable(sp.addrs.recipient.setOrDef(msg.sender)).transfer(liq.amount - feeInfo.totalFees);
+        }
 
         // Transfer quote asset to liquidity provider
         for (uint256 i = 0; i < matchIds.length; i++) {

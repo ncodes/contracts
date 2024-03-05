@@ -8,6 +8,7 @@ export enum Network {
     Goerli = "goerli",
     Sepolia = "sepolia",
     Localhost = "localhost",
+    Hardhat = "hardhat",
 }
 
 interface ContractParams {
@@ -33,12 +34,15 @@ interface ContractParams {
     ticketMatureDur: number;
     ticketCancelDur: number;
     ticketExpireDur: number;
+    ticketPauseDur: number;
     poolReqBond: BigNumber;
     poolDraftReward: BigNumber;
     poolWinReward: BigNumber;
     poolNumDraftee: number;
     poolNoVoteSlashBP: number;
     poolLoseVoteSlashBP: number;
+    poolEvidenceDur: number;
+    poolPredictDur: number;
 
     // Dispute Manager Params
     evidenceDur: number;
@@ -88,12 +92,15 @@ export function getParams(net: Network) {
         ticketMatureDur: toInt(process.env.MM_TICKET_MATURE_DUR),
         ticketCancelDur: toInt(process.env.MM_TICKET_CANCEL_DUR),
         ticketExpireDur: toInt(process.env.MM_TICKET_EXPIRE_DUR),
+        ticketPauseDur: toInt(process.env.MM_TICKET_PAUSE_DUR),
         poolReqBond: toBN(process.env.MM_POOL_REQ_BOND),
         poolDraftReward: toBN(process.env.MM_POOL_DRAFT_REWARD),
         poolWinReward: toBN(process.env.MM_POOL_WIN_REWARD),
         poolNumDraftee: toInt(process.env.MM_POOL_NUM_DRAFTEE),
         poolNoVoteSlashBP: toInt(process.env.MM_POOL_NO_VOTE_SLASH_BP),
         poolLoseVoteSlashBP: toInt(process.env.MM_POOL_LOSE_VOTE_SLASH_BP),
+        poolEvidenceDur: toInt(process.env.MM_POOL_EVIDENCE_DUR),
+        poolPredictDur: toInt(process.env.MM_POOL_PREDICT_DUR),
 
         evidenceDur: toInt(process.env.DM_EVIDENCE_DUR),
         predictDur: toInt(process.env.DM_PREDICT_DUR),

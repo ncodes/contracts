@@ -4,7 +4,7 @@ import {expect} from "chai";
 import {BigNumber, BigNumberish} from "ethers";
 import {getAddress} from "ethers/lib/utils";
 import {ethers} from "hardhat";
-import {AssetRegistry, Core, ERC1155T, ERC721T, FeePurse, MarketCore, NFT, Operator, TOKEN} from "../../typechain-types";
+import {AssetRegistry, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MediatorManager, MinerRegistry, NFT, Operator, TOKEN} from "../../typechain-types";
 import {AddressZero, AssetType, advanceBlockTime, makeMarketID, pow10str, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
 
@@ -15,6 +15,9 @@ describe("Core - Order", function () {
     let operator: Operator;
     let mc: MarketCore;
     let nft: NFT;
+    let minerReg: MinerRegistry;
+    let minerBond: number;
+    let minerMatureDur: number;
     let testERC721: ERC721T;
     let testERC1155: ERC1155T;
     let assetReg: AssetRegistry;
@@ -30,18 +33,17 @@ describe("Core - Order", function () {
     let tokenDec: BigNumber;
     let baseDec: BigNumber;
     let quoteDec: BigNumber;
-    let minTimeToPay: number;
-    let orderGracePeriod: number;
-    let maxSupply = 3;
     let amountOfBase: BigNumber;
     let pricePerBase: BigNumber;
     let nftDiscountBp: BigNumber;
     let fixedSynthSwapFee: BigNumberish;
     let synthSwapFee: BigNumberish;
-    let instantNFTSwapFee: BigNumberish;
     let fixedNFTSwapFee: BigNumberish;
     let feePurse: FeePurse;
-    let disputeDelayDur: number;
+    let disputeDelayDur: BigNumber;
+    let medMgr: MediatorManager;
+    const chainId = 31337;
+    let minerCancelReward = 0;
 
     let marketCreator: SignerWithAddress, provider: SignerWithAddress, swapper: SignerWithAddress, marketCreator2: SignerWithAddress, inventor: SignerWithAddress;
 
@@ -52,6 +54,9 @@ describe("Core - Order", function () {
         core = vars.core;
         mc = vars.mc;
         nft = vars.nft;
+        minerReg = vars.minerReg;
+        minerBond = vars.minerBond;
+        minerMatureDur = vars.minerMatureDur;
         testERC721 = vars.testERC721;
         testERC1155 = vars.testERC1155;
         disputeDelayDur = vars.defaultDisputeDelayDur;
@@ -68,13 +73,10 @@ describe("Core - Order", function () {
         tokenDec = vars.tokenDec;
         baseDec = vars.baseDec;
         quoteDec = vars.quoteDec;
-        minTimeToPay = vars.minTimeToPay;
-        orderGracePeriod = vars.orderGracePeriod;
-        maxSupply = vars.maxSupply;
         amountOfBase = vars.amountOfBase;
         pricePerBase = vars.pricePerBase;
         fixedSynthSwapFee = vars.fixedSynthSwapFee;
-        instantNFTSwapFee = vars.instantNFTSwapFee;
+        minerCancelReward = vars.minerCancelReward;
         deployer = vars.deployer;
         marketCreator = vars.marketCreator;
         provider = vars.provider;
@@ -86,6 +88,9 @@ describe("Core - Order", function () {
         synthSwapFee = vars.synthSwapFee;
         nftDiscountBp = vars.nftDiscountBp;
         fixedNFTSwapFee = vars.fixedNFTSwapFee;
+        medMgr = vars.mediatorMgr;
+
+        await medMgr.updateTicketPool(0, vars.ticketBondAmt, 10, 10, 100, 100, 1, 0, 0, false, false);
     });
 
     async function provideLiquidity(provider: SignerWithAddress, liquidityAmt: BigNumber, basePrice: BigNumber, timeToPay = 0) {
@@ -103,7 +108,7 @@ describe("Core - Order", function () {
         permPut: boolean,
         permSwap: boolean,
         commission: BigNumberish,
-        mediatorPoolId: BigNumberish
+        mediatorPoolId: BigNumberish,
     ) {
         const mid = makeMarketID(creator.address, base, quote, baseType, quoteType);
         await mc.connect(creator).createMarket(base, quote, baseType, quoteType, permPut, permSwap, commission, mediatorPoolId);
@@ -129,7 +134,7 @@ describe("Core - Order", function () {
     }
 
     describe(".markOrderAsPaid", () => {
-        const marketCom = 0.1 * 100; // convert to 10 basis point
+        const marketCom = 0.1 * 100; // convert to basis point
         let orderID: number;
 
         beforeEach(() => {
@@ -163,7 +168,7 @@ describe("Core - Order", function () {
             });
 
             it("should emit 'SwapOrderPaid' and update state correctly on success", async () => {
-                await expect(core.connect(swapper).markOrderAsPaid(orderID)).to.emit(core, "SwapOrderPaid").withArgs(orderID, disputeDelayDur);
+                await expect(core.connect(swapper).markOrderAsPaid(orderID)).to.emit(core, "SwapOrderPaid").withArgs(orderID, swapper.address, disputeDelayDur);
                 const order = await core.getOrder(orderID);
                 expect(order.paid).to.be.true;
             });
@@ -197,7 +202,7 @@ describe("Core - Order", function () {
             });
 
             it("should emit 'SwapOrderPaid' and update state correctly on success", async () => {
-                await expect(core.connect(provider).markOrderAsPaid(orderID)).to.emit(core, "SwapOrderPaid").withArgs(orderID, disputeDelayDur);
+                await expect(core.connect(provider).markOrderAsPaid(orderID)).to.emit(core, "SwapOrderPaid").withArgs(orderID, provider.address, disputeDelayDur);
                 const order = await core.getOrder(orderID);
                 expect(order.paid).to.be.true;
             });
@@ -216,7 +221,7 @@ describe("Core - Order", function () {
             });
 
             it("should emit 'SwapOrderPaid' and update state correctly on success", async () => {
-                await expect(core.connect(swapper).markOrderAsPaid(orderID)).to.emit(core, "SwapOrderPaid").withArgs(orderID, disputeDelayDur);
+                await expect(core.connect(swapper).markOrderAsPaid(orderID)).to.emit(core, "SwapOrderPaid").withArgs(orderID, swapper.address, disputeDelayDur);
                 const order = await core.getOrder(orderID);
                 expect(order.paid).to.be.true;
             });
@@ -241,7 +246,7 @@ describe("Core - Order", function () {
             });
 
             it("should emit 'SwapOrderPaid' and update state correctly on success", async () => {
-                await expect(core.connect(provider).markOrderAsPaid(orderID)).to.emit(core, "SwapOrderPaid").withArgs(orderID, disputeDelayDur);
+                await expect(core.connect(provider).markOrderAsPaid(orderID)).to.emit(core, "SwapOrderPaid").withArgs(orderID, provider.address, disputeDelayDur);
                 const order = await core.getOrder(orderID);
                 expect(order.paid).to.be.true;
             });
@@ -296,7 +301,7 @@ describe("Core - Order", function () {
             const disputeDelayDur = 1000;
             beforeEach(async () => {
                 await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, 1, 0, false, false, marketCom, 0);
-                await mc.connect(marketCreator2).setDisputeDurations(mid, disputeDelayDur, 0, 0);
+                await mc.connect(marketCreator2).setDisputeDelayDuration(mid, disputeDelayDur);
                 await provideLiquidity(provider, amountOfBase, pricePerBase);
                 const swapAmt = toBN(5).mul(baseDec);
                 await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
@@ -312,6 +317,60 @@ describe("Core - Order", function () {
                 expect(order.paid).to.be.true;
                 expect(order.disputeFrom).to.eq(timestamp + disputeDelayDur + 1);
             });
+        });
+    });
+
+    describe(".markOrderAsPaidByManagerSig", () => {
+        let orderID: number;
+        let swapAmt: BigNumber;
+
+        beforeEach(async () => {
+            await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0, 0);
+            mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 1, 0);
+            await provideLiquidity(provider, amountOfBase, pricePerBase);
+            swapAmt = toBN(5).mul(baseDec);
+            await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+            const numOrders = (await core.state()).numOrders;
+            expect(numOrders.toNumber()).to.eql(1);
+            orderID = numOrders.toNumber() - 1;
+        });
+
+        it("should revert with msg='UNKNOWN_ORDER' when order is unknown", async () => {
+            await expect(core.markOrderAsPaidByManagerSig(1, 0, Buffer.alloc(0))).to.be.revertedWith("OC: UNKNOWN_ORDER");
+        });
+
+        it("should revert with msg='NO_MGR_SET' when market has no manager set", async () => {
+            await expect(core.markOrderAsPaidByManagerSig(orderID, 0, Buffer.alloc(0))).to.be.revertedWith("OC: NO_MGR_SET");
+        });
+
+        it("should revert with msg='EXPIRED_SIG' when signature is expired", async () => {
+            await mc.connect(marketCreator2).setManager(mid, deployer.address);
+            const now = await advanceBlockTime(1);
+            await expect(core.markOrderAsPaidByManagerSig(orderID, now, Buffer.alloc(0))).to.be.revertedWith("OC: EXPIRED_SIG");
+        });
+
+        it("should revert with msg='BAD_SIG' when signature is invalid", async () => {
+            await mc.connect(marketCreator2).setManager(mid, deployer.address);
+            const now = await advanceBlockTime(1);
+            await expect(core.markOrderAsPaidByManagerSig(orderID, now + 10, Buffer.alloc(65))).to.be.revertedWith("OC: BAD_SIG");
+        });
+
+        it("should emit 'SwapOrderPaid' and 'FinalizedByManagerSig' on success", async () => {
+            const mgr = deployer;
+            await mc.connect(marketCreator2).setManager(mid, mgr.address);
+
+            const expireAt = (await advanceBlockTime(2)) + 4;
+            const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint", "uint256", "uint", "uint256"], [chainId, orderID, 0, expireAt]));
+            const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
+            const signedMsg = await mgr.signMessage(msgHashBytes);
+
+            await expect(core.connect(user2).markOrderAsPaidByManagerSig(orderID, expireAt, signedMsg))
+                .to.emit(core, "SwapOrderPaid")
+                .emit(core, "FinalizedByManagerSig")
+                .withArgs(mgr.address, user2.address, orderID, 0);
+
+            const order = await core.getOrder(orderID);
+            expect(order.paid).to.be.true;
         });
     });
 
@@ -719,6 +778,108 @@ describe("Core - Order", function () {
                     expect(await quoteAsset.balanceOf(user5.address)).to.eql(toBN(operatorBal));
                     expect(await core.operatorBalanceOf(user5.address, quoteAddr)).to.eq(0);
                 });
+            });
+        });
+
+        context("base = SYNTH while quote = NATIVE", () => {
+            it("should successfully release", async () => {
+                mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.NATIVE, false, false, marketCom, 0);
+                await provideLiquidity(provider, amountOfBase, pricePerBase);
+
+                // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
+                swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                swapCost = swapAmt.mul(pricePerBase).div(baseDec); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
+
+                // create swap order.
+                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0, {value: swapCost})).not.to.be.reverted;
+                const numOrders = (await core.state()).numOrders;
+                expect(numOrders.toNumber()).to.eql(1);
+                orderID = numOrders.toNumber() - 1;
+
+                await expect(core.connect(provider).markOrderAsPaid(orderID)).not.to.be.reverted;
+
+                const prevProviderBal = await provider.getBalance();
+                const prevSwapperBal = await swapper.getBalance();
+
+                const tx = await core.connect(swapper).releaseOrder(orderID);
+                await expect(tx).to.emit(core, "Swap").withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, swapper.address, [1, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
+
+                // calculate gas fee in eth
+                const txReceipt = await tx.wait();
+                const gasUsed = txReceipt.gasUsed.mul(tx.gasPrice as BigNumber);
+
+                // Calculate fee
+                const protoFee = toDec(swapCost).mul(toDec(synthSwapFee)).div(100).div(100);
+                const mktCreatorFee = toDec(swapCost).mul(toDec(marketCom).div(100)).div(100);
+                const totalFees = toBN(protoFee.add(mktCreatorFee));
+
+                // Protocol fee should be correct
+                expect((await core.inventorBalanceOf(quoteAddr)).eq(toBN(protoFee))).to.be.true;
+
+                // Market creator should be correct
+                expect(await core.feeBalanceOf(deployer.address, quoteAddr)).to.eql(toBN(mktCreatorFee));
+
+                // provider quote asset balance should be expected
+                expect(await core.provider.getBalance(provider.address)).to.eql(prevProviderBal.add(swapCost).sub(totalFees));
+
+                // swapper quote asset balance should be expected
+                expect(await core.provider.getBalance(swapper.address)).to.eql(prevSwapperBal.sub(gasUsed));
+
+                // contract quote asset balance should be expected
+                expect(await core.provider.getBalance(cAddr)).to.eql(totalFees);
+
+                const mkt = await mc.getMarket(mid);
+                expect(mkt.numLiquidity).to.eql(amountOfBase.sub(swapAmt));
+            });
+        });
+
+        context("base = NATIVE while quote = SYNTH", () => {
+            it("should successfully release", async () => {
+                mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, AssetType.SYNTH, false, false, marketCom, 0);
+                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0], {value: amountOfBase})).not.to.be
+                    .reverted;
+
+                // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
+                swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                swapCost = swapAmt.mul(pricePerBase).div(baseDec); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
+
+                // create swap order.
+                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                const numOrders = (await core.state()).numOrders;
+                expect(numOrders.toNumber()).to.eql(1);
+                orderID = numOrders.toNumber() - 1;
+
+                await expect(core.connect(swapper).markOrderAsPaid(orderID)).not.to.be.reverted;
+
+                const prevProviderBal = await provider.getBalance();
+                const prevSwapperBal = await swapper.getBalance();
+
+                const tx = await core.connect(provider).releaseOrder(orderID);
+                await expect(tx).to.emit(core, "Swap").withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, provider.address, [1, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
+
+                // Calculate fee
+                const protoFee = toDec(swapAmt).mul(toDec(synthSwapFee)).div(100).div(100);
+                const mktCreatorFee = toDec(swapAmt).mul(toDec(marketCom).div(100)).div(100);
+                const totalFees = toBN(protoFee.add(mktCreatorFee));
+
+                // Protocol fee should be correct
+                expect((await core.inventorBalanceOf(baseAddr)).eq(toBN(protoFee))).to.be.true;
+
+                // Market creator should be correct
+                expect(await core.feeBalanceOf(deployer.address, baseAddr)).to.eql(toBN(mktCreatorFee));
+
+                // swapper base asset balance should be expected
+                expect(await core.provider.getBalance(swapper.address)).to.eql(prevSwapperBal.add(swapAmt).sub(totalFees));
+
+                // amount of liquidity left
+                const liq = await core.getLiquidity(mid, provider.address, 0);
+                expect(liq.amount).to.eql(amountOfBase.sub(swapAmt));
+
+                // contract quote asset balance should be expected
+                expect(await core.provider.getBalance(cAddr)).to.eql(liq.amount.add(totalFees));
+
+                const mkt = await mc.getMarket(mid);
+                expect(mkt.numLiquidity).to.eql(amountOfBase.sub(swapAmt));
             });
         });
 
@@ -1137,6 +1298,32 @@ describe("Core - Order", function () {
                 });
             });
         });
+
+        context("sender is contract owner", () => {
+            it("should successfully release order", async () => {
+                await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0, 0);
+                mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 1, 0);
+
+                await core.setProtoFee(0, 0, 0, 0, 0, 0);
+                await mc.connect(marketCreator2).setCommission(mid, 0);
+
+                // provide liquidity
+                await provideLiquidity(provider, amountOfBase, pricePerBase);
+
+                // create swap order.
+                swapAmt = toBN(5).mul(baseDec);
+                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, user5.address, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                const numOrders = (await core.state()).numOrders;
+                expect(numOrders.toNumber()).to.eql(1);
+                orderID = numOrders.toNumber() - 1;
+
+                // release order
+                await expect(core.connect(swapper).markOrderAsPaid(orderID)).not.to.be.reverted;
+                await expect(core.connect(deployer).releaseOrder(orderID)).to.emit(core, "Swap");
+
+                expect(await baseAsset.balanceOf(user5.address)).to.eql(swapAmt);
+            });
+        });
     });
 
     describe(".releaseOrderByManagerSig", () => {
@@ -1181,14 +1368,14 @@ describe("Core - Order", function () {
             await expect(core.connect(swapper).markOrderAsPaid(orderID)).not.to.be.reverted;
 
             const expireAt = (await advanceBlockTime(2)) + 4;
-            const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint256", "bool", "uint256"], [orderID, true, expireAt]));
+            const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint", "uint256", "uint", "uint256"], [chainId, orderID, 1, expireAt]));
             const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
             const signedMsg = await mgr.signMessage(msgHashBytes);
 
             await expect(core.connect(user2).releaseOrderByManagerSig(orderID, expireAt, signedMsg))
                 .to.emit(core, "Swap")
                 .emit(core, "FinalizedByManagerSig")
-                .withArgs(mgr.address, user2.address, orderID, true);
+                .withArgs(mgr.address, user2.address, orderID, 1);
         });
     });
 
@@ -1230,8 +1417,17 @@ describe("Core - Order", function () {
             await expect(core.connect(marketCreator2).cancelOrder(orderID)).to.be.revertedWith("OC: NOT_AUTHORIZED");
         });
 
-        it("should revert not with reason=NOT_AUTHORIZED when sender is market manager", async () => {
+        it("should not revert with reason=NOT_AUTHORIZED when sender is market manager", async () => {
             await mc.connect(marketCreator2).setManager(mid, user2.address);
+            const orderID = await createOrder_BaseOn_QuoteOff(mid);
+            await expect(core.connect(user2).cancelOrder(orderID)).not.to.be.revertedWith("OC: NOT_AUTHORIZED");
+        });
+
+        it("should not revert with reason=NOT_AUTHORIZED when sender is a miner", async () => {
+            await token.transfer(user2.address, minerBond);
+            await token.connect(user2).approve(minerReg.address, minerBond);
+            await minerReg.connect(user2).register();
+
             const orderID = await createOrder_BaseOn_QuoteOff(mid);
             await expect(core.connect(user2).cancelOrder(orderID)).not.to.be.revertedWith("OC: NOT_AUTHORIZED");
         });
@@ -1332,6 +1528,62 @@ describe("Core - Order", function () {
 
                 // Expect swap amount to be returned
                 expect((await quoteAsset.balanceOf(swapper.address)).eq(swapAmt)).to.be.true;
+
+                // Order should be cancelled
+                let order = await core.getOrder(0);
+                expect(order.cancelled).to.be.true;
+                const liq = await core.getLiquidity(mid, provider.address, 0);
+                expect(liq.openOrders.eq(0)).to.be.true;
+            });
+        });
+
+        context("base = SYNTH while quote = NATIVE", () => {
+            beforeEach(async () => {
+                await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.SYNTH, AssetType.NATIVE, false, false, 0, 0);
+                mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.NATIVE);
+            });
+
+            it("should successfully cancel order", async () => {
+                // Provide BASE liquidity
+                const provLiq = toBN(10).mul(baseDec);
+                const basePrice = toBN(1).mul(quoteDec);
+                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [provLiq, basePrice], [], [], [0, 0, 0, 0, 0]);
+
+                let mkt = await mc.getMarket(mid);
+                expect(mkt.numLiquidity).to.eql(provLiq);
+
+                // Provide QUOTE asset to swapper and unlock it
+                const swapAmt = toBN(10).mul(baseDec);
+                const swapCost = basePrice.mul(10);
+
+                // Create Order
+                await core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, basePrice, [], 0, 0, {value: swapCost});
+
+                mkt = await mc.getMarket(mid);
+                expect(mkt.numLiquidity).to.eql(provLiq.sub(swapAmt));
+
+                // Expect swap amount to be deducted
+                expect((await quoteAsset.balanceOf(swapper.address)).isZero()).to.be.true;
+
+                const prevSwapperBal = await core.provider.getBalance(swapper.address);
+
+                // // Cancel the order
+                await advanceBlockTime(orderLifeTime);
+                const tx = await core.connect(swapper).cancelOrder(0);
+                await expect(tx).to.emit(core, "OrderCancelled").withArgs(0, swapper.address, false);
+
+                // calculate gas used in eth
+                const txReceipt = await tx.wait();
+                const gasUsed = txReceipt.gasUsed.mul(tx.gasPrice as BigNumber);
+
+                mkt = await mc.getMarket(mid);
+                expect(mkt.numLiquidity).to.eql(provLiq);
+
+                // Expect swap amount to be returned
+                expect(await core.provider.getBalance(swapper.address)).to.eq(prevSwapperBal.add(swapCost).sub(gasUsed));
+
+                // contract should have no balance
+                expect(await core.provider.getBalance(core.address)).to.eq(0);
 
                 // Order should be cancelled
                 let order = await core.getOrder(0);
@@ -1486,6 +1738,33 @@ describe("Core - Order", function () {
                 expect(mkt.numLiquidity).to.eq(ids.length);
             });
         });
+
+        it("should cancel successfully when sender is a miner and grant miner reward", async () => {
+            const orderID = await createOrder_BaseOn_QuoteOff(mid);
+            await advanceBlockTime(orderLifeTime);
+
+            await token.transfer(user5.address, minerBond);
+            await token.connect(user5).approve(minerReg.address, minerBond);
+            await minerReg.connect(user5).register();
+            await advanceBlockTime(minerMatureDur);
+
+            await expect(core.connect(user5).cancelOrder(orderID)).to.emit(core, "OrderCancelled");
+
+            expect(await minerReg.rewardBalanceOf(user5.address)).to.eq(minerCancelReward);
+        });
+
+        context("sender is contract owner", () => {
+            it("should successfully cancel order", async () => {
+                let orderID = await createOrder_BaseOn_QuoteOff(mid);
+                let order = await core.getOrder(0);
+
+                await advanceBlockTime(orderLifeTime);
+                await expect(core.connect(deployer).cancelOrder(orderID)).to.emit(core, "OrderCancelled").withArgs(0, deployer.address, false);
+
+                order = await core.getOrder(0);
+                expect(order.cancelled).to.be.true;
+            });
+        });
     });
 
     describe(".cancelOrderByManagerSig", () => {
@@ -1518,20 +1797,17 @@ describe("Core - Order", function () {
             await expect(core.cancelOrderByManagerSig(orderID, now + 10, Buffer.alloc(65))).to.be.revertedWith("OC: BAD_SIG");
         });
 
-        it("should emit 'Swap' and 'FinalizedByManagerSig' on success", async () => {
+        it("should emit 'OrderCancelled' and 'FinalizedByManagerSig' on success", async () => {
             const mgr = deployer;
             await mc.connect(marketCreator2).setManager(mid, mgr.address);
-
             const expireAt = (await advanceBlockTime(2)) + 4;
-            const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint256", "bool", "uint256"], [orderID, false, expireAt]));
+            const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint", "uint256", "uint", "uint256"], [chainId, orderID, 2, expireAt]));
             const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
             const signedMsg = await mgr.signMessage(msgHashBytes);
-
             await expect(core.connect(user2).cancelOrderByManagerSig(orderID, expireAt, signedMsg))
-                .to.emit(core, "Swap")
+                .to.emit(core, "OrderCancelled")
                 .emit(core, "FinalizedByManagerSig")
-                .withArgs(mgr.address, user2.address, orderID, false);
-
+                .withArgs(mgr.address, user2.address, orderID, 2);
             const order = await core.getOrder(0);
             expect(order.cancelled).to.be.true;
             expect(order.finalizer).to.eql(user2.address);
@@ -1636,6 +1912,19 @@ describe("Core - Order", function () {
                     expect(res[0]).to.eql(toBN("6300000000000000"));
                     expect(res[1]).to.eql(toBN("450000000000000000"));
                 });
+            });
+        });
+
+        context.skip("for ERC20/NATIVE", () => {
+            it("should compute correct fee", async () => {
+                await core.setProtoFee(14, 0, 0, 0, 0, 0);
+                await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.NATIVE, false, false, 1000, 0);
+                mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, AssetType.ERC20, AssetType.NATIVE);
+                await provideLiquidity(provider, amountOfBase, pricePerBase);
+                const swapAmt = toBN(5).mul(baseDec);
+                const res = await core.computeSwapFee(mid, provider.address, 0, swapper.address, swapAmt, pricePerBase);
+                expect(res[0]).to.eql(toBN("7000000000000000"));
+                expect(res[1]).to.eql(toBN("500000000000000000"));
             });
         });
 

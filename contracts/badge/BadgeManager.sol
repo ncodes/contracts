@@ -126,12 +126,7 @@ contract BadgeManager is Ownable {
     /// @param path The badge path
     /// @param key The metadata key
     /// @param value The metadata value
-    function upsertMeta(
-        string memory badge,
-        string memory path,
-        string memory key,
-        string memory value
-    ) public {
+    function upsertMeta(string memory badge, string memory path, string memory key, string memory value) public {
         if (keccak256(bytes(path)) == keccak256(bytes(""))) {
             require(badgeIssuer[badge] == msg.sender, "BADGE: NOT_ISSUER");
             bool exist = keccak256(bytes(badgeMetadata[badge][key])) != keccak256(bytes(""));
@@ -157,11 +152,7 @@ contract BadgeManager is Ownable {
     /// @param badge The name of the badge
     /// @param path The badge path
     /// @param addr The receiving address
-    function getGrantId(
-        string memory badge,
-        string memory path,
-        address addr
-    ) public pure returns (bytes32) {
+    function getGrantId(string memory badge, string memory path, address addr) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(badge, path, addr));
     }
 
@@ -169,11 +160,7 @@ contract BadgeManager is Ownable {
     /// @param badge The name of the badge
     /// @param path The badge path
     /// @param key The metadata key
-    function getMetaValue(
-        string memory badge,
-        string memory path,
-        string memory key
-    ) public view returns (string memory) {
+    function getMetaValue(string memory badge, string memory path, string memory key) public view returns (string memory) {
         if (keccak256(bytes(path)) == keccak256(bytes(""))) {
             return badgeMetadata[badge][key];
         } else {
@@ -193,11 +180,7 @@ contract BadgeManager is Ownable {
     }
 
     /// @notice Transfer ownership of a badge or path to another address
-    function transferBadgeOwnership(
-        string memory badge,
-        string memory path,
-        address newOwner
-    ) public {
+    function transferBadgeOwnership(string memory badge, string memory path, address newOwner) public {
         if (keccak256(bytes(path)) == keccak256(bytes(""))) {
             require(badgeIssuer[badge] == msg.sender, "BADGE: NOT_ISSUER");
             delete issuerBadge[msg.sender];
@@ -299,20 +282,12 @@ contract BadgeManager is Ownable {
     /// @param badge The badge name
     /// @param path The badge path (optional)
     /// @param addr The target address of grantee
-    function getGranteeMetaKeys(
-        string memory badge,
-        string memory path,
-        address addr
-    ) public view returns (string[] memory) {
+    function getGranteeMetaKeys(string memory badge, string memory path, address addr) public view returns (string[] memory) {
         bytes32 id = getGrantId(badge, path, addr);
         return granteeMetadataKeys[id];
     }
 
-    function _revokeBadge(
-        string memory badge,
-        string memory path,
-        address addr
-    ) internal {
+    function _revokeBadge(string memory badge, string memory path, address addr) internal {
         bytes32 id = getGrantId(badge, path, addr);
         require(granted[id].grantedAt > 0, "BADGE: NOT_ISSUED");
         delete granted[id];
@@ -327,24 +302,14 @@ contract BadgeManager is Ownable {
     /// @param badge The name of the badge
     /// @param path The path of the badge
     /// @param addr The target address
-    function revokeBadge(
-        string memory badge,
-        string memory path,
-        address addr
-    ) public {
+    function revokeBadge(string memory badge, string memory path, address addr) public {
         if (keccak256(bytes(path)) == keccak256(bytes(""))) require(badgeIssuer[badge] == msg.sender, "BADGE: NOT_ISSUER");
         else require(badgePaths[badge][path] == msg.sender, "BADGE: NOT_ISSUER");
         _revokeBadge(badge, path, addr);
     }
 
     /// @notice Given a signature, assign a badge or path to an address
-    function revokeBadgeBySig(
-        string memory badge,
-        string memory path,
-        address addr,
-        uint256 expireAt,
-        bytes calldata sig
-    ) public {
+    function revokeBadgeBySig(string memory badge, string memory path, address addr, uint256 expireAt, bytes calldata sig) public {
         address issuer = (keccak256(bytes(path)) == keccak256(bytes(""))) ? badgeIssuer[badge] : badgePaths[badge][path];
         require(expireAt > block.timestamp, "BADGE: EXPIRED_SIG");
         require(!usedSig[address(ripemd160(sig))], "BADGE: BAD_SIG");
@@ -353,13 +318,7 @@ contract BadgeManager is Ownable {
         _revokeBadge(badge, path, addr);
     }
 
-    function _upsertGranteeMeta(
-        string memory badge,
-        string memory path,
-        address addr,
-        string memory key,
-        string memory value
-    ) internal {
+    function _upsertGranteeMeta(string memory badge, string memory path, address addr, string memory key, string memory value) internal {
         bytes32 id = getGrantId(badge, path, addr);
         bool exist = keccak256(bytes(granteeMetadata[id][key])) != keccak256(bytes(""));
         granteeMetadata[id][key] = value;
@@ -373,13 +332,7 @@ contract BadgeManager is Ownable {
     /// @param addr The target grantee address
     /// @param key The metadata key
     /// @param value The metadata value
-    function upsertGranteeMeta(
-        string memory badge,
-        string memory path,
-        address addr,
-        string memory key,
-        string memory value
-    ) public {
+    function upsertGranteeMeta(string memory badge, string memory path, address addr, string memory key, string memory value) public {
         if (keccak256(bytes(path)) == keccak256(bytes(""))) require(badgeIssuer[badge] == msg.sender, "BADGE: NOT_ISSUER");
         else require(badgePaths[badge][path] == msg.sender, "BADGE: NOT_ISSUER");
         _upsertGranteeMeta(badge, path, addr, key, value);
@@ -404,11 +357,7 @@ contract BadgeManager is Ownable {
     }
 
     /// @notice Check if an address has a given badge
-    function hasBadge(
-        address addr,
-        string memory badge,
-        string memory path
-    ) public view returns (bool) {
+    function hasBadge(address addr, string memory badge, string memory path) public view returns (bool) {
         GrantInfo memory info = granted[getGrantId(badge, path, addr)];
         if (info.grantedAt == 0 || (info.expireAt > 0 && info.expireAt <= block.timestamp)) return false;
         return true;

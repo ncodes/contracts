@@ -7,6 +7,7 @@ import "../common/SafeERC20.sol";
 import "../common/SigLib.sol";
 import "./AuxLib.sol";
 import "./StructsLib.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../market/MarketAuxLib.sol";
 import "./LiquidityLib.sol";
 import "./FeeLib.sol";
@@ -28,17 +29,19 @@ library OrderReleaseLib {
         uint256[] idsFromProvider,
         uint256[] idsFromTaker
     );
-    event FinalizedByManagerSig(address manager, address finalizer, uint256 orderId, bool released);
+    event FinalizedByManagerSig(address manager, address finalizer, uint256 orderId, uint action);
 
     /// @notice Release an order by a market manager's signature
     /// @param s1 The State object
     /// @param s2 The State2 object
+    /// @param owner The owner of the contract
     /// @param oid The order ID.
     /// @param expireAt The expire time of the signature
     /// @param signature The signature created by the manager
     function releaseOrderByManagerSig(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
+        address owner,
         uint256 oid,
         uint256 expireAt,
         bytes calldata signature
@@ -46,31 +49,43 @@ library OrderReleaseLib {
         Structs.Market memory mkt = s2.marketCore.getMarket(s1.orders[oid].marketId);
         require(mkt.manager != address(0), "OC: NO_MGR_SET");
         require(expireAt > block.timestamp, "OC: EXPIRED_SIG");
-        require(verifyMarketManagerSig(mkt.manager, oid, true, expireAt, signature), "OC: BAD_SIG");
-        releaseOrder(s1, s2, oid, false, true);
-        emit FinalizedByManagerSig(mkt.manager, msg.sender, oid, true);
+        require(verifyMarketManagerSig(mkt.manager, oid, 1, expireAt, signature), "OC: BAD_SIG");
+        releaseOrder(s1, s2, owner, oid, false, true);
+        emit FinalizedByManagerSig(mkt.manager, msg.sender, oid, 1);
     }
 
     /// @notice Release asset.
     /// @param s1 The State object
     /// @param s2 The State2 object
+    /// @param owner The owner of the contract
     /// @param oid The order ID.
     /// @param byDispute Indicates that the method is called by the dispute manager.
     /// @param byManager Indicates that the method is called by the market manager via a manager signature.
-    function releaseOrder(StructsLib.State storage s1, StructsLib.State2 storage s2, uint256 oid, bool byDispute, bool byManager) public {
+    function releaseOrder(
+        StructsLib.State storage s1,
+        StructsLib.State2 storage s2,
+        address owner,
+        uint256 oid,
+        bool byDispute,
+        bool byManager
+    ) public {
         Structs.Order storage o = s1.orders[oid];
         require(!o.cancelled && !o.released, "OC: ALREADY_FINALIZED");
         Structs.Market memory mkt = s2.marketCore.getMarket(o.marketId);
-        address releaser = (byDispute) ? msg.sender : (byManager) ? mkt.manager : (o.taker == MarketAuxLib.getPayer(mkt, o))
-            ? o.provider
-            : o.taker;
-        require(byDispute || byManager || msg.sender == releaser, "OC: NOT_RELEASER");
+        address releaser = (byDispute)
+            ? msg.sender
+            : (byManager)
+                ? mkt.manager
+                : (o.taker == MarketAuxLib.getPayer(mkt, o))
+                    ? o.provider
+                    : o.taker;
+        require(byDispute || byManager || msg.sender == releaser || msg.sender == owner, "OC: NOT_RELEASER");
         require(o.paid, "OC: ORDER_UNPAID");
 
         Structs.Asset memory asset;
 
-        // Handle ERC20/SYNTH & SYNTH/ERC20
-        if (mkt.isFungible() && mkt.hasERC20()) {
+        // Handle ERC20/SYNTH, SYNTH/ERC20, SYNTH/NATIVE, NATIVE/SYNTH
+        if (mkt.isFungible() && mkt.hasERC20OrNative()) {
             asset = releaseForFungibles(s1, s2, o, mkt);
         }
 
@@ -335,9 +350,11 @@ library OrderReleaseLib {
         s1.inventorBalance[asset.addr] += (feeInfo.protoFee * totalFeeBps) / 10000;
 
         // Transfer the order amount
+        address receiver = (!mkt.base.isSynth()) ? o.taker : o.provider;
         if (asset.isERC20()) {
-            address receiver = (!mkt.base.isSynth()) ? o.taker : o.provider;
             IERC20(asset.addr).transfer(o.recipient.setOrDef(receiver), feeInfo.amtToCharge - feeInfo.totalFees);
+        } else if (asset.isNative()) {
+            payable(o.recipient.setOrDef(receiver)).transfer(feeInfo.amtToCharge - feeInfo.totalFees);
         }
 
         return asset;
@@ -346,18 +363,18 @@ library OrderReleaseLib {
     /// @notice Verify a market manager's signature
     /// @param signer The market manager's address
     /// @param id The order ID
-    /// @param release Indicates whether the order should be released or cancelled
+    /// @param action Indicates the manager action (0: paid, 1: release, 2: cancel)
     /// @param expireAt Indicates the timestamp when the signature is to expire.
     /// @param signature The signature created by the manager
     function verifyMarketManagerSig(
         address signer,
         uint256 id,
-        bool release,
+        uint action,
         uint256 expireAt,
         bytes memory signature
-    ) internal pure returns (bool) {
+    ) internal view returns (bool) {
         if (address(0) == signer) return false;
-        bytes32 messageHash = keccak256(abi.encode(id, release, expireAt));
+        bytes32 messageHash = keccak256(abi.encode(block.chainid, id, action, expireAt));
         bytes32 ethSignedMessageHash = SigLib.getSignedMessageHash(messageHash);
         return SigLib.recoverSigner(ethSignedMessageHash, signature) == signer;
     }

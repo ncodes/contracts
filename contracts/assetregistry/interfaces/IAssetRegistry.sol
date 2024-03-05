@@ -5,22 +5,13 @@ struct Info {
     uint256 curRate;
     uint256 feeBp;
     uint256 feeFixed;
-    uint256 amountPerRewardPoint;
     bool verified;
     bool stable;
     bool sharable;
 }
 
 interface IAssetRegistry {
-    function set(
-        address addr,
-        uint256 curRate,
-        uint256 feeBp,
-        uint256 feeFixed,
-        bool verified,
-        bool stable,
-        bool sharable
-    ) external;
+    function set(address addr, uint256 curRate, uint256 feeBp, uint256 feeFixed, bool verified, bool stable, bool sharable) external;
 
     function setRate(address addr, uint256 rate) external;
 

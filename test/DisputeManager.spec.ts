@@ -2,11 +2,12 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
 import {randomBytes} from "crypto";
 import {MockContract} from "ethereum-waffle";
-import {BigNumber} from "ethers";
+import {BigNumber, BigNumberish} from "ethers";
 import {getAddress, hexlify} from "ethers/lib/utils";
 import {ethers, waffle} from "hardhat";
 import {AssetRegistry, Core, DisputeManager, MarketCore, MediatorManager, TOKEN} from "../typechain-types";
 import {AddressZero, advanceBlockTime, makeMarketID, toBN} from "../utils/utils";
+import {MinerRegistry} from "./../typechain-types/MinerRegistry";
 import {getCoreLibraries, initCoreTestSuite, makeLibs} from "./helpers/helpers";
 const {deployMockContract} = waffle;
 
@@ -16,6 +17,7 @@ describe("DisputeManager", function () {
     let core: Core;
     let mc: MarketCore;
     let dm: DisputeManager;
+    let minerReg: MinerRegistry;
     let medMgr: MediatorManager;
     let assetReg: AssetRegistry;
     let deployer: SignerWithAddress;
@@ -31,13 +33,14 @@ describe("DisputeManager", function () {
         provider: SignerWithAddress,
         swapper: SignerWithAddress,
         inventor: SignerWithAddress,
-        mockDisputeMgr: SignerWithAddress,
         user5: SignerWithAddress,
         user6: SignerWithAddress,
         user7: SignerWithAddress;
-    let ticketCancelDur = 86400 * 7;
-    let ticketMatureDur = 86400;
-    let ticketExpireDur = 86400 * 2;
+    let supply: BigNumberish;
+    let ticketCancelDur = 0;
+    let ticketMatureDur = 0;
+    let ticketExpireDur = 0;
+    let ticketPauseDur = 0;
     let predictDur = 86400;
     let evidenceDur = 86400;
     let bondAmt = 100000;
@@ -47,6 +50,11 @@ describe("DisputeManager", function () {
     let draftReward = 10;
     let winReward = 100;
     const baseTicketPrice = 10;
+    let minerBond = 0;
+    let minerDraftReward = 0;
+    let minerUndraftReward = 0;
+    let minerExecuteReward = 0;
+    let minerMatureDur = 0;
 
     beforeEach(async () => {
         const vars = await initCoreTestSuite();
@@ -56,18 +64,25 @@ describe("DisputeManager", function () {
         provider = accts[1];
         swapper = accts[2];
         inventor = accts[3];
-        mockDisputeMgr = accts[4];
         user5 = accts[5];
         user6 = accts[6];
         user7 = accts[7];
+        supply = vars.supply;
         mc = vars.mc;
-
-        const supply = BigNumber.from("1000000000000000000000000");
-        let factory: any = await ethers.getContractFactory("TOKEN");
-        token = await factory.deploy("TEST", "TEST", supply, 18);
+        token = vars.token;
+        minerReg = vars.minerReg;
+        minerBond = vars.minerBond;
+        minerDraftReward = vars.minerDraftReward;
+        minerUndraftReward = vars.minerUndraftReward;
+        minerExecuteReward = vars.minerExecuteReward;
+        minerMatureDur = vars.minerMatureDur;
+        ticketCancelDur = vars.ticketCancelDur;
+        ticketMatureDur = vars.ticketMatureDur;
+        ticketExpireDur = vars.ticketExpireDur;
+        ticketPauseDur = vars.ticketPauseDur;
 
         const libs = await makeLibs();
-        factory = await ethers.getContractFactory("Core", {
+        let factory: any = await ethers.getContractFactory("Core", {
             libraries: getCoreLibraries(libs),
         });
         core = await factory.deploy(mc.address, token.address, 1800, 1800, 1, 3);
@@ -82,14 +97,29 @@ describe("DisputeManager", function () {
         await randomness.mock.randomN.returns(0);
 
         factory = await ethers.getContractFactory("MediatorManager");
-        medMgr = await factory.deploy(token.address, mc.address, randomness.address, ticketCancelDur, ticketMatureDur, ticketExpireDur);
+        medMgr = await factory.deploy(token.address, mc.address, randomness.address, ticketCancelDur, ticketMatureDur, ticketExpireDur, ticketPauseDur);
         await medMgr.setTicketMarketParams(10, windowDur, 256, 60000, 1000, 7, 10000);
 
         factory = await ethers.getContractFactory("DisputeManager");
         dm = await factory.deploy(token.address, mc.address, core.address, medMgr.address, predictDur, evidenceDur);
 
+        await minerReg.updateWriter(dm.address, true);
+        await dm.setMinerRegistry(minerReg.address);
+        await dm.setMediatorManager(medMgr.address);
+        await token.approve(minerReg.address, minerBond);
+        await minerReg.register();
+        await token.transfer(user6.address, minerBond);
+        await token.connect(user6).approve(minerReg.address, minerBond);
+        await minerReg.connect(user6).register();
+        await token.transfer(user7.address, minerBond);
+        await token.connect(user7).approve(minerReg.address, minerBond);
+        await minerReg.connect(user7).register();
+        await advanceBlockTime(minerMatureDur);
+
+        await core.setMinerRegistry(minerReg.address);
         await core.setInventor(inventor.address);
         await mc.updateWriter(core.address, true);
+        await mc.setMediatorManager(medMgr.address);
 
         factory = await ethers.getContractFactory("TOKEN");
         baseAsset = await factory.deploy("BASE_TOKEN", "BASE_TOKEN", supply, 18);
@@ -101,6 +131,8 @@ describe("DisputeManager", function () {
         ticketMatureDur = (await medMgr.ticketMatureDur()).toNumber();
 
         mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 1, 0);
+
+        await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, 1, 0, 0, false, false);
     });
 
     async function provideLiquidity(provider: SignerWithAddress, provLiqBal: BigNumber, basePrice: BigNumber, timeToPay = 0) {
@@ -165,6 +197,7 @@ describe("DisputeManager", function () {
 
     describe(".createDispute", () => {
         let orderID: BigNumber;
+
         beforeEach(async () => {
             await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
             mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 1, 0);
@@ -216,8 +249,6 @@ describe("DisputeManager", function () {
         describe("previous dispute was not conclusive (stalled)", () => {
             it("should create a new dispute round", async () => {
                 // create mature ticket
-                const numMediators = 1;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 2, 2, 1000, 2, 10000);
                 await token.approve(medMgr.address, (baseTicketPrice + bondAmt) * 2);
                 await medMgr.purchaseTicket(0);
@@ -242,8 +273,6 @@ describe("DisputeManager", function () {
 
         describe("previous dispute was already voted on decisively (released or cancelled)", () => {
             it("should revert on new dispute creation", async () => {
-                const numMediators = 1;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 2, 2, 1000, 2, 10000);
 
                 orderID = await createOrder_BaseOn_QuoteOff(mid);
@@ -263,6 +292,16 @@ describe("DisputeManager", function () {
                 await expect(dm.connect(swapper).createDispute(orderID, false)).to.be.revertedWith("DM: PREV_RESOLVED");
             });
         });
+
+        describe("market is not approved for mediator pool", () => {
+            it("should revert", async () => {
+                // make pool require market approval
+                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, 0, 0, 0, false, true);
+                orderID = await createOrder_BaseOn_QuoteOff(mid);
+                await core.connect(swapper).markOrderAsPaid(orderID);
+                await expect(dm.connect(swapper).createDispute(orderID, false)).to.be.revertedWith("DM: MKT_NOT_APPROVED");
+            });
+        });
     });
 
     describe(".draftMediator", () => {
@@ -272,6 +311,11 @@ describe("DisputeManager", function () {
             mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 1, 0);
             await core.setDisputeManager(dm.address);
             await medMgr.setDisputeManager(dm.address);
+        });
+
+        it("should revert when caller is not a miner", async () => {
+            orderID = await createOrder_BaseOn_QuoteOff(mid);
+            await expect(dm.connect(user5).draftMediator(orderID)).to.be.revertedWith("DM: NOT_MINER");
         });
 
         it("should revert when order has no dispute", async () => {
@@ -288,7 +332,7 @@ describe("DisputeManager", function () {
         });
 
         it("should revert when maximum number of draftees was reached", async () => {
-            await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, 0);
+            await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, 0, 0, 0, false, false);
             orderID = await createOrder_BaseOn_QuoteOff(mid);
             await core.connect(swapper).markOrderAsPaid(orderID);
             await expect(dm.connect(swapper).createDispute(orderID, false)).not.to.be.reverted;
@@ -298,7 +342,7 @@ describe("DisputeManager", function () {
         describe("number of mediators = 2", () => {
             it("should update state correctly", async () => {
                 const numMediators = 2;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0, false, false);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 2, 2, 1000, 2, 10000);
                 await token.approve(medMgr.address, (baseTicketPrice + bondAmt) * 2);
                 await medMgr.purchaseTicket(0);
@@ -318,6 +362,9 @@ describe("DisputeManager", function () {
                 expect(dispute.commitEndAt).to.eq(0);
                 expect(dispute.predictEndAt).to.eq(0);
 
+                // Should add miner reward to the miner
+                expect(await minerReg.rewardBalanceOf(deployer.address)).to.eq(minerDraftReward);
+
                 // should set phases timestamp after draft 2
                 const now = await advanceBlockTime(1);
                 await expect(dm.draftMediator(orderID)).to.emit(dm, "DraftedMediator").withArgs(getAddress(mid), 0, 0, 1, deployer.address, deployer.address);
@@ -326,13 +373,13 @@ describe("DisputeManager", function () {
                 expect(dispute.evidenceEndAt).to.eq(evidenceEndAt);
                 expect(dispute.commitEndAt).to.eq(evidenceEndAt + predictDur / 2);
                 expect(dispute.predictEndAt).to.eq(evidenceEndAt + predictDur);
+
+                expect(await minerReg.rewardBalanceOf(deployer.address)).to.eq(minerDraftReward + minerDraftReward);
             });
         });
 
         context("when there is an existing dispute", () => {
             it("should revert when dispute has been executed", async () => {
-                const numMediators = 1;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 2, 2, 1000, 2, 10000);
 
                 orderID = await createOrder_BaseOn_QuoteOff(mid);
@@ -354,8 +401,6 @@ describe("DisputeManager", function () {
             });
 
             it("should revert when dispute has been abandoned", async () => {
-                const numMediators = 1;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 2, 2, 1000, 2, 10000);
 
                 orderID = await createOrder_BaseOn_QuoteOff(mid);
@@ -393,8 +438,6 @@ describe("DisputeManager", function () {
             let commitHash = randomBytes(32);
 
             // join as mediator
-            const numMediators = 1;
-            await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
             await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 3, 3, 1000, 2, 10000);
             await token.approve(medMgr.address, baseTicketPrice + bondAmt);
             await medMgr.purchaseTicket(0);
@@ -412,7 +455,7 @@ describe("DisputeManager", function () {
             beforeEach(async () => {
                 // join 2 mediators
                 const numMediators = 3;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0, false, false);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 3, 3, 1000, 2, 10000);
                 await token.approve(medMgr.address, baseTicketPrice + bondAmt);
                 await token.transfer(user5.address, baseTicketPrice + bondAmt);
@@ -438,8 +481,6 @@ describe("DisputeManager", function () {
         context("with numMediators = 1", () => {
             beforeEach(async () => {
                 // join as mediator
-                const numMediators = 1;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 3, 3, 1000, 2, 10000);
                 await token.approve(medMgr.address, baseTicketPrice + bondAmt);
                 await medMgr.purchaseTicket(0);
@@ -459,7 +500,9 @@ describe("DisputeManager", function () {
                 // commit should succeed
                 await advanceBlockTime(evidenceDur);
                 const hash = randomBytes(32);
-                await expect(dm.commitVote(orderID, 0, hash)).to.emit(dm, "Committed").withArgs(getAddress(mid), orderID, toBN(0), deployer.address, toBN(0), hexlify(hash));
+                await expect(dm.commitVote(orderID, 0, hash))
+                    .to.emit(dm, "Committed")
+                    .withArgs(getAddress(mid), orderID, toBN(0), deployer.address, toBN(0), hexlify(hash));
                 const prediction = await dm.predictions(orderID, 0, deployer.address, 0);
                 expect(prediction.committed).to.eql(hexlify(hash));
                 expect(prediction.revealed).to.be.false;
@@ -473,8 +516,6 @@ describe("DisputeManager", function () {
             let commitHash = randomBytes(32);
             beforeEach(async () => {
                 // join as mediator
-                const numMediators = 1;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 3, 3, 1000, 2, 10000);
                 await token.approve(medMgr.address, baseTicketPrice + bondAmt);
                 await medMgr.purchaseTicket(0);
@@ -509,8 +550,6 @@ describe("DisputeManager", function () {
             expect(order.disputed).to.be.true;
 
             // join as mediator
-            const numMediators = 1;
-            await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
             await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 3, 3, 1000, 2, 10000);
             await token.approve(medMgr.address, baseTicketPrice + bondAmt);
             await medMgr.purchaseTicket(0);
@@ -614,6 +653,10 @@ describe("DisputeManager", function () {
             orderID = await createOrder_BaseOn_QuoteOff(mid);
         });
 
+        it("should revert with reason=NOT_MINER when sender is not a miner", async () => {
+            await expect(dm.connect(user5).executeDecision(orderID, 0)).to.be.revertedWith("DM: NOT_MINER");
+        });
+
         describe("when no matching dispute with index exists", () => {
             it("should revert with reason=NO_DISPUTE when order has no dispute", async () => {
                 await expect(dm.executeDecision(orderID, 0)).to.be.revertedWith("DM: NO_DISPUTE");
@@ -622,8 +665,6 @@ describe("DisputeManager", function () {
 
         context("when matching dispute with index exist", () => {
             beforeEach(async () => {
-                const numMediators = 1;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 3, 3, 1000, 2, 10000);
 
                 await core.connect(swapper).markOrderAsPaid(orderID);
@@ -664,6 +705,9 @@ describe("DisputeManager", function () {
 
                     liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.openDisputes).to.eq(0);
+
+                    // Miner should be rewarded
+                    expect(await minerReg.rewardBalanceOf(deployer.address)).to.eq(minerDraftReward + minerExecuteReward);
                 });
 
                 context("when dispute was already executed", () => {
@@ -762,8 +806,6 @@ describe("DisputeManager", function () {
 
         context("when there are two disputes", () => {
             beforeEach(async () => {
-                const numMediators = 1;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
                 await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 3, 3, 1000, 2, 10000);
 
                 await core.connect(swapper).markOrderAsPaid(orderID);
@@ -820,7 +862,7 @@ describe("DisputeManager", function () {
 
         beforeEach(async () => {
             const numMediators = 2;
-            await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+            await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0, false, false);
             await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 3, 3, 1000, 2, 10000);
 
             await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
@@ -834,6 +876,10 @@ describe("DisputeManager", function () {
             await advanceBlockTime(ticketMatureDur);
         });
 
+        it("should revert with reason=NOT_MINER when sender is not a miner", async () => {
+            await expect(dm.connect(user5).undraftMediator(orderID, 0)).to.be.revertedWith("DM: NOT_MINER");
+        });
+
         it("should revert with reason=NO_DISPUTE when order has no dispute", async () => {
             await expect(dm.undraftMediator(orderID, 0)).to.be.revertedWith("DM: NO_DISPUTE");
         });
@@ -845,22 +891,33 @@ describe("DisputeManager", function () {
 
         context("when dispute result is inconclusive/stalled", () => {
             it("should undraft ticket and award draft reward", async () => {
+                let deployerMinerReward = 0;
+                let user7MinerReward = 0;
+
                 await expect(dm.connect(swapper).createDispute(orderID, false)).not.to.be.reverted;
                 await dm.draftMediator(orderID);
                 await dm.draftMediator(orderID);
+                deployerMinerReward += minerDraftReward + minerDraftReward;
 
                 await advanceBlockTime(evidenceDur + predictDur);
                 await expect(dm.executeDecision(orderID, 0)).not.to.be.reverted;
                 const dispute = await dm.getDispute(orderID, 0);
                 expect(dispute.executed).to.be.true;
+                deployerMinerReward += minerExecuteReward;
 
                 await expect(dm.connect(user7).undraftMediator(orderID, 0)).to.emit(medMgr, "Undrafted").withArgs(user5.address, 0, true, user7.address);
                 await expect(dm.undraftMediator(orderID, 0)).not.to.be.reverted;
                 expect(await dm.rewardBalanceOf(user5.address)).to.eq(draftReward);
                 expect(await dm.rewardBalanceOf(user6.address)).to.eq(draftReward);
+                deployerMinerReward += minerUndraftReward;
+                user7MinerReward += minerUndraftReward;
 
                 // it should revert if no ticket left to undraft
                 await expect(dm.undraftMediator(orderID, 0)).to.be.revertedWith("DM: ALL_UNDRAFTED");
+
+                // Verify miners rewards
+                expect(await minerReg.rewardBalanceOf(deployer.address)).to.eq(deployerMinerReward);
+                expect(await minerReg.rewardBalanceOf(user7.address)).to.eq(user7MinerReward);
             });
         });
 
@@ -919,7 +976,7 @@ describe("DisputeManager", function () {
         context("when ticket owner voted the lose side", () => {
             it("should not award any reward to the ticket", async () => {
                 const numMediators = 3;
-                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
+                await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators, 0, 0, false, false);
                 await join(user7);
                 await advanceBlockTime(ticketMatureDur);
 
@@ -960,14 +1017,80 @@ describe("DisputeManager", function () {
                 expect(await dm.rewardBalanceOf(user7.address)).to.eq(0);
             });
         });
+
+        context("when dispute is not the first of the order", () => {
+            it("should half reward", async () => {
+                await expect(dm.connect(swapper).createDispute(orderID, false)).not.to.be.reverted;
+                await dm.draftMediator(orderID);
+                await dm.draftMediator(orderID);
+                await advanceBlockTime(evidenceDur);
+
+                // vote
+                let vote1 = "1vote";
+                let hash = ethers.utils.solidityKeccak256(["string", "address"], [vote1, user5.address]);
+                let vote2 = "0vote";
+                await dm.connect(user5).commitVote(orderID, 0, hash);
+                let hash2 = ethers.utils.solidityKeccak256(["string", "address"], [vote2, user6.address]);
+                await dm.connect(user6).commitVote(orderID, 0, hash2);
+
+                // Reveal
+                await advanceBlockTime(predictDur / 2);
+                await expect(dm.connect(user5).revealVote(orderID, 0, vote1, hash)).not.to.be.reverted;
+                await expect(dm.connect(user6).revealVote(orderID, 0, vote2, hash2)).not.to.be.reverted;
+                await advanceBlockTime(predictDur / 2);
+
+                await expect(dm.executeDecision(orderID, 0)).not.to.be.reverted;
+                let dispute = await dm.getDispute(orderID, 0);
+                expect(dispute.abandoned).to.be.false;
+                expect(dispute.executed).to.be.true;
+
+                await expect(dm.undraftMediator(orderID, 0)).not.to.be.reverted;
+                await expect(dm.undraftMediator(orderID, 0)).not.to.be.reverted;
+
+                expect(await dm.rewardBalanceOf(user5.address)).to.eq(draftReward);
+                expect(await dm.rewardBalanceOf(user6.address)).to.eq(draftReward);
+
+                // Dispute 2
+                await expect(dm.connect(swapper).createDispute(orderID, false)).not.to.be.reverted;
+                await dm.draftMediator(orderID);
+                await dm.draftMediator(orderID);
+                await advanceBlockTime(evidenceDur);
+
+                // Vote
+                vote1 = "1vote_";
+                hash = ethers.utils.solidityKeccak256(["string", "address"], [vote1, user5.address]);
+                vote2 = "0vote_";
+                await dm.connect(user5).commitVote(orderID, 0, hash);
+                hash2 = ethers.utils.solidityKeccak256(["string", "address"], [vote2, user6.address]);
+                await dm.connect(user6).commitVote(orderID, 0, hash2);
+
+                // Reveal
+                await advanceBlockTime(predictDur / 2);
+                await expect(dm.connect(user5).revealVote(orderID, 0, vote1, hash)).not.to.be.reverted;
+                await expect(dm.connect(user6).revealVote(orderID, 0, vote2, hash2)).not.to.be.reverted;
+                await advanceBlockTime(predictDur / 2);
+
+                await expect(dm.executeDecision(orderID, 1)).not.to.be.reverted;
+                dispute = await dm.getDispute(orderID, 1);
+                expect(dispute.abandoned).to.be.false;
+                expect(dispute.executed).to.be.true;
+
+                const curUser5Reward = await dm.rewardBalanceOf(user5.address);
+                const curUser6Reward = await dm.rewardBalanceOf(user6.address);
+
+                await expect(dm.undraftMediator(orderID, 1)).not.to.be.reverted;
+                await expect(dm.undraftMediator(orderID, 1)).not.to.be.reverted;
+
+                expect(await dm.rewardBalanceOf(user5.address)).to.eq(curUser5Reward.add(draftReward / 2));
+                expect(await dm.rewardBalanceOf(user6.address)).to.eq(curUser6Reward.add(draftReward / 2));
+            });
+        });
     });
 
     describe(".withdrawReward", function () {
         let orderID: BigNumber;
 
         beforeEach(async () => {
-            const numMediators = 1;
-            await medMgr.updateTicketPool(0, bondAmt, draftReward, winReward, noVoteSlashBP, loseVoteSlashBP, numMediators);
             await medMgr.setTicketMarketParams(baseTicketPrice, 86400, 3, 3, 1000, 2, 10000);
 
             await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);

@@ -29,7 +29,7 @@ library SwapNonFungibleLib {
     );
 
     /// @dev Swap quote asset for a non-fungible base asset.
-    /// Covers NFT/ERC20, NFT/SYNTH, NFT/NFT
+    /// Covers NFT/ERC20, NFT/NATIVE, NFT/SYNTH, NFT/NFT
     /// @param s1 Storage state.
     /// @param s2 Storage state 2.
     /// @param sp The parameters needed to swap.
@@ -46,14 +46,14 @@ library SwapNonFungibleLib {
         AuxLib.checkNonFungibleSwapParams(sp, market, liq);
         require(sp.operator == 0 || s2.operatorMgr.isOperator(sp.operator), "OC: UNKNOWN_OPERATOR");
 
-        // If quote asset is ERC20
-        if (market.quote.isERC20()) {
-            return swapERC20(s1, s2, sp, market, liq);
+        // If quote asset is ERC20 or NATIVE
+        if (market.quote.isERC20() || market.quote.isNative()) {
+            return swapERC20OrNativeForNFT(s1, s2, sp, market, liq);
         }
 
         // If quote asset is NFT
         if (market.quote.isNFT()) {
-            return swapNFT(s1, s2, sp, market, liq);
+            return swapNFTForNFT(s1, s2, sp, market, liq);
         }
 
         // Create a swap order (NFT/SYNTH)
@@ -71,7 +71,7 @@ library SwapNonFungibleLib {
     /// @param sp The parameters needed to swap.
     /// @param mkt The market object for the market being swapped on.
     /// @param liq The liquidity object.
-    function swapNFT(
+    function swapNFTForNFT(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
         StructsLib.SwapSlot memory sp,
@@ -166,13 +166,13 @@ library SwapNonFungibleLib {
         delete liq.ids;
     }
 
-    /// @dev Handle NFT/ERC20 swap (Instant)
+    /// @dev Handle NFT/ERC20, NFT/NATIVE swap (Instant)
     /// @param s1 Storage state.
     /// @param s2 Storage state 2.
     /// @param sp The parameters needed to swap.
     /// @param mkt The market object for the market being swapped on.
     /// @param liq The liquidity object.
-    function swapERC20(
+    function swapERC20OrNativeForNFT(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
         StructsLib.SwapSlot memory sp,
@@ -224,9 +224,14 @@ library SwapNonFungibleLib {
         // Disburse fee to inventor
         s1.inventorBalance[mkt.quote.addr] += (feeInfo.protoFee * totalFeeBps) / 10000;
 
-        // Transfer quote asset to contract then to liquidity provider
-        IERC20(mkt.quote.addr).safeTransferFrom(msg.sender, address(this), price);
-        IERC20(mkt.quote.addr).safeTransfer(sp.addrs.provider, price - feeInfo.totalFees);
+        // Transfer quote asset to contract and to the liquidity provider
+        if (mkt.quote.isERC20()) {
+            IERC20(mkt.quote.addr).safeTransferFrom(msg.sender, address(this), price);
+            IERC20(mkt.quote.addr).safeTransfer(sp.addrs.provider, price - feeInfo.totalFees);
+        } else if (mkt.quote.isNative()) {
+            require(msg.value >= price, "OC: LOW_DEPOSIT");
+            payable(sp.addrs.provider).transfer(price - feeInfo.totalFees);
+        }
 
         // Transfer base assets to recipient
         for (uint256 i = 0; i < liq.ids.length; i++)

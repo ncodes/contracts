@@ -95,12 +95,7 @@ library AuxLib {
     /// @param provider The address of the liquidity provider
     /// @param lid The liquidity ID
     /// @return bool True if the liquidity exists
-    function isLiquidityExist(
-        StructsLib.State storage state,
-        address mid,
-        address provider,
-        uint256 lid
-    ) public view returns (bool) {
+    function isLiquidityExist(StructsLib.State storage state, address mid, address provider, uint256 lid) public view returns (bool) {
         return state.liquidity[mid][provider].length > lid;
     }
 
@@ -110,12 +105,7 @@ library AuxLib {
     /// @param provider The address of the liquidity provider
     /// @param lid The liquidity ID
     /// @return bool True if the liquidity exists and has non-zero liquidity
-    function hasNonZeroLiquidity(
-        StructsLib.State storage state,
-        address mid,
-        address provider,
-        uint256 lid
-    ) public view returns (bool) {
+    function hasNonZeroLiquidity(StructsLib.State storage state, address mid, address provider, uint256 lid) public view returns (bool) {
         if (!isLiquidityExist(state, mid, provider, lid)) return false;
         Structs.Liquidity memory liq = state.liquidity[mid][provider][lid];
         return !isLiquidityEmpty(liq);
@@ -158,7 +148,7 @@ library AuxLib {
     /// @dev Get fee to be charged from the given asset
     /// @param assetReg Asset registry contract
     /// @param asset Asset object
-    /// @param defaultBp Default fee basis point if asset registry does not have fee info 
+    /// @param defaultBp Default fee basis point if asset registry does not have fee info
     /// for the given asset
     /// @return feeBp Fee basis point
     /// @return fixedFee Fee basis point
@@ -167,15 +157,7 @@ library AuxLib {
         IAssetRegistry assetReg,
         Structs.Asset memory asset,
         uint256 defaultBp
-    )
-        public
-        view
-        returns (
-            uint256 feeBp,
-            uint256 fixedFee,
-            uint256 curRate
-        )
-    {
+    ) public view returns (uint256 feeBp, uint256 fixedFee, uint256 curRate) {
         Info memory inf = assetReg.get(asset.addr);
         if (inf.feeBp == 0) inf.feeBp = defaultBp;
         return (inf.feeBp, inf.feeFixed, inf.curRate);
@@ -193,11 +175,7 @@ library AuxLib {
     /// @param sp SwapSlot object
     /// @param mkt Market object
     /// @param liq Liquidity object
-    function checkFungibleSwapParams(
-        StructsLib.SwapSlot memory sp,
-        Structs.Market memory mkt,
-        Structs.Liquidity storage liq
-    ) public view {
+    function checkFungibleSwapParams(StructsLib.SwapSlot memory sp, Structs.Market memory mkt, Structs.Liquidity storage liq) public view {
         require(mkt.quote.isNFT() || sp.amount > 0, "OC: AMOUNT_REQ");
         require(!mkt.quote.isNFT() || sp.amount == 0, "OC: AMOUNT_NREQ");
         require((sp.offerId > 0 && mkt.perms.allowZeroOfferPrice) || mkt.quote.isNFT() || sp.maxPrice > 0, "OC: MAX_PRICE_REQ");

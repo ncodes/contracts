@@ -16,10 +16,5 @@ interface ICore {
 
     function isVerified(address addr) external view returns (bool);
 
-    function updateOpenDisputesCount(
-        address marketId,
-        address provider,
-        uint256 lid,
-        bool incr
-    ) external;
+    function updateOpenDisputesCount(address marketId, address provider, uint256 lid, bool incr) external;
 }
