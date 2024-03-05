@@ -1,12 +1,13 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
-import {BigNumber, constants} from "ethers";
-import {ethers} from "hardhat";
-import {ENERGON, FeePool, NFT, TOKEN} from "../typechain-types";
-import {advanceBlockTime, toBN} from "../utils/utils";
+import {constants} from "ethers";
 import {formatBytes32String} from "ethers/lib/utils";
+import {ethers} from "hardhat";
+import {ENERGON, FeePool, NFT} from "../typechain-types";
+import {advanceBlockTime, toBN} from "../utils/utils";
+import {MINTABLE_TOKEN} from "./../typechain-types/MINTABLE_TOKEN";
 
-describe("NFT", function () {
+describe.only("NFT", function () {
     let feePool: FeePool;
     let nft: NFT;
     let e: ENERGON;
@@ -14,8 +15,7 @@ describe("NFT", function () {
     let user2: SignerWithAddress;
     let notifier: SignerWithAddress;
     let accts: SignerWithAddress[];
-    let rewardToken: TOKEN;
-    let tokenDec: BigNumber;
+    let rewardToken: MINTABLE_TOKEN;
     const maxSupply = 10;
     const treasuryEditionSupply = 5;
     const baseURI = "ipfs://abc/";
@@ -27,9 +27,8 @@ describe("NFT", function () {
         notifier = accts[3];
 
         let supply = toBN("500000000000000000000000000");
-        let TOKEN = await ethers.getContractFactory("TOKEN");
-        rewardToken = (await TOKEN.deploy("REWARD_TOKEN", "REWARD_TOKEN", supply, 18)) as TOKEN;
-        tokenDec = toBN(10).pow(18);
+        let TOKEN = await ethers.getContractFactory("MINTABLE_TOKEN");
+        rewardToken = (await TOKEN.deploy("REWARD_TOKEN", "REWARD_TOKEN", supply, 18)) as MINTABLE_TOKEN;
 
         let supply2 = toBN("1000000000000000000000000");
         let ENERGON = await ethers.getContractFactory("ENERGON");

@@ -2,7 +2,7 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
 import {BigNumber} from "ethers";
 import {ethers} from "hardhat";
-import {BadgeManager, ENERGON, FeePool, NFT, TOKEN, TokenPool} from "../typechain-types";
+import {BadgeManager, ENERGON, FeePool, MINTABLE_TOKEN, NFT, TokenPool} from "../typechain-types";
 import {advanceBlockTime, toBN} from "../utils/utils";
 
 describe("FeePool", function () {
@@ -14,10 +14,10 @@ describe("FeePool", function () {
     let user2: SignerWithAddress;
     let notifier: SignerWithAddress;
     let accts: SignerWithAddress[];
-    let stakingToken: TOKEN;
-    let rewardToken: TOKEN;
-    let feeToken: TOKEN;
-    let feeToken2: TOKEN;
+    let stakingToken: MINTABLE_TOKEN;
+    let rewardToken: MINTABLE_TOKEN;
+    let feeToken: MINTABLE_TOKEN;
+    let feeToken2: MINTABLE_TOKEN;
     let badgeMgr: BadgeManager;
     let tokenDec = toBN(10).pow(18);
     let nowTs: number;
@@ -32,11 +32,11 @@ describe("FeePool", function () {
         notifier = accts[3];
 
         let supply = toBN("500000000000000000000000000");
-        let tokenFac = await ethers.getContractFactory("TOKEN");
-        stakingToken = (await tokenFac.deploy("STAKE_TOKEN", "STAKE_TOKEN", supply, 18)) as TOKEN;
-        rewardToken = (await tokenFac.deploy("REWARD_TOKEN", "REWARD_TOKEN", supply, 18)) as TOKEN;
-        feeToken = (await tokenFac.deploy("FEE_TOKEN", "FEE_TOKEN", supply, 18)) as TOKEN;
-        feeToken2 = (await tokenFac.deploy("FEE_TOKEN_B", "FEE_TOKEN_B", supply, 18)) as TOKEN;
+        let tokenFac = await ethers.getContractFactory("MINTABLE_TOKEN");
+        stakingToken = (await tokenFac.deploy("STAKE_TOKEN", "STAKE_TOKEN", supply, 18)) as MINTABLE_TOKEN;
+        rewardToken = (await tokenFac.deploy("REWARD_TOKEN", "REWARD_TOKEN", supply, 18)) as MINTABLE_TOKEN;
+        feeToken = (await tokenFac.deploy("FEE_TOKEN", "FEE_TOKEN", supply, 18)) as MINTABLE_TOKEN;
+        feeToken2 = (await tokenFac.deploy("FEE_TOKEN_B", "FEE_TOKEN_B", supply, 18)) as MINTABLE_TOKEN;
         tokenDec = toBN(10).pow(18);
 
         let tokenPoolFac = await ethers.getContractFactory("TokenPool");

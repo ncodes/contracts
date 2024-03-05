@@ -361,7 +361,6 @@ export async function initCoreTestSuite() {
     await core.setDiscountForNFTHolder(nftDiscountBp);
     await core.setProtoFee(instantSwapFee, synthSwapFee, stableSwapFee, fixedSynthSwapFee, fixedNFTSwapFee, instantNFTSwapFee);
     await core.setInventor(inventor.address);
-    await token.addMinters([core.address]);
     await mc.updateWriter(core.address, true);
     await core.setAssetRegistry(assetReg.address);
     await core.setBadgeMgr(badgeMgr.address);
