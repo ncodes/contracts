@@ -4,7 +4,7 @@ import {ethers} from "hardhat";
 import {MultiBeneficiaryTimelockWallet, TOKEN, TimelockWallet} from "../../typechain-types";
 import {advanceBlockTime, powOf, toBN, toDec} from "../../utils/utils";
 
-describe.only("MultiBeneficiaryTimelockWallet", function () {
+describe("MultiBeneficiaryTimelockWallet", function () {
     let deployer: SignerWithAddress;
     let user2: SignerWithAddress;
     let user3: SignerWithAddress;
