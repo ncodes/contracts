@@ -444,17 +444,17 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         // Make sure ticket has not joined its assigned pool and bond is sufficient
         Structs.Ticket storage ticket = tickets[sender][ticketId];
         require(isApprovedMediator(ticket.poolId, sender), "MM: NOT_APPROVED");
-        require(!ticket.joined, "MM: ALREADY_JOINED");
+        require(!ticket.status.joined, "MM: ALREADY_JOINED");
         require(ticket.bond >= pools[ticket.poolId].reqBond, "MM: LOW_BOND");
 
         // Make sure ticket is not blocked, expired, cancelled or immature
-        require(!ticket.blocked, "MM: BLOCKED");
+        require(!ticket.status.blocked, "MM: BLOCKED");
         require(ticket.matureAt <= block.timestamp, "MM: NOT_MATURE");
         require(ticket.joinBy > block.timestamp, "MM: EXPIRED");
         require(ticket.cancelAt == 0, "MM: CANCELLED");
 
         // Lock ticket to pool
-        ticket.joined = true;
+        ticket.status.joined = true;
         ticket.joinBy = 0;
         ticket.poolIdx = int256(poolTickets[ticket.poolId].length);
         poolTickets[ticket.poolId].push(Structs.PoolTicket(ticket.owner, ticket.idx));
@@ -468,13 +468,13 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     function cancelTicket(uint256 id) external {
         require(ticketExist(msg.sender, id), "MM: UNKNOWN_TICKET");
         Structs.Ticket storage t = tickets[msg.sender][id];
-        require(!t.blocked, "MM: BLOCKED");
+        require(!t.status.blocked, "MM: BLOCKED");
         require(t.cancelAt == 0, "MM: CANCELLING");
         require(t.matureAt <= block.timestamp, "MM: NOT_MATURE");
-        require(!t.drafted, "MM: IS_DRAFTED");
+        require(!t.status.drafted, "MM: IS_DRAFTED");
 
-        if (t.joined) {
-            t.joined = false;
+        if (t.status.joined) {
+            t.status.joined = false;
             removeTicketFromPool(t);
         }
 
@@ -487,12 +487,12 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     function drainTicket(uint256 id) external nonReentrant {
         require(ticketExist(msg.sender, id), "MM: UNKNOWN_TICKET");
         Structs.Ticket storage t = tickets[msg.sender][id];
-        require(!t.blocked, "MM: BLOCKED");
+        require(!t.status.blocked, "MM: BLOCKED");
         require(t.cancelAt > 0 && t.cancelAt <= block.timestamp, "MM: NOT_CANCELLED");
 
         uint256 bond = t.bond;
         t.bond = 0;
-        t.joined = false;
+        t.status.joined = false;
         ticketSold--;
         IERC20(token).transfer(msg.sender, bond);
         emit TicketDrained(msg.sender, id, bond);
@@ -525,7 +525,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         uint256 randIdx = randomness.randomN(_poolTickets.length);
         Structs.PoolTicket storage ticket = _poolTickets[randIdx];
         Structs.Ticket storage t = tickets[ticket.owner][ticket.idx];
-        t.drafted = true;
+        t.status.drafted = true;
         emit Drafted(marketId, t.owner, ticket.idx, orderID, disputeID, tx.origin);
 
         // Remove the ticket from the pool so subsequent draft
@@ -543,7 +543,7 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     function undraft(address ticketOwner, uint256 ticketId, bool voted, bool winSide) external isDisputeMgr returns (uint256) {
         // Mark ticket as undrafted
         Structs.Ticket storage t = tickets[ticketOwner][ticketId];
-        t.drafted = false;
+        t.status.drafted = false;
         uint256 slashAmt;
 
         // If ticket did not vote, slash its bond
@@ -559,10 +559,10 @@ contract MediatorManager is Ownable, ReentrancyGuard {
             slashAmt = t.bond < slashAmt ? t.bond : slashAmt;
             t.bond -= slashAmt;
             emit TicketSlashed(t.owner, t.idx, slashAmt, voted, winSide);
-            t.joined = false;
+            t.status.joined = false;
             t.cancelAt = block.timestamp;
-            t.paused = false;
-            t.slashed = true;
+            t.status.paused = false;
+            t.status.slashed = true;
             IERC20(token).burn(slashAmt);
             return slashAmt;
         }
@@ -571,11 +571,11 @@ contract MediatorManager is Ownable, ReentrancyGuard {
         // - If it was not blocked
         // - If it is still approved to join the pool
         // - If it is not paused
-        if (!t.blocked && isApprovedMediator(t.poolId, t.owner) && !t.paused) {
+        if (!t.status.blocked && isApprovedMediator(t.poolId, t.owner) && !t.status.paused) {
             t.poolIdx = int256(poolTickets[t.poolId].length);
             poolTickets[t.poolId].push(Structs.PoolTicket(t.owner, t.idx));
         } else {
-            t.joined = false;
+            t.status.joined = false;
             t.cancelAt = block.timestamp;
         }
 
@@ -591,19 +591,19 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     function slash(address ticketOwner, uint256 ticketId, uint256 amount) external onlyOwner {
         require(ticketExist(ticketOwner, ticketId), "MM: UNKNOWN_TICKET");
         Structs.Ticket storage t = tickets[ticketOwner][ticketId];
-        require(t.joined || t.slashed, "MM: NOT_READY");
-        require(!t.drafted, "MM: IS_DRAFTED");
+        require(t.status.joined || t.status.slashed, "MM: NOT_READY");
+        require(!t.status.drafted, "MM: IS_DRAFTED");
 
         // Deduct the bond from the ticket
         if (t.bond < amount) amount = t.bond;
         t.bond -= amount;
 
         // If ticket is joined, remove it from the pool, mark it as cancelled and unblock it
-        if (t.joined) removeTicketFromPool(t);
-        t.joined = false;
+        if (t.status.joined) removeTicketFromPool(t);
+        t.status.joined = false;
         t.cancelAt = block.timestamp;
-        t.blocked = false;
-        t.slashed = true;
+        t.status.blocked = false;
+        t.status.slashed = true;
 
         // Burn the deducted amount
         IERC20(token).burn(amount);
@@ -617,8 +617,8 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     /// the pool when undrafted.
     function toggleBlock(address ticketOwner, uint256 ticketId) external onlyOwner {
         require(ticketExist(ticketOwner, ticketId), "MM: UNKNOWN_TICKET");
-        tickets[ticketOwner][ticketId].blocked = !tickets[ticketOwner][ticketId].blocked;
-        emit TicketBlocked(ticketOwner, ticketId, tickets[ticketOwner][ticketId].blocked);
+        tickets[ticketOwner][ticketId].status.blocked = !tickets[ticketOwner][ticketId].status.blocked;
+        emit TicketBlocked(ticketOwner, ticketId, tickets[ticketOwner][ticketId].status.blocked);
     }
 
     /// @notice Pause or unpause a ticket. Pausing is like cancelling a ticket but with the ability to
@@ -627,28 +627,28 @@ contract MediatorManager is Ownable, ReentrancyGuard {
     function togglePause(uint256 ticketId) external {
         require(ticketExist(msg.sender, ticketId), "MM: UNKNOWN_TICKET");
         Structs.Ticket storage t = tickets[msg.sender][ticketId];
-        require(!t.blocked, "MM: BLOCKED");
+        require(!t.status.blocked, "MM: BLOCKED");
         require(t.matureAt <= block.timestamp, "MM: NOT_MATURE");
         require(t.cancelAt == 0 || t.cancelAt > block.timestamp, "MM: CANCELLED");
 
-        t.paused = !t.paused;
+        t.status.paused = !t.status.paused;
 
-        if (t.paused) {
+        if (t.status.paused) {
             require(t.numPaused < maxPause, "MM: MAX_PAUSE_REACHED");
             removeTicketFromPool(t);
             t.cancelAt = block.timestamp + ticketPauseDur;
             t.numPaused++;
         } else {
             t.cancelAt = 0;
-            
-            // Add ticket back to pool if it is not currently drafted. 
+
+            // Add ticket back to pool if it is not currently drafted.
             // If it is drafted, it will be added back to the pool when undrafted.
-            if (!t.drafted) {
+            if (!t.status.drafted) {
                 t.poolIdx = int256(poolTickets[t.poolId].length);
                 poolTickets[t.poolId].push(Structs.PoolTicket(t.owner, t.idx));
             }
         }
 
-        emit TicketPaused(msg.sender, ticketId, t.paused, ticketPauseDur);
+        emit TicketPaused(msg.sender, ticketId, t.status.paused, ticketPauseDur);
     }
 }

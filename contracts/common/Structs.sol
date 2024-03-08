@@ -192,6 +192,14 @@ library Structs {
         uint256 matureAt;
     }
 
+    struct TicketStatus {
+        bool drafted;
+        bool joined;
+        bool blocked;
+        bool slashed;
+        bool paused;
+    }
+
     struct Ticket {
         uint256 idx;
         uint256 poolId;
@@ -202,11 +210,7 @@ library Structs {
         uint256 joinBy;
         uint256 numPaused;
         address owner;
-        bool drafted;
-        bool joined;
-        bool blocked;
-        bool slashed;
-        bool paused;
+        TicketStatus status;
     }
 
     struct TicketPool {

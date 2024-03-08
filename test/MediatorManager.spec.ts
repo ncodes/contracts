@@ -522,12 +522,12 @@ describe("MediatorManager", function () {
                 await advanceBlockTime(ticketMatureDur);
                 await c.join(0);
                 let ticket = await c.tickets(deployer.address, 0);
-                expect(ticket.joined).to.be.true;
+                expect(ticket.status.joined).to.be.true;
                 await expect(c.poolTickets(0, 0)).not.to.be.reverted;
                 await c.cancelTicket(0);
                 await expect(c.poolTickets(0, 0)).to.be.reverted;
                 ticket = await c.tickets(deployer.address, 0);
-                expect(ticket.joined).to.be.false;
+                expect(ticket.status.joined).to.be.false;
             });
         });
 
@@ -537,12 +537,12 @@ describe("MediatorManager", function () {
                 await c.purchaseTicket(0);
                 await advanceBlockTime(ticketMatureDur);
                 let ticket = await c.tickets(deployer.address, 0);
-                expect(ticket.joined).to.be.false;
+                expect(ticket.status.joined).to.be.false;
                 await expect(c.poolTickets(0, 0)).to.be.reverted;
 
                 await c.cancelTicket(0);
                 ticket = await c.tickets(deployer.address, 0);
-                expect(ticket.joined).to.be.false;
+                expect(ticket.status.joined).to.be.false;
                 expect(ticket.cancelAt.isZero()).to.be.false;
             });
         });
@@ -559,14 +559,14 @@ describe("MediatorManager", function () {
                 await advanceBlockTime(ticketMatureDur);
                 await c.join(0);
                 let ticket = await c.tickets(deployer.address, 0);
-                expect(ticket.joined).to.be.true;
+                expect(ticket.status.joined).to.be.true;
                 await expect(c.poolTickets(0, 0)).not.to.be.reverted;
 
                 // Draft
                 await randomness.mock.randomN.returns(0);
                 await expect(c.draft(mid, 0, 0)).to.emit(c, "Drafted");
                 ticket = await c.tickets(deployer.address, 0);
-                expect(ticket.drafted).to.be.true;
+                expect(ticket.status.drafted).to.be.true;
 
                 await expect(c.cancelTicket(0)).to.be.revertedWith("MM: IS_DRAFTED");
             });
@@ -614,10 +614,10 @@ describe("MediatorManager", function () {
             await c.join(0);
             await expect(c.togglePause(0)).to.emit(c, "TicketPaused").withArgs(deployer.address, 0, true, ticketPauseDur);
             let ticket = await c.tickets(deployer.address, 0);
-            expect(ticket.paused).to.be.true;
+            expect(ticket.status.paused).to.be.true;
             await expect(c.togglePause(0)).to.emit(c, "TicketPaused").withArgs(deployer.address, 0, false, ticketPauseDur);
             ticket = await c.tickets(deployer.address, 0);
-            expect(ticket.paused).to.be.false;
+            expect(ticket.status.paused).to.be.false;
             await expect(c.togglePause(0)).to.be.revertedWith("MM: MAX_PAUSE_REACHED");
         });
 
@@ -630,7 +630,7 @@ describe("MediatorManager", function () {
             await c.join(0);
             await c.togglePause(0);
             let ticket = await c.tickets(deployer.address, 0);
-            expect(ticket.paused).to.be.true;
+            expect(ticket.status.paused).to.be.true;
             expect(ticket.cancelAt.isZero()).to.be.false;
             expect(ticket.numPaused.toNumber()).to.eql(1);
             await expect(c.poolTickets(0, 0)).to.be.reverted;
@@ -644,11 +644,11 @@ describe("MediatorManager", function () {
                 await c.join(0);
                 await c.togglePause(0);
                 let ticket = await c.tickets(deployer.address, 0);
-                expect(ticket.paused).to.be.true;
+                expect(ticket.status.paused).to.be.true;
 
                 await c.togglePause(0);
                 ticket = await c.tickets(deployer.address, 0);
-                expect(ticket.paused).to.be.false;
+                expect(ticket.status.paused).to.be.false;
 
                 expect(ticket.cancelAt.isZero()).to.be.true;
                 expect(ticket.numPaused.toNumber()).to.eql(1);
@@ -672,14 +672,14 @@ describe("MediatorManager", function () {
                 // pause drafted ticket
                 await c.togglePause(0);
                 let ticket = await c.tickets(deployer.address, 0);
-                expect(ticket.paused).to.be.true;
+                expect(ticket.status.paused).to.be.true;
                 ticket = await c.tickets(deployer.address, 0);
-                expect(ticket.drafted).to.be.true;
+                expect(ticket.status.drafted).to.be.true;
 
                 // unpause drafted ticket
                 await c.togglePause(0);
                 ticket = await c.tickets(deployer.address, 0);
-                expect(ticket.paused).to.be.false;
+                expect(ticket.status.paused).to.be.false;
 
                 // unpausing a drafted ticket should not add the ticket pack to the pool
                 expect(ticket.cancelAt.isZero()).to.be.true;
@@ -807,7 +807,7 @@ describe("MediatorManager", function () {
                         .to.emit(c, "Drafted")
                         .withArgs(getAddress(mid), mediator.address, toBN(0), toBN(0), toBN(0), deployer.address);
                     const ticket2 = await c.tickets(mediator.address, 0);
-                    expect(ticket2.drafted).to.be.true;
+                    expect(ticket2.status.drafted).to.be.true;
 
                     // draft again
                     await randomness.mock.randomN.returns(0);
@@ -815,7 +815,7 @@ describe("MediatorManager", function () {
                         .to.emit(c, "Drafted")
                         .withArgs(getAddress(mid), deployer.address, toBN(0), toBN(0), toBN(0), deployer.address);
                     const ticket1 = await c.tickets(deployer.address, 0);
-                    expect(ticket1.drafted).to.be.true;
+                    expect(ticket1.status.drafted).to.be.true;
 
                     // should remove ticket from pool ticket list
                     await expect(c.poolTickets(0, 0)).to.be.reverted;
@@ -849,7 +849,7 @@ describe("MediatorManager", function () {
 
             it("should be un-drafted", async () => {
                 const ticket = await c.tickets(deployer.address, 0);
-                expect(ticket.drafted).to.be.false;
+                expect(ticket.status.drafted).to.be.false;
             });
 
             it("should be added back to the pool", async () => {
@@ -874,14 +874,14 @@ describe("MediatorManager", function () {
 
             it("should be un-drafted", async () => {
                 const ticket = await c.tickets(deployer.address, 0);
-                expect(ticket.drafted).to.be.false;
+                expect(ticket.status.drafted).to.be.false;
             });
 
             it("should not be added back to the pool", async () => {
                 const ticket = await c.tickets(deployer.address, 0);
                 await expect(c.poolTickets(0, ticket.poolIdx)).to.be.reverted;
                 expect(ticket.poolIdx).to.eq(-1);
-                expect(ticket.joined).to.be.false;
+                expect(ticket.status.joined).to.be.false;
                 expect(ticket.cancelAt.isZero()).to.be.false;
             });
         });
@@ -904,7 +904,7 @@ describe("MediatorManager", function () {
                 const ticket = await c.tickets(deployer.address, 0);
                 await expect(c.poolTickets(0, ticket.poolIdx)).to.be.reverted;
                 expect(ticket.poolIdx).to.eq(-1);
-                expect(ticket.joined).to.be.false;
+                expect(ticket.status.joined).to.be.false;
                 expect(ticket.cancelAt.isZero()).to.be.false;
             });
         });
@@ -928,7 +928,7 @@ describe("MediatorManager", function () {
                 const ticket = await c.tickets(deployer.address, 0);
                 await expect(c.poolTickets(0, ticket.poolIdx)).to.be.reverted;
                 expect(ticket.poolIdx).to.eq(-1);
-                expect(ticket.joined).to.be.false;
+                expect(ticket.status.joined).to.be.false;
                 expect(ticket.cancelAt.isZero()).to.be.false;
             });
         });
@@ -949,7 +949,7 @@ describe("MediatorManager", function () {
 
             it("should be un-drafted", async () => {
                 const ticket = await c.tickets(deployer.address, 0);
-                expect(ticket.drafted).to.be.false;
+                expect(ticket.status.drafted).to.be.false;
             });
 
             it("should slash ticket bond", async () => {
@@ -961,11 +961,11 @@ describe("MediatorManager", function () {
                 const ticket = await c.tickets(deployer.address, 0);
                 let now = await advanceBlockTime(1);
                 expect(ticket.cancelAt.eq(now - 1)).to.be.true;
-                expect(ticket.joined).to.be.false;
+                expect(ticket.status.joined).to.be.false;
                 expect(ticket.poolIdx).to.eq(-1);
                 expect(ticket.joinBy.isZero()).to.be.true;
-                expect(ticket.paused).to.be.false;
-                expect(ticket.slashed).to.be.true;
+                expect(ticket.status.paused).to.be.false;
+                expect(ticket.status.slashed).to.be.true;
             });
 
             // should not be able to join the pool again
@@ -1013,7 +1013,7 @@ describe("MediatorManager", function () {
 
             it("should be un-drafted", async () => {
                 const ticket = await c.tickets(deployer.address, 0);
-                expect(ticket.drafted).to.be.false;
+                expect(ticket.status.drafted).to.be.false;
             });
 
             it("should slash ticket bond", async () => {
@@ -1025,7 +1025,7 @@ describe("MediatorManager", function () {
                 const ticket = await c.tickets(deployer.address, 0);
                 let now = await advanceBlockTime(1);
                 expect(ticket.cancelAt.eq(now - 1)).to.be.true;
-                expect(ticket.joined).to.be.false;
+                expect(ticket.status.joined).to.be.false;
                 expect(ticket.poolIdx).to.eq(-1);
                 expect(ticket.joinBy.isZero()).to.be.true;
             });
@@ -1103,10 +1103,10 @@ describe("MediatorManager", function () {
 
             const ticket = await c.tickets(deployer.address, 0);
             expect(ticket.bond.eq(totalBond - 10)).to.be.true;
-            expect(ticket.joined).to.be.false;
+            expect(ticket.status.joined).to.be.false;
             expect(ticket.poolIdx).to.eq(-1);
             expect(ticket.cancelAt.isZero()).to.be.false;
-            expect(ticket.blocked).to.be.false;
+            expect(ticket.status.blocked).to.be.false;
             await expect(c.poolTickets(0, ticket.poolIdx)).to.be.reverted;
 
             expect(await token.balanceOf(c.address)).to.eq(curBal.sub(10));
@@ -1123,7 +1123,7 @@ describe("MediatorManager", function () {
             await expect(c.draft(mid, 0, 0)).not.to.be.reverted;
             await expect(c.undraft(deployer.address, 0, false, false)).to.emit(c, "TicketSlashed");
             let ticket = await c.tickets(deployer.address, 0);
-            expect(ticket.slashed).to.be.true;
+            expect(ticket.status.slashed).to.be.true;
             const ticketBondAfterSlash = ticket.bond;
             await expect(c.poolTickets(0, ticket.poolIdx)).to.be.reverted;
 
@@ -1134,12 +1134,12 @@ describe("MediatorManager", function () {
                 .withArgs(deployer.address, toBN(0), toBN(10));
 
             ticket = await c.tickets(deployer.address, 0);
-            expect(ticket.slashed).to.be.true;
+            expect(ticket.status.slashed).to.be.true;
             expect(ticket.bond.eq(ticketBondAfterSlash.sub(10))).to.be.true;
-            expect(ticket.joined).to.be.false;
+            expect(ticket.status.joined).to.be.false;
             expect(ticket.poolIdx).to.eq(-1);
             expect(ticket.cancelAt.isZero()).to.be.false;
-            expect(ticket.blocked).to.be.false;
+            expect(ticket.status.blocked).to.be.false;
             await expect(c.poolTickets(0, ticket.poolIdx)).to.be.reverted;
 
             expect(await token.balanceOf(c.address)).to.eq(curBal.sub(10));
@@ -1157,12 +1157,12 @@ describe("MediatorManager", function () {
             await expect(c.slash(deployer.address, 0, 10)).to.emit(c, "TicketSlashedByOwner");
 
             const ticket = await c.tickets(deployer.address, 0);
-            expect(ticket.slashed).to.be.true;
+            expect(ticket.status.slashed).to.be.true;
             expect(ticket.bond.eq(totalBond - 10)).to.be.true;
-            expect(ticket.joined).to.be.false;
+            expect(ticket.status.joined).to.be.false;
             expect(ticket.poolIdx).to.eq(-1);
             expect(ticket.cancelAt.isZero()).to.be.false;
-            expect(ticket.blocked).to.be.false;
+            expect(ticket.status.blocked).to.be.false;
             await expect(c.poolTickets(0, ticket.poolIdx)).to.be.reverted;
         });
     });
@@ -1186,12 +1186,12 @@ describe("MediatorManager", function () {
             // block ticket
             await expect(c.toggleBlock(deployer.address, 0)).to.emit(c, "TicketBlocked").withArgs(deployer.address, 0, true);
             let ticket = await c.tickets(deployer.address, 0);
-            expect(ticket.blocked).to.be.true;
+            expect(ticket.status.blocked).to.be.true;
 
             // unblock ticket
             await expect(c.toggleBlock(deployer.address, 0)).to.emit(c, "TicketBlocked").withArgs(deployer.address, 0, false);
             ticket = await c.tickets(deployer.address, 0);
-            expect(ticket.blocked).to.be.false;
+            expect(ticket.status.blocked).to.be.false;
         });
     });
 });

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-import "../common/Writable.sol";
 import "../common/Ownable.sol";
 import "../common/Structs.sol";
 import "./StructsLib.sol";
@@ -774,7 +773,9 @@ contract Core is Ownable, ERC1155Holder {
         uint256 deadline,
         uint256 operator
     ) public {
-        OfferLib.createOffer(state, state2, marketId, provider, recipient, lid, amount, price, ids, deadline, operator);
+        OfferLib.CreateOfferAddressParams memory offerAddrs = OfferLib.CreateOfferAddressParams(marketId, provider, recipient);
+        OfferLib.CreateOfferIntParams memory offerInts = OfferLib.CreateOfferIntParams(lid, amount, price, deadline, operator);
+        OfferLib.createOffer(state, state2, offerAddrs, offerInts, ids);
     }
 
     /// @notice Create an offer

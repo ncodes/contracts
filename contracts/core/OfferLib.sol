@@ -38,36 +38,48 @@ library OfferLib {
     event OfferCancelled(uint256 indexed offerId, address indexed canceller);
     event OfferExecuted(uint256 indexed offerId, address indexed executor);
 
-    struct CheckOfferSlot {
+    struct CheckOfferAddresses {
         address marketId;
         address provider;
         address recipient;
+    }
+
+    struct CheckOfferIntSlots {
         uint256 lid;
         uint256 amount;
         uint256 price;
-        uint256[] ids;
         uint256 deadline;
         uint256 offerId;
         uint256 operator;
+    }
+
+    struct CheckOfferSlot {
+        CheckOfferAddresses addrs;
+        uint256[] ids;
+        CheckOfferIntSlots ints;
     }
 
     /// @dev Check offer parameters
     /// @param s1 Storage struct.
     /// @param s2 Storage struct 2.
     /// @param slot The parameters needed to check the offer.
-    function checkOffer(StructsLib.State storage s1, StructsLib.State2 storage s2, CheckOfferSlot memory slot) internal view {
-        require(AuxLib.hasNonZeroLiquidity(s1, slot.marketId, slot.provider, slot.lid), "OC: ZERO_LIQ");
-        require(slot.deadline > block.timestamp, "OC: PAST_DEADLINE");
-        Structs.Liquidity storage liq = s1.liquidity[slot.marketId][slot.provider][slot.lid];
-        Structs.Market memory mkt = s2.marketCore.getMarket(slot.marketId);
-        StructsLib.SwapSlotAddresses memory addrs = StructsLib.SwapSlotAddresses(slot.marketId, slot.provider, slot.recipient);
+    function checkOffer(StructsLib.State storage s1, StructsLib.State2 storage s2, CheckOfferSlot memory slot) public view {
+        require(AuxLib.hasNonZeroLiquidity(s1, slot.addrs.marketId, slot.addrs.provider, slot.ints.lid), "OC: ZERO_LIQ");
+        require(slot.ints.deadline > block.timestamp, "OC: PAST_DEADLINE");
+        Structs.Liquidity storage liq = s1.liquidity[slot.addrs.marketId][slot.addrs.provider][slot.ints.lid];
+        Structs.Market memory mkt = s2.marketCore.getMarket(slot.addrs.marketId);
+        StructsLib.SwapSlotAddresses memory addrs = StructsLib.SwapSlotAddresses(
+            slot.addrs.marketId,
+            slot.addrs.provider,
+            slot.addrs.recipient
+        );
         StructsLib.SwapSlot memory ss = StructsLib.SwapSlot(
-            slot.lid,
-            slot.amount,
-            slot.price,
+            slot.ints.lid,
+            slot.ints.amount,
+            slot.ints.price,
             slot.ids,
-            slot.offerId,
-            slot.operator,
+            slot.ints.offerId,
+            slot.ints.operator,
             addrs
         );
 
@@ -76,7 +88,7 @@ library OfferLib {
 
         // Ensure sender has enough quote token to make offer
         if (mkt.quote.isERC20()) {
-            uint256 cost = (slot.amount * slot.price) / 10 ** IERC20(mkt.quote.addr).decimals();
+            uint256 cost = (slot.ints.amount * slot.ints.price) / 10 ** IERC20(mkt.quote.addr).decimals();
             require(IERC20(mkt.quote.addr).balanceOf(msg.sender) >= cost, "OC: LOW_BAL");
         }
 
@@ -90,69 +102,73 @@ library OfferLib {
         }
     }
 
+    struct CreateOfferAddressParams {
+        address marketId;
+        address provider;
+        address recipient;
+    }
+
+    struct CreateOfferIntParams {
+        uint256 lid;
+        uint256 amount;
+        uint256 price;
+        uint256 expireDur;
+        uint256 operator;
+    }
+
     /// @dev Create an offer
     /// @param s1 Storage struct.
     /// @param s2 Storage struct 2.
-    /// @param marketId The market ID
-    /// @param provider The liquidity provider
-    /// @param recipient The recipient of the liquidity
-    /// @param lid The liquidity ID
-    /// @param amount The amount of liquidity to offer
-    /// @param price The price of the liquidity
-    /// @param ids The IDs of the NFTs to offer if quote is NFT
-    /// @param expireDur The duration of the offer
-    /// @param operator The ID of the operator that pushed the offer
     function createOffer(
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
-        address marketId,
-        address provider,
-        address recipient,
-        uint256 lid,
-        uint256 amount,
-        uint256 price,
-        uint256[] memory ids,
-        uint256 expireDur,
-        uint256 operator
+        CreateOfferAddressParams memory offerAddrs,
+        CreateOfferIntParams memory offerInts,
+        uint256[] memory ids
     ) public returns (uint256) {
-        checkOffer(
-            s1,
-            s2,
-            CheckOfferSlot(
-                marketId,
-                provider,
-                recipient,
-                lid,
-                amount,
-                price,
-                ids,
-                block.timestamp + expireDur,
-                s2.offers.length + 1,
-                operator
-            )
+        CheckOfferAddresses memory addrs = CheckOfferAddresses(offerAddrs.marketId, offerAddrs.provider, offerAddrs.recipient);
+        CheckOfferIntSlots memory ints = CheckOfferIntSlots(
+            offerInts.lid,
+            offerInts.amount,
+            offerInts.price,
+            block.timestamp + offerInts.expireDur,
+            s2.offers.length + 1,
+            offerInts.operator
         );
+        CheckOfferSlot memory slot = CheckOfferSlot(addrs, ids, ints);
+        checkOffer(s1, s2, slot);
 
         s2.offers.push(
             Structs.Offer(
                 msg.sender,
-                marketId,
-                provider,
-                recipient,
-                lid,
-                amount,
-                price,
+                offerAddrs.marketId,
+                offerAddrs.provider,
+                offerAddrs.recipient,
+                offerInts.lid,
+                offerInts.amount,
+                offerInts.price,
                 ids,
                 0,
-                block.timestamp + expireDur,
+                block.timestamp + offerInts.expireDur,
                 0,
-                operator,
+                offerInts.operator,
                 false,
                 false,
                 false
             )
         );
 
-        emit NewOffer(marketId, provider, lid, msg.sender, s2.offers.length, amount, price, ids, expireDur);
+        emit NewOffer(
+            offerAddrs.marketId,
+            offerAddrs.provider,
+            offerInts.lid,
+            msg.sender,
+            s2.offers.length,
+            offerInts.amount,
+            offerInts.price,
+            ids,
+            offerInts.expireDur
+        );
 
         return s2.offers.length;
     }
@@ -181,22 +197,17 @@ library OfferLib {
         require(!offer.cancelled, "OC: OFFER_CANCELLED");
         require(!offer.executed, "OC: OFFER_EXECUTED");
         uint256 deadline = (expireDur == 0) ? offer.deadline : block.timestamp + expireDur;
+
         checkOffer(
             s1,
             s2,
             CheckOfferSlot(
-                offer.marketId,
-                offer.provider,
-                offer.recipient,
-                offer.lid,
-                amount,
-                price,
+                CheckOfferAddresses(offer.marketId, offer.provider, offer.recipient),
                 ids,
-                deadline,
-                offerId + 1,
-                offer.operator
+                CheckOfferIntSlots(offer.lid, amount, price, deadline, offerId + 1, offer.operator)
             )
         );
+
         offer.amount = amount;
         offer.price = price;
         offer.ids = ids;

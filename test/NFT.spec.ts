@@ -7,7 +7,7 @@ import {ENERGON, FeePool, NFT} from "../typechain-types";
 import {advanceBlockTime, toBN} from "../utils/utils";
 import {MINTABLE_TOKEN} from "./../typechain-types/MINTABLE_TOKEN";
 
-describe.only("NFT", function () {
+describe("NFT", function () {
     let feePool: FeePool;
     let nft: NFT;
     let e: ENERGON;
