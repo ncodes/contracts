@@ -73,24 +73,26 @@ let deployed: Deployments = {
 };
 
 async function deployMainnet() {
-    await deployBadgeManager();
-    await deployP2PToken();
+    // await deployBadgeManager();
+    await deployP2PToken("P2P Test Token", "tP2P");
     await deployMarketCore();
     await deployCore();
     await deployAssetRegistry();
     await deployOperatorManager();
     await deployFeePurse();
-    await deployRandomness();
+    // await deployRandomness();
     await deployDummyRandomness();
     await deployMediatorManager();
     await deployDisputeManager();
-    await deployWrappedETH();
-    await deployNFT();
+    // await deployWrappedETH();
+    // await deployNFT();
     // await deployTokenPoolAndFeePool();
     // await deployLPPool();
 }
 
 async function deployLocal() {
+    await deployFakeUSDTToken();
+    return;
     await deployBadgeManager();
     await deployP2PToken();
     await deployMarketCore();
@@ -124,7 +126,7 @@ async function main() {
 async function deployBadgeManager() {
     await deployOrAttach<BadgeManager>("BadgeManager", undefined, [], async (contract, attached) => {
         badgeMgr = contract;
-        if (attached) return;
+        // if (attached) return;
 
         await runStep(1, "Create `instruction` badge issuer", async () => {
             try {
@@ -179,15 +181,14 @@ async function deployBadgeManager() {
     });
 }
 
-async function deployP2PToken() {
-    await deployOrAttach<TOKEN>(
-        "TOKEN",
-        undefined,
-        ["P2P Test Token", "P2P", "1000000000000000000000000000", 18],
-        async (contract) => {
-            p2p = contract;
-        },
-    );
+async function deployP2PToken(name = "P2P Test Token", symbol = "P2P", supply = "1000000000000000000000000000") {
+    await deployOrAttach<TOKEN>("TOKEN", undefined, [name, symbol, supply, 18], async (contract) => {
+        p2p = contract;
+    });
+}
+
+async function deployFakeUSDTToken(name = "Fake USDT2", symbol = "USDT2", supply = "10000000000000") {
+    await deployOrAttach<TOKEN>("TOKEN", undefined, [name, symbol, supply, 6], async (contract) => {});
 }
 
 async function deployWrappedETH() {
@@ -593,7 +594,7 @@ async function callNoThrow<T extends Contract>(c: T, signer: Signer | string, fu
 async function runStep(step: number | undefined, msg: string, f: () => Promise<void>) {
     if (process.env.STEP && step && step !== parseInt(process.env.STEP)) return;
     console.log("  *", msg);
-    await f();
+    return f();
 }
 
 function loadLatestDeployments() {

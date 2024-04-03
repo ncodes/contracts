@@ -51,6 +51,14 @@ module.exports = {
             //     type: 2,
             // },
         },
+        "arbitrum-sepolia": {
+            url: "https://sepolia-rollup.arbitrum.io/rpc",
+            accounts: deployKey ? [process.env.DEPLOY_KEY] : undefined,
+        },
+        arbitrum: {
+            url: "https://arb1.arbitrum.io/rpc",
+            accounts: deployKey ? [process.env.DEPLOY_KEY] : undefined,
+        },
     },
     etherscan: {
         apiKey: process.env.ETHERSCAN_API_KEY,

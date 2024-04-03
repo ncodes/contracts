@@ -11,6 +11,7 @@ import "./OrderLib.sol";
 import {IERC1155Strip} from "../common/StrippedInterfaces.sol";
 import "./LiquidityLib.sol";
 import "./FeeLib.sol";
+import "hardhat/console.sol";
 
 library SwapFungibleLib {
     using SafeERC20 for IERC20;
@@ -90,7 +91,8 @@ library SwapFungibleLib {
         uint256 price = (sp.offerId > 0) ? sp.maxPrice : liq.price;
 
         // Compute cost of swapping for base. Ensure swapper's quote balance is sufficient.
-        uint256 cost = (sp.amount * price) / 10 ** IERC20(mkt.quote.addr).decimals();
+        // uint baseDecimals = (mkt.base.isERC20()) ? IERC20(mkt.base.addr).decimals() : 18;
+        uint256 cost = (sp.amount * price) / 10 ** ((mkt.base.isERC20()) ? IERC20(mkt.base.addr).decimals() : 18);
         require(!mkt.quote.isERC20() || IERC20(mkt.quote.addr).balanceOf(msg.sender) >= cost, "OC: LOW_QUOTE_BAL");
         require(!mkt.quote.isNative() || msg.value >= cost, "OC: LOW_QUOTE_BAL");
 

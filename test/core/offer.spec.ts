@@ -2,9 +2,11 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
 import {BigNumber, BigNumberish} from "ethers";
 import {getAddress} from "ethers/lib/utils";
-import {AssetRegistry, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MediatorManager, NFT, TOKEN} from "../../typechain-types";
-import {AddressZero, AssetType, advanceBlockTime, makeMarketID, now, pow10, toBN} from "../../utils/utils";
+import {ethers} from "hardhat";
+import {Core, ERC1155T, ERC721T, MarketCore, MediatorManager, TOKEN} from "../../typechain-types";
+import {AddressZero, AssetType, advanceBlockTime, makeMarketID, now, pow10, powOf, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
+const getContractFactory = ethers.getContractFactory;
 
 describe("Core - Offer", function () {
     let baseAddr: string;
@@ -14,33 +16,16 @@ describe("Core - Offer", function () {
     let mc: MarketCore;
     let testERC721: ERC721T;
     let testERC1155: ERC1155T;
-    let assetReg: AssetRegistry;
     let deployer: SignerWithAddress;
     let user5: SignerWithAddress;
     let cAddr: string;
     let baseAsset: TOKEN;
     let quoteAsset: TOKEN;
-    let token: TOKEN;
     let mid: string;
-    let tokenDec: BigNumber;
     let baseDec: BigNumber;
     let quoteDec: BigNumber;
-    let minTimeToPay: number;
-    let orderGracePeriod: number;
-    let orderLifeTime: number;
-    let maxSupply = 3;
-    let hiddenURI: string;
-    let baseURI: string;
     let amountOfBase: BigNumber;
     let pricePerBase: BigNumber;
-    let instantNFTSwapFee: BigNumberish;
-    let feePurse: FeePurse;
-    let fixedSynthSwapFee: BigNumberish;
-    let fixedNFTSwapFee: BigNumberish;
-    let nft: NFT;
-    let nftDiscountBp: BigNumber;
-    let fixedFee: BigNumber;
-    let curRate: BigNumber;
     let deadline = 0;
 
     let marketCreator: SignerWithAddress, provider: SignerWithAddress, swapper: SignerWithAddress, marketCreator2: SignerWithAddress, inventor: SignerWithAddress;
@@ -51,30 +36,19 @@ describe("Core - Offer", function () {
         quoteAddr = vars.quoteAddr;
         core = vars.core;
         mc = vars.mc;
-        nft = vars.nft;
         testERC721 = vars.testERC721;
         testERC1155 = vars.testERC1155;
-        feePurse = vars.feePurse;
         medMgr = vars.mediatorMgr;
-        assetReg = vars.assetReg;
         deployer = vars.deployer;
         user5 = vars.user5;
         cAddr = vars.cAddr;
         baseAsset = vars.baseAsset;
         quoteAsset = vars.quoteAsset;
         mid = vars.mid;
-        tokenDec = vars.tokenDec;
         baseDec = vars.baseDec;
         quoteDec = vars.quoteDec;
-        minTimeToPay = vars.minTimeToPay;
-        orderGracePeriod = vars.orderGracePeriod;
-        orderLifeTime = vars.orderLifeTime;
-        maxSupply = vars.maxSupply;
-        hiddenURI = vars.hiddenURI;
-        baseURI = vars.baseURI;
         amountOfBase = vars.amountOfBase;
         pricePerBase = vars.pricePerBase;
-        instantNFTSwapFee = vars.instantNFTSwapFee;
         deployer = vars.deployer;
         marketCreator = vars.marketCreator;
         provider = vars.provider;
@@ -82,13 +56,7 @@ describe("Core - Offer", function () {
         marketCreator2 = vars.marketCreator2;
         inventor = vars.inventor;
         user5 = vars.user5;
-        fixedSynthSwapFee = vars.fixedSynthSwapFee;
-        token = vars.token;
-        nftDiscountBp = vars.nftDiscountBp;
-        fixedNFTSwapFee = vars.fixedNFTSwapFee;
 
-        fixedFee = toBN("100000000000000000"); // 0.1
-        curRate = toBN("100000000000000000"); // 0.1
         deadline = now() + 100;
 
         await medMgr.updateTicketPool(0, vars.ticketBondAmt, 10, 10, 100, 100, 1, 0, 0, false, false);
@@ -133,7 +101,7 @@ describe("Core - Offer", function () {
             await expect(core.createOffer(mid, provider.address, AddressZero, 0, amountOfBase, 1, [], 0, 0)).to.be.revertedWith("OC: PAST_DEADLINE");
         });
 
-        context("base = ERC20/SYNTH and quote = ERC20/SYNTH", () => {
+        context("base = ERC20/SYNTH/NATIVE and quote = ERC20/SYNTH/NATIVE", () => {
             function test() {
                 it("should revert with msg=AMOUNT_REQ when amount was not provided", async () => {
                     await provideLiquidity(provider, amountOfBase, pricePerBase);
@@ -194,6 +162,7 @@ describe("Core - Offer", function () {
                     deadline = (await advanceBlockTime(1)) + 20;
                     mid = await createMarket(marketCreator2, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
                 });
+
                 test();
 
                 context("sender has insufficient quote balance", () => {
@@ -209,7 +178,122 @@ describe("Core - Offer", function () {
                     deadline = (await advanceBlockTime(1)) + 20;
                     mid = await createMarket(marketCreator2, baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0, 0);
                 });
+
                 test();
+            });
+
+            context("base = ERC20 and quote = NATIVE", () => {
+                beforeEach(async () => {
+                    deadline = (await advanceBlockTime(1)) + 20;
+                    mid = await createMarket(marketCreator2, baseAddr, quoteAddr, AssetType.ERC20, AssetType.NATIVE, false, false, 0, 0);
+                });
+
+                it("should revert with msg=AMOUNT_REQ when amount was not provided", async () => {
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+                    await expect(core.createOffer(mid, provider.address, AddressZero, 0, 0, 0, [], deadline, 0)).to.be.revertedWith("OC: AMOUNT_REQ");
+                });
+
+                it("should revert with msg=MAX_PRICE_REQ when price was not provided", async () => {
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+                    await expect(core.createOffer(mid, provider.address, AddressZero, 0, amountOfBase, 0, [], deadline, 0)).to.be.revertedWith("OC: MAX_PRICE_REQ");
+                });
+
+                it("should revert with msg=LOW_BAL when sender has insufficient balance for offer cost", async () => {
+                    const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+                    const emptyWallet = ethers.Wallet.createRandom().connect(ethers.provider);
+                    await provider.sendTransaction({to: emptyWallet.address, value: powOf(1, 18)});
+                    await expect(core.connect(emptyWallet).createOffer(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], deadline, 0)).to.be.revertedWith("OC: LOW_BAL");
+                });
+
+                it("should be successful with enough balance to cover cost", async () => {
+                    const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+                    await expect(core.createOffer(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], deadline, 0)).not.to.be.reverted;
+                });
+            });
+
+            context("base = NATIVE and quote = NATIVE", () => {
+                beforeEach(async () => {
+                    deadline = (await advanceBlockTime(1)) + 20;
+                    mid = await createMarket(marketCreator2, baseAddr, quoteAddr, AssetType.NATIVE, AssetType.NATIVE, false, false, 0, 0);
+                });
+
+                it("should revert with msg=AMOUNT_REQ when amount was not provided", async () => {
+                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+                    await expect(core.createOffer(mid, provider.address, AddressZero, 0, 0, 0, [], deadline, 0)).to.be.revertedWith("OC: AMOUNT_REQ");
+                });
+
+                it("should revert with msg=MAX_PRICE_REQ when price was not provided", async () => {
+                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+                    await expect(core.createOffer(mid, provider.address, AddressZero, 0, amountOfBase, 0, [], deadline, 0)).to.be.revertedWith("OC: MAX_PRICE_REQ");
+                });
+
+                it("should revert with msg=LOW_BAL when sender has insufficient balance for offer cost", async () => {
+                    const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+                    const emptyWallet = ethers.Wallet.createRandom().connect(ethers.provider);
+                    await provider.sendTransaction({to: emptyWallet.address, value: powOf(1, 18)});
+                    await expect(core.connect(emptyWallet).createOffer(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], deadline, 0)).to.be.revertedWith("OC: LOW_BAL");
+                });
+
+                it("should be successful with enough balance to cover cost", async () => {
+                    const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+                    await expect(core.createOffer(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], deadline, 0)).not.to.be.reverted;
+                });
+            });
+
+            context("base = NATIVE and quote = ERC20", () => {
+                beforeEach(async () => {
+                    deadline = (await advanceBlockTime(1)) + 20;
+                    mid = await createMarket(marketCreator2, baseAddr, quoteAddr, AssetType.NATIVE, AssetType.ERC20, false, false, 0, 0);
+                });
+
+                it("should revert with msg=AMOUNT_REQ when amount was not provided", async () => {
+                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+                    await expect(core.createOffer(mid, provider.address, AddressZero, 0, 0, 0, [], deadline, 0)).to.be.revertedWith("OC: AMOUNT_REQ");
+                });
+
+                it("should revert with msg=MAX_PRICE_REQ when price was not provided", async () => {
+                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+                    await expect(core.createOffer(mid, provider.address, AddressZero, 0, amountOfBase, 0, [], deadline, 0)).to.be.revertedWith("OC: MAX_PRICE_REQ");
+                });
+
+                it("should revert with msg=LOW_BAL when sender has insufficient balance for offer cost", async () => {
+                    const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+                    await expect(core.connect(user5).createOffer(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], deadline, 0)).to.be.revertedWith("OC: LOW_BAL");
+                });
+
+                it("should be successful with enough balance to cover cost", async () => {
+                    const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+                    await expect(core.createOffer(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], deadline, 0)).not.to.be.reverted;
+                });
+            });
+
+            context("base = NATIVE and quote = SYNTH", () => {
+                beforeEach(async () => {
+                    deadline = (await advanceBlockTime(1)) + 20;
+                    mid = await createMarket(marketCreator2, baseAddr, quoteAddr, AssetType.NATIVE, AssetType.SYNTH, false, false, 0, 0);
+                });
+
+                it("should revert with msg=AMOUNT_REQ when amount was not provided", async () => {
+                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+                    await expect(core.createOffer(mid, provider.address, AddressZero, 0, 0, 0, [], deadline, 0)).to.be.revertedWith("OC: AMOUNT_REQ");
+                });
+
+                it("should revert with msg=MAX_PRICE_REQ when price was not provided", async () => {
+                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+                    await expect(core.createOffer(mid, provider.address, AddressZero, 0, amountOfBase, 0, [], deadline, 0)).to.be.revertedWith("OC: MAX_PRICE_REQ");
+                });
+
+                it("should not revert with msg=LOW_BAL since quote is a SYNTH", async () => {
+                    const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+                    await expect(core.connect(user5).createOffer(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], deadline, 0)).not.to.be.reverted;
+                });
             });
 
             context("base = SYNTH and quote = ERC20", () => {
@@ -217,6 +301,7 @@ describe("Core - Offer", function () {
                     deadline = (await advanceBlockTime(1)) + 20;
                     mid = await createMarket(marketCreator2, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.ERC20, false, false, 0, 0);
                 });
+
                 test();
             });
 
@@ -227,6 +312,102 @@ describe("Core - Offer", function () {
                     mid = await createMarket(marketCreator2, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.SYNTH, false, false, 0, 0);
                 });
                 test();
+            });
+
+            context("base = SYNTH and quote = NATIVE", () => {
+                beforeEach(async () => {
+                    deadline = (await advanceBlockTime(1)) + 20;
+                    mid = await createMarket(marketCreator2, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.NATIVE, false, false, 0, 0);
+                });
+
+                it("should revert with msg=AMOUNT_REQ when amount was not provided", async () => {
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+                    await expect(core.createOffer(mid, provider.address, AddressZero, 0, 0, 0, [], deadline, 0)).to.be.revertedWith("OC: AMOUNT_REQ");
+                });
+
+                it("should revert with msg=MAX_PRICE_REQ when price was not provided", async () => {
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+                    await expect(core.createOffer(mid, provider.address, AddressZero, 0, amountOfBase, 0, [], deadline, 0)).to.be.revertedWith("OC: MAX_PRICE_REQ");
+                });
+
+                it("should revert with msg=LOW_BAL when sender has insufficient balance for offer cost", async () => {
+                    const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+                    const emptyWallet = ethers.Wallet.createRandom().connect(ethers.provider);
+                    await provider.sendTransaction({to: emptyWallet.address, value: powOf(1, 18)});
+                    await expect(core.connect(emptyWallet).createOffer(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], deadline, 0)).to.be.revertedWith("OC: LOW_BAL");
+                });
+
+                it("should be successful with enough balance to cover cost", async () => {
+                    const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+                    await expect(core.createOffer(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], deadline, 0)).not.to.be.reverted;
+                });
+            });
+
+            context("quote asset has non-standard decimals", () => {
+                beforeEach(async () => {
+                    let tokenFactory = await getContractFactory("TOKEN");
+                    quoteAsset = (await tokenFactory.deploy("USDT", "USDT", "1000000000000", 6)) as TOKEN;
+                    quoteAddr = quoteAsset.address;
+                    quoteDec = toBN(10).pow(await quoteAsset.decimals());
+                    amountOfBase = baseDec.mul(100);
+                    pricePerBase = quoteDec.mul(10);
+
+                    mid = await createMarket(marketCreator2, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+                });
+
+                it("should revert with LOW_BAL when sender does not have sufficient balance for cost", async () => {
+                    const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+                    await expect(core.connect(user5).createOffer(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], deadline, 0)).to.revertedWith("OC: LOW_BAL");
+                });
+
+                it("should successfully create offer", async () => {
+                    const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+                    await expect(core.createOffer(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], deadline, 0))
+                        .to.emit(core, "NewOffer")
+                        .withArgs(getAddress(mid), provider.address, 0, deployer.address, 1, swapAmt, pricePerBase, [], deadline);
+                });
+            });
+        });
+
+        context("base = NATIVE and quote = NFT (ERC721)", () => {
+            let wantOrIds: BigNumber[] = [];
+
+            beforeEach(async () => {
+                mid = await createMarket(marketCreator2, baseAddr, testERC721.address, AssetType.NATIVE, AssetType.ERC721, false, false, 0, 0);
+                await testERC721.mint();
+                wantOrIds = [toBN(1)];
+            });
+
+            it("should revert with msg=AMOUNT_NREQ when amount was provided", async () => {
+                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+                await expect(core.createOffer(mid, provider.address, AddressZero, 0, 100, 0, [], deadline, 0)).to.be.revertedWith("OC: AMOUNT_NREQ");
+            });
+
+            it("should revert with msg=IDS_REQ when IDs were not provided", async () => {
+                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+                await expect(core.createOffer(mid, provider.address, AddressZero, 0, 0, 0, [], deadline, 0)).to.be.revertedWith("OC: IDS_REQ");
+            });
+
+            it("should revert with msg='NOT_TOK_OWNER' when token is not owned by swapper", async () => {
+                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+                await expect(core.connect(swapper).createOffer(mid, provider.address, AddressZero, 0, 0, 0, [toBN(1)], deadline, 0)).to.be.revertedWith("OC: NOT_TOK_OWNER");
+            });
+
+            it("should revert with msg='ERC721: invalid token ID' when token does not exist", async () => {
+                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+                await expect(core.connect(swapper).createOffer(mid, provider.address, AddressZero, 0, 0, 0, [toBN(2)], deadline, 0)).to.be.revertedWith("ERC721: invalid token ID");
+            });
+
+            it("should create offer successfully", async () => {
+                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+                await expect(core.createOffer(mid, provider.address, AddressZero, 0, 0, 0, [...wantOrIds], deadline, 0))
+                    .to.emit(core, "NewOffer")
+                    .withArgs(getAddress(mid), provider.address, 0, deployer.address, 1, toBN(0), toBN(0), [...wantOrIds], deadline);
             });
         });
 
@@ -370,6 +551,7 @@ describe("Core - Offer", function () {
                     await testERC721.setApprovalForAll(core.address, true);
                     ids = [toBN(1)];
                 });
+
                 test();
             });
 
@@ -382,6 +564,42 @@ describe("Core - Offer", function () {
                     ids = [toBN(1)];
                 });
                 test();
+            });
+
+            context("base = NFT and quote = NATIVE", () => {
+                beforeEach(async () => {
+                    deadline = (await advanceBlockTime(1)) + 20;
+                    await core.setProtoFee(0, 0, 0, 0, 0, 0);
+                    await testERC721.mint();
+                    await testERC721.setApprovalForAll(core.address, true);
+                    ids = [toBN(1)];
+                    baseAddr = testERC721.address;
+                    mid = await createMarket(marketCreator2, baseAddr, quoteAddr, AssetType.ERC721, AssetType.NATIVE, false, false, 0, 0);
+                });
+
+                it("should revert with msg=AMOUNT_NREQ when amount was provided", async () => {
+                    await expect(core.updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, 100, [], [], [0, 0, 0])).to.emit(core, "UpdatedNonFungibleLiquidity");
+                    await expect(core.createOffer(mid, deployer.address, AddressZero, 0, 100, 0, [], deadline, 0)).to.be.revertedWith("OC: AMOUNT_NREQ");
+                });
+
+                it("should revert with msg=MAX_PRICE_REQ when price was not provided", async () => {
+                    await expect(core.updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, 100, [], [], [0, 0, 0])).to.emit(core, "UpdatedNonFungibleLiquidity");
+                    await expect(core.createOffer(mid, deployer.address, AddressZero, 0, 0, 0, [], deadline, 0)).to.be.revertedWith("OC: MAX_PRICE_REQ");
+                });
+
+                it("should revert with msg=LOW_BAL when sender has insufficient balance to cover price", async () => {
+                    await expect(core.updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, 100, [], [], [0, 0, 0])).to.emit(core, "UpdatedNonFungibleLiquidity");
+                    const price = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                    const emptyWallet = ethers.Wallet.createRandom().connect(ethers.provider);
+                    await provider.sendTransaction({to: emptyWallet.address, value: powOf(1, 18)});
+                    await expect(core.connect(emptyWallet).createOffer(mid, deployer.address, AddressZero, 0, 0, price, [], deadline, 0)).to.be.revertedWith("OC: LOW_BAL");
+                });
+
+                it("should revert with msg=LOW_BAL when sender has insufficient balance to cover price", async () => {
+                    await expect(core.updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, 100, [], [], [0, 0, 0])).to.emit(core, "UpdatedNonFungibleLiquidity");
+                    const price = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                    await expect(core.connect(swapper).createOffer(mid, deployer.address, AddressZero, 0, 0, price, [], deadline, 0)).not.to.be.reverted;
+                });
             });
         });
 
@@ -488,8 +706,8 @@ describe("Core - Offer", function () {
                 await expect(core.updateOffer(0, 1, price, [], 0))
                     .to.emit(core, "OfferUpdated")
                     .withArgs(0, deployer.address, 1, price, [], 0);
-                // const offerNew = await core.getOffer(0);
-                // expect(offerNew.deadline).to.eq(offer.deadline);
+                const offerNew = await core.getOffer(0);
+                expect(offerNew.deadline).to.eq(offer.deadline);
             });
         });
 

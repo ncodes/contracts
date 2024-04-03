@@ -79,7 +79,8 @@ library FeeLib {
         // ERC20/SYNTH, SYNTH/ERC20, NATIVE/SYNTH, SYNTH/NATIVE fee calculation.
         if (p.mkt.isFungible() && p.mkt.hasERC20OrNative()) {
             Structs.Asset memory asset = p.mkt.base.isOnchain() ? p.mkt.base : p.mkt.quote;
-            uint decimals = (p.mkt.quote.isSynth() || p.mkt.quote.isNative()) ? 10 ** 18 : 10 ** IERC20(p.mkt.quote.addr).decimals();
+            
+            uint decimals = (p.mkt.quote.isSynth() || p.mkt.quote.isNative()) ? 10 ** 18 : 10 ** IERC20(p.mkt.base.addr).decimals();
             feeInfo.cost = (p.amount * p.price) / decimals;
             feeInfo.mktFeeBp = p.mkt.commission;
             (feeInfo.feeBp, , ) = AuxLib.getFeeInfo(p.assetReg, asset, p.synthSwapFeeBp);

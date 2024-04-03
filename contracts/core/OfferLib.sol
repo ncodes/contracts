@@ -9,6 +9,7 @@ import "../core/StructsLib.sol";
 import "../market/MarketAuxLib.sol";
 import "../token/interfaces/IERC20.sol";
 import "../common/StrippedInterfaces.sol";
+import "hardhat/console.sol";
 
 library OfferLib {
     using MarketAuxLib for Structs.Asset;
@@ -75,9 +76,12 @@ library OfferLib {
         else AuxLib.checkNonFungibleSwapParams(ss, mkt, liq);
 
         // Ensure sender has enough quote token to make offer
-        if (mkt.quote.isERC20()) {
-            uint256 cost = (slot.amount * slot.price) / 10 ** IERC20(mkt.quote.addr).decimals();
-            require(IERC20(mkt.quote.addr).balanceOf(msg.sender) >= cost, "OC: LOW_BAL");
+        if (mkt.quote.isERC20() || mkt.quote.isNative()) {
+            uint256 cost;
+            if (mkt.base.isNFT()) cost = slot.price;
+            else cost = (slot.amount * slot.price) / 10 ** ((mkt.base.isSynth()) ? 18 : IERC20(mkt.base.addr).decimals());
+            require(mkt.quote.isNative() || IERC20(mkt.quote.addr).balanceOf(msg.sender) >= cost, "OC: LOW_BAL");
+            require(!mkt.quote.isNative() || msg.sender.balance >= cost, "OC: LOW_BAL");
         }
 
         // Ensure sender owns offered NFT

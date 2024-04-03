@@ -68,10 +68,10 @@ library OrderLib {
         // When quote is ERC20, transfer quote into contract.
         // When quote is native, make sure the deposit sent is enough.
         if (mkt.quote.isERC20()) {
-            uint256 cost = (sp.amount * o.price) / 10 ** IERC20(mkt.quote.addr).decimals();
+            uint256 cost = (sp.amount * o.price) / 10 ** 18;
             IERC20(mkt.quote.addr).transferFrom(msg.sender, address(this), cost);
         } else if (mkt.quote.isNative()) {
-            uint256 cost = (sp.amount * o.price) / 10 ** IERC20(mkt.quote.addr).decimals();
+            uint256 cost = (sp.amount * o.price) / 10 ** 18;
             require(msg.value >= cost, "OC: LOW_DEPOSIT");
         }
 
@@ -181,12 +181,12 @@ library OrderLib {
             s2.marketCore.setCounters(o.marketId, false, false, true, mkt.numLiquidity + o.amount);
 
             if (mkt.quote.isERC20()) {
-                uint256 cost = (o.amount * o.price) / 10 ** IERC20(mkt.quote.addr).decimals();
+                uint256 cost = (o.amount * o.price) / 10 ** 18;
                 IERC20(mkt.quote.addr).transfer(o.taker, cost);
             }
 
             if (mkt.quote.isNative()) {
-                uint256 cost = (o.amount * o.price) / 10 ** IERC20(mkt.quote.addr).decimals();
+                uint256 cost = (o.amount * o.price) / 10 ** 18;
                 payable(o.taker).transfer(cost);
             }
         }
