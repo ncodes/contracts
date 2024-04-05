@@ -14,6 +14,7 @@ import {
     LPPool,
     MarketCore,
     MediatorManager,
+    MinerRegistry,
     NFT,
     Randomness,
     TokenPool,
@@ -50,6 +51,7 @@ let core: Core;
 let marketCore: MarketCore;
 let mediatorMgr: MediatorManager;
 let disputeMgr: DisputeManager;
+let minerRegistry: MinerRegistry;
 let badgeMgr: BadgeManager;
 let operatorMgr: Operator;
 let randomness: Randomness;
@@ -84,6 +86,7 @@ async function deployMainnet() {
     await deployDummyRandomness();
     await deployMediatorManager();
     await deployDisputeManager();
+    await deployMinerRegistry();
     // await deployWrappedETH();
     // await deployNFT();
     // await deployTokenPoolAndFeePool();
@@ -91,8 +94,6 @@ async function deployMainnet() {
 }
 
 async function deployLocal() {
-    await deployFakeUSDTToken();
-    return;
     await deployBadgeManager();
     await deployP2PToken();
     await deployMarketCore();
@@ -111,7 +112,10 @@ async function deployLocal() {
         await deployTestWETH9();
         await deployTestUNI();
         await deployTestNGN();
+        // await deployFakeUSDTToken();
     }
+
+    await deployMinerRegistry();
 }
 
 async function main() {
@@ -341,6 +345,15 @@ async function deployDummyRandomness() {
 }
 
 async function deployMediatorManager() {
+    console.log([
+        p2p.address,
+        marketCore.address,
+        randomness.address,
+        params.ticketCancelDur,
+        params.ticketMatureDur,
+        params.ticketExpireDur,
+        params.ticketPauseDur,
+    ]);
     await deployOrAttach<MediatorManager>(
         "MediatorManager",
         undefined,
@@ -388,6 +401,12 @@ async function deployMediatorManager() {
                     );
                 });
             });
+
+            await runStep(1, "Set mediator manager to market core", async () => {
+                await call(mediatorMgr, deployer, (c) => {
+                    return marketCore.setMediatorManager(mediatorMgr.address);
+                });
+            });
         },
     );
 }
@@ -410,6 +429,32 @@ async function deployDisputeManager() {
             await runStep(1, "Set mediator manager's dispute manager", async () => {
                 await call(mediatorMgr, deployer, (c) => {
                     return c.setDisputeManager(disputeMgr.address);
+                });
+            });
+        },
+    );
+}
+
+async function deployMinerRegistry() {
+    await deployOrAttach<MinerRegistry>(
+        "MinerRegistry",
+        undefined,
+        [p2p.address, params.minerBond, params.minerMatureDur, params.minerCancelDur],
+        async (contract, attached) => {
+            minerRegistry = contract;
+            if (attached) return;
+
+            await runStep(1, "Set Core's miner registry", async () => {
+                await call(core, deployer, async (c) => {
+                    await c.setMinerRegistry(minerRegistry.address);
+                    await minerRegistry.updateWriter(core.address, true);
+                });
+            });
+
+            await runStep(1, "Set dispute manager's miner registry", async () => {
+                await call(mediatorMgr, deployer, async (c) => {
+                    await disputeMgr.setMinerRegistry(minerRegistry.address);
+                    await minerRegistry.updateWriter(disputeMgr.address, true);
                 });
             });
         },

@@ -101,6 +101,10 @@ describe("MarketCore", function () {
             });
         });
 
+        it("Should revert with 'MC: UNKNW_POOL' when mediator pool is unknown", async function () {
+            expect(mc.createMarket(baseAddr, quoteAddr, 0, 1, true, true, 0, 10)).to.be.revertedWith("MC: UNKNW_POOL");
+        });
+
         it("Should create new market if not existing", async function () {
             mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 0, 1);
             expect(await mc.hasMarket(mid)).to.be.false;

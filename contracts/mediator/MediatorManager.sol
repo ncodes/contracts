@@ -640,8 +640,8 @@ contract MediatorManager is Ownable, ReentrancyGuard {
             t.numPaused++;
         } else {
             t.cancelAt = 0;
-            
-            // Add ticket back to pool if it is not currently drafted. 
+
+            // Add ticket back to pool if it is not currently drafted.
             // If it is drafted, it will be added back to the pool when undrafted.
             if (!t.drafted) {
                 t.poolIdx = int256(poolTickets[t.poolId].length);

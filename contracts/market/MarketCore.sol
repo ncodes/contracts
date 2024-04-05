@@ -175,7 +175,7 @@ contract MarketCore is Writable {
         require(quoteType != Structs.AssetType.NATIVE || nativeAssetAddr == address(0) || quote == nativeAssetAddr, "MC: BAD_NATIVE_ADDR");
         require(mediatorManager.poolExists(mediatePoolId), "MC: UNKNW_POOL");
         address id = address(ripemd160(abi.encodePacked(msg.sender, base, quote, baseType, quoteType)));
-        require(!mediatorManager.poolExists(mediatePoolId) || mediatorManager.isApprovedMarket(mediatePoolId, id), "MC: NOT_APPROVED");
+        require(mediatorManager.isApprovedMarket(mediatePoolId, id), "MC: NOT_APPROVED");
         require(markets[id].createdAt == 0, "MC: MARKET_EXIST");
 
         Structs.Asset memory baseAsset = Structs.Asset(base, baseType);
