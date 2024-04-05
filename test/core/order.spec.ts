@@ -181,6 +181,7 @@ describe("Core - Order", function () {
 
         context("base asset = SYNTH while quote = ERC20", () => {
             beforeEach(async () => {
+                baseAddr = ethers.Wallet.createRandom().address;
                 await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, 0, 1, false, false, marketCom, 0);
                 mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 0, 1);
 
@@ -1491,6 +1492,7 @@ describe("Core - Order", function () {
 
         context("base = SYNTH while quote = ERC20", () => {
             beforeEach(async () => {
+                baseAddr = ethers.Wallet.createRandom().address;
                 await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, 0, 1, false, false, 0, 0);
                 mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 0, 1);
             });
@@ -1539,6 +1541,7 @@ describe("Core - Order", function () {
 
         context("base = SYNTH while quote = NATIVE", () => {
             beforeEach(async () => {
+                baseAddr = ethers.Wallet.createRandom().address;
                 await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.SYNTH, AssetType.NATIVE, false, false, 0, 0);
                 mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.NATIVE);
             });

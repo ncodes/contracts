@@ -48,6 +48,11 @@ interface ContractParams {
     evidenceDur: number;
     predictDur: number;
 
+    // Miner Registry Params
+    minerBond: BigNumber;
+    minerMatureDur: number;
+    minerCancelDur: number;
+
     // Chainlink Params
     chainlinkKeyHash: string;
     chainlinkCoordinator: string;
@@ -104,6 +109,10 @@ export function getParams(net: Network) {
 
         evidenceDur: toInt(process.env.DM_EVIDENCE_DUR),
         predictDur: toInt(process.env.DM_PREDICT_DUR),
+
+        minerBond: toBN(process.env.MR_MINER_BOND),
+        minerMatureDur: toInt(process.env.MR_MATURE_DUR),
+        minerCancelDur: toInt(process.env.MR_CANCEL_DUR),
 
         chainlinkKeyHash: process.env.KEY_HASH as string,
         chainlinkCoordinator: process.env.COORDINATOR as string,

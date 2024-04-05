@@ -14,6 +14,7 @@ import {
     LPPool,
     MarketCore,
     MediatorManager,
+    MinerRegistry,
     NFT,
     Randomness,
     TokenPool,
@@ -50,6 +51,7 @@ let core: Core;
 let marketCore: MarketCore;
 let mediatorMgr: MediatorManager;
 let disputeMgr: DisputeManager;
+let minerRegistry: MinerRegistry;
 let badgeMgr: BadgeManager;
 let operatorMgr: Operator;
 let randomness: Randomness;
@@ -73,19 +75,20 @@ let deployed: Deployments = {
 };
 
 async function deployMainnet() {
-    await deployBadgeManager();
-    await deployP2PToken();
+    // await deployBadgeManager();
+    await deployP2PToken("P2P Test Token", "tP2P");
     await deployMarketCore();
     await deployCore();
     await deployAssetRegistry();
     await deployOperatorManager();
     await deployFeePurse();
-    await deployRandomness();
+    // await deployRandomness();
     await deployDummyRandomness();
     await deployMediatorManager();
     await deployDisputeManager();
-    await deployWrappedETH();
-    await deployNFT();
+    await deployMinerRegistry();
+    // await deployWrappedETH();
+    // await deployNFT();
     // await deployTokenPoolAndFeePool();
     // await deployLPPool();
 }
@@ -109,7 +112,10 @@ async function deployLocal() {
         await deployTestWETH9();
         await deployTestUNI();
         await deployTestNGN();
+        // await deployFakeUSDTToken();
     }
+
+    await deployMinerRegistry();
 }
 
 async function main() {
@@ -124,7 +130,7 @@ async function main() {
 async function deployBadgeManager() {
     await deployOrAttach<BadgeManager>("BadgeManager", undefined, [], async (contract, attached) => {
         badgeMgr = contract;
-        if (attached) return;
+        // if (attached) return;
 
         await runStep(1, "Create `instruction` badge issuer", async () => {
             try {
@@ -179,15 +185,14 @@ async function deployBadgeManager() {
     });
 }
 
-async function deployP2PToken() {
-    await deployOrAttach<TOKEN>(
-        "TOKEN",
-        undefined,
-        ["Joint", "P2P", "10000000000000000000000000000", 18],
-        async (contract) => {
-            p2p = contract;
-        },
-    );
+async function deployP2PToken(name = "P2P Test Token", symbol = "P2P", supply = "1000000000000000000000000000") {
+    await deployOrAttach<TOKEN>("TOKEN", undefined, [name, symbol, supply, 18], async (contract) => {
+        p2p = contract;
+    });
+}
+
+async function deployFakeUSDTToken(name = "Fake USDT2", symbol = "USDT2", supply = "10000000000000") {
+    await deployOrAttach<TOKEN>("TOKEN", undefined, [name, symbol, supply, 6], async (contract) => {});
 }
 
 async function deployWrappedETH() {
@@ -334,6 +339,15 @@ async function deployDummyRandomness() {
 }
 
 async function deployMediatorManager() {
+    console.log([
+        p2p.address,
+        marketCore.address,
+        randomness.address,
+        params.ticketCancelDur,
+        params.ticketMatureDur,
+        params.ticketExpireDur,
+        params.ticketPauseDur,
+    ]);
     await deployOrAttach<MediatorManager>(
         "MediatorManager",
         undefined,
@@ -381,6 +395,12 @@ async function deployMediatorManager() {
                     );
                 });
             });
+
+            await runStep(1, "Set mediator manager to market core", async () => {
+                await call(mediatorMgr, deployer, (c) => {
+                    return marketCore.setMediatorManager(mediatorMgr.address);
+                });
+            });
         },
     );
 }
@@ -403,6 +423,32 @@ async function deployDisputeManager() {
             await runStep(1, "Set mediator manager's dispute manager", async () => {
                 await call(mediatorMgr, deployer, (c) => {
                     return c.setDisputeManager(disputeMgr.address);
+                });
+            });
+        },
+    );
+}
+
+async function deployMinerRegistry() {
+    await deployOrAttach<MinerRegistry>(
+        "MinerRegistry",
+        undefined,
+        [p2p.address, params.minerBond, params.minerMatureDur, params.minerCancelDur],
+        async (contract, attached) => {
+            minerRegistry = contract;
+            if (attached) return;
+
+            await runStep(1, "Set Core's miner registry", async () => {
+                await call(core, deployer, async (c) => {
+                    await c.setMinerRegistry(minerRegistry.address);
+                    await minerRegistry.updateWriter(core.address, true);
+                });
+            });
+
+            await runStep(1, "Set dispute manager's miner registry", async () => {
+                await call(mediatorMgr, deployer, async (c) => {
+                    await disputeMgr.setMinerRegistry(minerRegistry.address);
+                    await minerRegistry.updateWriter(disputeMgr.address, true);
                 });
             });
         },
@@ -587,7 +633,7 @@ async function callNoThrow<T extends Contract>(c: T, signer: Signer | string, fu
 async function runStep(step: number | undefined, msg: string, f: () => Promise<void>) {
     if (process.env.STEP && step && step !== parseInt(process.env.STEP)) return;
     console.log("  *", msg);
-    await f();
+    return f();
 }
 
 function loadLatestDeployments() {

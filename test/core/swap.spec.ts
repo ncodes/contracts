@@ -3,9 +3,11 @@ import {Buffer} from "buffer";
 import {expect} from "chai";
 import {BigNumber, BigNumberish} from "ethers";
 import {getAddress} from "ethers/lib/utils";
+import {ethers} from "hardhat";
 import {AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MediatorManager, NFT, Operator, TOKEN} from "../../typechain-types";
 import {AddressZero, AssetType, advanceBlockTime, bnToN, makeMarketID, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
+const {getContractFactory} = ethers;
 
 describe("Core - Swap", function () {
     let baseAddr: string;
@@ -351,7 +353,7 @@ describe("Core - Swap", function () {
                 const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
                 const swapCost = swapAmt.mul(pricePerBase).div(baseDec); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
 
-                // Give swapper enough BASE to pay swap cost and swapper must approve contract to spend it
+                // Give swapper enough QUOTE to pay swap cost and swapper must approve contract to spend it
                 await quoteAsset.transfer(swapper.address, swapCost);
                 await quoteAsset.connect(swapper).approve(cAddr, swapCost);
 
@@ -390,7 +392,7 @@ describe("Core - Swap", function () {
                 const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
                 const swapCost = swapAmt.mul(pricePerBase).div(baseDec); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
 
-                // Give swapper enough BASE to pay swap cost and swapper must approve contract to spend it
+                // Give swapper enough QUOTE to pay swap cost and swapper must approve contract to spend it
                 await quoteAsset.transfer(swapper.address, swapCost);
                 await quoteAsset.connect(swapper).approve(cAddr, swapCost);
 
@@ -444,12 +446,119 @@ describe("Core - Swap", function () {
                     const swapAmt = toBN(5).mul(baseDec);
                     const swapCost = swapAmt.div(baseDec).mul(pricePerBase); // amount the swapper will pay in QUOTE (=50 QUOTE)
 
-                    // Give swapper enough BASE to pay swap cost and swapper must approve contract to spend it
+                    // Give swapper enough QUOTE to pay swap cost and swapper must approve contract to spend it
                     await quoteAsset.transfer(swapper.address, swapCost);
                     await quoteAsset.connect(swapper).approve(cAddr, swapCost);
 
                     // Calculate expected swapper fees (for on-chain swap)
                     const protoFee = swapAmt.mul((await core.state()).ints.stableSwapFeeBp).div(10000);
+                    const marketCreatorFee = swapAmt.mul(marketCommission).div(10000);
+                    const totalFees = protoFee.add(marketCreatorFee);
+                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0))
+                        .to.emit(core, "Swap")
+                        .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
+
+                    // swapper should get swap amount - swapper total fees
+                    expect((await baseAsset.balanceOf(swapper.address)).toString()).to.equal(swapAmt.sub(totalFees).toString());
+
+                    // provider should get full swap cost
+                    expect((await quoteAsset.balanceOf(provider.address)).toString()).to.equal(swapCost.toString());
+
+                    // swapper should have no quote balance = 0 (depleted)
+                    expect((await quoteAsset.balanceOf(swapper.address)).isZero()).to.be.true;
+
+                    // provider liquidity amount should = provider liquidity - swap amount (= 95)
+                    const liq = await core.getLiquidity(mid, provider.address, 0);
+                    expect(liq.amount.toString()).to.equal(amountOfBase.sub(swapAmt).toString());
+
+                    // market creator should receive fee
+                    expect((await core.feeBalanceOf(marketCreator2.address, baseAddr)).eq(marketCreatorFee)).to.be.true;
+
+                    // protocol should receive fee
+                    expect((await core.inventorBalanceOf(baseAddr)).eq(protoFee)).to.be.true;
+                });
+            });
+
+            context("quote asset has non-standard decimals", () => {
+                beforeEach(async () => {
+                    let tokenFactory = await getContractFactory("TOKEN");
+                    quoteAsset = (await tokenFactory.deploy("USDT", "USDT", "1000000000000", 6)) as TOKEN;
+                    quoteAddr = quoteAsset.address;
+                    quoteDec = toBN(10).pow(await quoteAsset.decimals());
+                    amountOfBase = baseDec.mul(100);
+                    pricePerBase = quoteDec.mul(10);
+
+                    await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, marketCommission, 0);
+                    mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 1, 1);
+                });
+
+                it("should perform instant swap transfer successfully", async () => {
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+
+                    // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
+                    const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                    const swapCost = toDec(5.65).mul(pricePerBase.toString()).toFixed(); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
+
+                    // console.log(amountOfBase, pricePerBase, swapCost);
+                    // Give swapper enough QUOTE to pay swap cost and swapper must approve contract to spend it
+                    await quoteAsset.transfer(swapper.address, swapCost);
+                    await quoteAsset.connect(swapper).approve(cAddr, swapCost);
+
+                    // Calculate expected swapper fees (for on-chain swap)
+                    const protoFee = swapAmt.mul((await core.state()).ints.instantSwapFeeBp).div(10000);
+                    const marketCreatorFee = swapAmt.mul(marketCommission).div(10000);
+                    const totalFees = protoFee.add(marketCreatorFee);
+                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0))
+                        .to.emit(core, "Swap")
+                        .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
+
+                    // swapper should get swap amount - swapper total fees
+                    expect((await baseAsset.balanceOf(swapper.address)).toString()).to.equal(swapAmt.sub(totalFees).toString());
+
+                    // provider should get full swap cost
+                    expect((await quoteAsset.balanceOf(provider.address)).toString()).to.equal(swapCost.toString());
+
+                    // swapper should have no quote balance = 0 (depleted)
+                    expect((await quoteAsset.balanceOf(swapper.address)).isZero()).to.be.true;
+
+                    // provider liquidity amount should = provider liquidity - swap amount (= 95)
+                    const liq = await core.getLiquidity(mid, provider.address, 0);
+                    expect(liq.amount.toString()).to.equal(amountOfBase.sub(swapAmt).toString());
+
+                    // market creator should receive fee
+                    expect((await core.feeBalanceOf(marketCreator2.address, baseAddr)).eq(marketCreatorFee)).to.be.true;
+
+                    // protocol should receive fee
+                    expect((await core.inventorBalanceOf(baseAddr)).eq(protoFee)).to.be.true;
+                });
+            });
+
+            context("base asset has non-standard decimals", () => {
+                beforeEach(async () => {
+                    let tokenFactory = await getContractFactory("TOKEN");
+                    baseAsset = (await tokenFactory.deploy("USDT", "USDT", "1000000000000", 6)) as TOKEN;
+                    baseAddr = baseAsset.address;
+                    baseDec = toBN(10).pow(await baseAsset.decimals());
+                    amountOfBase = baseDec.mul(100);
+                    pricePerBase = quoteDec.mul(10);
+
+                    await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, marketCommission, 0);
+                    mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 1, 1);
+                });
+
+                it("should perform instant swap transfer successfully", async () => {
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+
+                    // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
+                    const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                    const swapCost = toDec(5.65).mul(pricePerBase.toString()).toFixed(); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
+
+                    // Give swapper enough QUOTE to pay swap cost and swapper must approve contract to spend it
+                    await quoteAsset.transfer(swapper.address, swapCost);
+                    await quoteAsset.connect(swapper).approve(cAddr, swapCost);
+
+                    // Calculate expected swapper fees (for on-chain swap)
+                    const protoFee = swapAmt.mul((await core.state()).ints.instantSwapFeeBp).div(10000);
                     const marketCreatorFee = swapAmt.mul(marketCommission).div(10000);
                     const totalFees = protoFee.add(marketCreatorFee);
                     await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0))
@@ -1248,6 +1357,7 @@ describe("Core - Swap", function () {
         context("base is SYNTH and quote is NATIVE", () => {
             const marketCom = 0.1 * 100; // convert to 10 basis point
             beforeEach(async () => {
+                baseAddr = ethers.Wallet.createRandom().address;
                 await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.SYNTH, AssetType.NATIVE, false, false, marketCom, 0);
                 mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.NATIVE);
             });
@@ -1257,7 +1367,7 @@ describe("Core - Swap", function () {
 
                 // Swap amount = 5 BASE (amount of BASE the swapper wants)
                 const swapAmt = toBN(5).mul(baseDec);
-                const swapCost = swapAmt.div(baseDec).mul(pricePerBase); // amount the swapper will pay in QUOTE (=50 QUOTE)
+                const swapCost = swapAmt.div(baseDec).mul(pricePerBase);
 
                 // Swap
                 await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0, {value: swapCost}))

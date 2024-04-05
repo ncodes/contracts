@@ -10,9 +10,9 @@
     "deploy-local": "npx hardhat run scripts/deploy-script.ts --network localhost",
     "deploy-goerli": "npx hardhat run scripts/deploy-script.ts --network goerli",
     "deploy-sepolia": "npx hardhat run scripts/deploy-script.ts --network sepolia",
-    "deploy-arbitrum": "npx hardhat run scripts/deploy-script.ts --network arbitrum",
-    "deploy-arbitrum-sepolia": "npx hardhat run scripts/deploy-script.ts --network arbitrum-sepolia",
     "deploy-ethereum": "npx hardhat run scripts/deploy-script.ts --network ethereum",
+    "deploy-arbitrum-sepolia": "npx hardhat run scripts/deploy-script.ts --network arbitrum-sepolia",
+    "deploy-arbitrum": "npx hardhat run scripts/deploy-script.ts --network arbitrum",
     "deploy-nft": "npx hardhat run scripts/deploy-nft.ts",
     "gen-key": "npx hardhat run tasks/genkey.ts",
     "play": "npx hardhat run scripts/_play/play.ts --network localhost"

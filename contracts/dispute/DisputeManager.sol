@@ -79,18 +79,15 @@ contract DisputeManager is Ownable {
     event Committed(address marketId, uint256 orderId, uint256 disputeId, address committer, uint256 ticketIdx, bytes32 hash);
     event Revealed(address marketId, uint256 orderId, uint256 disputeId, address revealer, uint256 ticketIdx, bytes1 vote);
     event WithdrawnReward(address claimer, uint256 amount);
-    event WithdrawnMediatorReward(address claimer, uint256 amount);
     event Drafted(address marketId, address owner, uint256 ticketId, uint256 orderID, uint256 disputeID, address drafter);
     event Undrafted(address owner, uint256 ticketId, bool slashed, address undrafter);
     event DecisionExecuted(address marketId, uint256 orderId, uint256 disputeId, address executor, bool abandoned, bytes1 winningVote);
     event UpdatedMarketCore(address addr);
     event UpdatedCore(address addr);
     event UpdatedMediatorManager(address addr);
-    event UpdatedSharedSlashPortion(uint256 val);
     event UpdatedPredictDur(uint256 val);
     event WithdrawnBalance(address dest, uint256 amt);
     event UpdatedEvidenceDur(uint256 val);
-    event UpdatedMinerRewards(uint256 draft, uint256 undraft, uint256 execute);
     event UpdatedMinerRegistry(address addr);
 
     /// @notice Initialize the contract.

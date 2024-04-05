@@ -17,6 +17,7 @@ export enum ContractNames {
     NonFungibleLiquidityLib = "NonFungibleLiquidityLib",
     Core = "Core",
     AssetRegistry = "AssetRegistry",
+    MinerRegistry = "MinerRegistry",
     Operator = "Operator",
     FeePurse = "FeePurse",
     DummyRandomness = "DummyRandomness",
