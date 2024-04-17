@@ -24,6 +24,7 @@ import {
     SwapFungibleLib,
     SwapNonFungibleLib,
     TOKEN,
+    WETH9,
     WithdrawLib,
 } from "../../typechain-types";
 
@@ -282,6 +283,8 @@ export async function initCoreTestSuite() {
     let token: TOKEN;
     let baseAsset: TOKEN;
     let quoteAsset: TOKEN;
+    let wethAddr: string;
+    let weth: WETH9;
     let mid: string;
     let tokenDec: BigNumber;
     let baseDec: BigNumber;
@@ -330,6 +333,10 @@ export async function initCoreTestSuite() {
     let TOKEN = await getContractFactory("TOKEN");
     token = (await TOKEN.deploy("TEST", "TEST", supply, 18)) as TOKEN;
     tokenDec = toBN(10).pow(await token.decimals());
+
+    let WETH9 = await getContractFactory("WETH9");
+    weth = (await WETH9.deploy()) as WETH9;
+    wethAddr = weth.address;
 
     const libs = await makeLibs();
     let marketCoreFact = await getContractFactory("MarketCore", {libraries: {}});
@@ -441,6 +448,8 @@ export async function initCoreTestSuite() {
         tokenDec,
         baseDec,
         quoteDec,
+        wethAddr,
+        weth,
         minTimeToPay,
         defaultDisputeDelayDur,
         orderGracePeriod,

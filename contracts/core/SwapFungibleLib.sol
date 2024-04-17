@@ -143,7 +143,7 @@ library SwapFungibleLib {
         liq.amount -= sp.amount;
         s2.marketCore.setCounters(sp.addrs.marketId, false, false, true, mkt.numLiquidity - sp.amount);
 
-        // Transfer quote asset (swap cost) from swapper to liquidity provider
+        // Transfer quote asset (swap cost) from swapper to liquidity provider.
         if (mkt.quote.isERC20()) {
             IERC20(mkt.quote.addr).safeTransferFrom(msg.sender, sp.addrs.provider, cost);
         } else if (mkt.quote.isNative()) {
