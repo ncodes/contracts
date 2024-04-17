@@ -1,6 +1,6 @@
 {
   "meta": {
-    "created": 1712692955404
+    "created": 1713360233918
   },
   "contracts": {
     "BadgeManager": {
@@ -9,7 +9,7 @@
     },
     "TOKEN": {
       "address": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
-      "gasUsed": 741844
+      "gasUsed": 741868
     },
     "MarketCore": {
       "address": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
@@ -82,11 +82,11 @@
     },
     "Core": {
       "address": "0x68B1D87F95878fE05B998F19b66F4baba5De1aed",
-      "gasUsed": 5307221
+      "gasUsed": 5307209
     },
     "AssetRegistry": {
       "address": "0xa85233C63b9Ee964Add6F2cffe00Fd84eb32338f",
-      "gasUsed": 684367
+      "gasUsed": 684355
     },
     "Operator": {
       "address": "0x7a2088a1bFc9d81c55368AE168C2C02570cB814F",

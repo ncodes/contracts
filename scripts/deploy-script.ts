@@ -75,8 +75,8 @@ let deployed: Deployments = {
 };
 
 async function deployMainnet() {
-    // await deployBadgeManager();
-    await deployNativeToken("JOIN Test Token", "tJOIN");
+    await deployBadgeManager();
+    await deployNativeToken("Joint Test Token", "tJOIN");
     await deployMarketCore();
     await deployCore();
     await deployAssetRegistry();
@@ -91,7 +91,7 @@ async function deployMainnet() {
     // await deployNFT();
     // await deployTokenPoolAndFeePool();
     // await deployLPPool();
-}
+}AddressZero
 
 async function deployLocal() {
     await deployBadgeManager();
@@ -123,18 +123,18 @@ async function main() {
     deployer = accts[0];
     inventor = accts[0];
 
-    // await deployMainnet();
-    await deployLocal();
+    await deployMainnet();
+    // await deployLocal();
 }
 
 async function deployBadgeManager() {
     await deployOrAttach<BadgeManager>("BadgeManager", undefined, [], async (contract, attached) => {
         badgeMgr = contract;
-        // if (attached) return;
+        if (attached) return;
 
         await runStep(1, "Create `instruction` badge issuer", async () => {
             try {
-                await callNoThrow(badgeMgr, deployer, async (c) => {
+                await callNoThrow(badgeMgr, deployer, (c) => {
                     return c.registerIssuer(params.instructionBadgeIssuer, "instruction", [], []);
                 });
             } catch (e) {
@@ -185,7 +185,7 @@ async function deployBadgeManager() {
     });
 }
 
-async function deployNativeToken(name = "JOIN Test Token", symbol = "JOIN", supply = "1000000000000000000000000000") {
+async function deployNativeToken(name = "Joint Test Token", symbol = "JOIN", supply = "10000000000000000000000000000") {
     await deployOrAttach<TOKEN>("TOKEN", undefined, [name, symbol, supply, 18], async (contract) => {
         joinToken = contract;
     });
@@ -327,7 +327,7 @@ async function deployRandomness() {
         [params.chainlinkKeyHash, params.chainlinkCoordinator, params.chainlinkSubId],
         async (contract, attached) => {
             randomness = contract;
-            if (attached) return;
+            // if (attached) return;
         },
     );
 }
@@ -447,15 +447,25 @@ async function deployMinerRegistry() {
 
             await runStep(1, "Set Core's miner registry", async () => {
                 await call(core, deployer, async (c) => {
-                    await c.setMinerRegistry(minerRegistry.address);
-                    await minerRegistry.updateWriter(core.address, true);
+                    return c.setMinerRegistry(minerRegistry.address);
+                });
+            });
+
+            await runStep(1, "Set Core as MinerRegistry writer", async () => {
+                await call(core, deployer, async (c) => {
+                    return minerRegistry.updateWriter(core.address, true);
                 });
             });
 
             await runStep(1, "Set dispute manager's miner registry", async () => {
                 await call(mediatorMgr, deployer, async (c) => {
-                    await disputeMgr.setMinerRegistry(minerRegistry.address);
-                    await minerRegistry.updateWriter(disputeMgr.address, true);
+                    return disputeMgr.setMinerRegistry(minerRegistry.address);
+                });
+            });
+
+            await runStep(1, "Set DisputeManager as MinerRegistry writer", async () => {
+                await call(core, deployer, async (c) => {
+                    return minerRegistry.updateWriter(disputeMgr.address, true);
                 });
             });
         },
@@ -482,7 +492,7 @@ async function deployTokenPoolAndFeePool() {
             tokenPool = contract;
             await deployFeePool();
 
-            if (attached) return;
+            // if (attached) return;
 
             await runStep(1, "Setting FeePool on TokenPool contract", async () => {
                 await call(tokenPool, deployer, (c) => {
@@ -510,7 +520,7 @@ async function deployNFT() {
         ["NFT", "NFT", "ipfs://abc/", 10000, 0, AddressZero, AddressZero, AddressZero, AddressZero],
         async (contract, attached) => {
             nft = contract;
-            if (attached) return;
+            // if (attached) return;
 
             await runStep(1, "Setting NFT address and discount on Core contract", async () => {
                 await call(core, deployer, (c) => {
@@ -609,6 +619,7 @@ async function call<T extends Contract>(c: T, signer: Signer | string, customFun
             `GasUsed=${receipt?.gasUsed?.toString() || ""}`,
         );
     } catch (error) {
+        console.log(error);
         const parsedEthersError = getParsedEthersError(error as EthersError);
         throw new Error(parsedEthersError.context);
     }
@@ -631,6 +642,7 @@ async function callNoThrow<T extends Contract>(c: T, signer: Signer | string, fu
             `GasUsed=${receipt?.gasUsed?.toString() || ""}`,
         );
     } catch (error) {
+        console.log("ISSUE", error);
         const parsedEthersError = getParsedEthersError(error as EthersError);
         return new Error(parsedEthersError.context);
     }
