@@ -59,7 +59,7 @@ let assetReg: AssetRegistry;
 let feePurse: FeePurse;
 let deployer: SignerWithAddress;
 let accts: SignerWithAddress[];
-let p2p: TOKEN;
+let joinToken: TOKEN;
 let tokenPool: TokenPool;
 let lpPool: LPPool;
 let feePool: FeePool;
@@ -76,7 +76,7 @@ let deployed: Deployments = {
 
 async function deployMainnet() {
     // await deployBadgeManager();
-    await deployP2PToken("P2P Test Token", "tP2P");
+    await deployNativeToken("JOIN Test Token", "tJOIN");
     await deployMarketCore();
     await deployCore();
     await deployAssetRegistry();
@@ -95,7 +95,7 @@ async function deployMainnet() {
 
 async function deployLocal() {
     await deployBadgeManager();
-    await deployP2PToken();
+    await deployNativeToken();
     await deployMarketCore();
     await deployCore();
     await deployAssetRegistry();
@@ -123,8 +123,8 @@ async function main() {
     deployer = accts[0];
     inventor = accts[0];
 
-    await deployMainnet();
-    // await deployLocal();
+    // await deployMainnet();
+    await deployLocal();
 }
 
 async function deployBadgeManager() {
@@ -185,9 +185,9 @@ async function deployBadgeManager() {
     });
 }
 
-async function deployP2PToken(name = "P2P Test Token", symbol = "P2P", supply = "1000000000000000000000000000") {
+async function deployNativeToken(name = "JOIN Test Token", symbol = "JOIN", supply = "1000000000000000000000000000") {
     await deployOrAttach<TOKEN>("TOKEN", undefined, [name, symbol, supply, 18], async (contract) => {
-        p2p = contract;
+        joinToken = contract;
     });
 }
 
@@ -204,7 +204,7 @@ async function deployOperatorManager() {
     await deployOrAttach<Operator>(
         "Operator",
         undefined,
-        [p2p.address, params.operatorBond],
+        [joinToken.address, params.operatorBond],
         async (contract, attached) => {
             operatorMgr = contract;
             if (attached) return;
@@ -247,7 +247,7 @@ async function deployCore() {
         getCoreLibraries(libs),
         [
             marketCore.address,
-            p2p.address,
+            joinToken.address,
             params.minTimeToPay,
             params.orderGraceDur,
             params.maxOpenOrders,
@@ -304,7 +304,7 @@ async function deployAssetRegistry() {
 }
 
 async function deployFeePurse() {
-    await deployOrAttach<FeePurse>("FeePurse", undefined, [p2p.address], async (contract, attached) => {
+    await deployOrAttach<FeePurse>("FeePurse", undefined, [joinToken.address], async (contract, attached) => {
         feePurse = contract;
         if (attached) return;
 
@@ -340,7 +340,7 @@ async function deployDummyRandomness() {
 
 async function deployMediatorManager() {
     console.log([
-        p2p.address,
+        joinToken.address,
         marketCore.address,
         randomness.address,
         params.ticketCancelDur,
@@ -352,7 +352,7 @@ async function deployMediatorManager() {
         "MediatorManager",
         undefined,
         [
-            p2p.address,
+            joinToken.address,
             marketCore.address,
             randomness.address,
             params.ticketCancelDur,
@@ -409,7 +409,14 @@ async function deployDisputeManager() {
     await deployOrAttach<DisputeManager>(
         "DisputeManager",
         undefined,
-        [p2p.address, marketCore.address, core.address, mediatorMgr.address, params.predictDur, params.evidenceDur],
+        [
+            joinToken.address,
+            marketCore.address,
+            core.address,
+            mediatorMgr.address,
+            params.predictDur,
+            params.evidenceDur,
+        ],
         async (contract, attached) => {
             disputeMgr = contract;
             if (attached) return;
@@ -433,7 +440,7 @@ async function deployMinerRegistry() {
     await deployOrAttach<MinerRegistry>(
         "MinerRegistry",
         undefined,
-        [p2p.address, params.minerBond, params.minerMatureDur, params.minerCancelDur],
+        [joinToken.address, params.minerBond, params.minerMatureDur, params.minerCancelDur],
         async (contract, attached) => {
             minerRegistry = contract;
             if (attached) return;
@@ -467,26 +474,31 @@ async function deployFeePool() {
 }
 
 async function deployTokenPoolAndFeePool() {
-    await deployOrAttach<TokenPool>("TokenPool", undefined, [p2p.address, p2p.address], async (contract, attached) => {
-        tokenPool = contract;
-        await deployFeePool();
+    await deployOrAttach<TokenPool>(
+        "TokenPool",
+        undefined,
+        [joinToken.address, joinToken.address],
+        async (contract, attached) => {
+            tokenPool = contract;
+            await deployFeePool();
 
-        if (attached) return;
+            if (attached) return;
 
-        await runStep(1, "Setting FeePool on TokenPool contract", async () => {
-            await call(tokenPool, deployer, (c) => {
-                return c.setFeePool(feePool.address);
+            await runStep(1, "Setting FeePool on TokenPool contract", async () => {
+                await call(tokenPool, deployer, (c) => {
+                    return c.setFeePool(feePool.address);
+                });
+
+                await call(core, deployer, (c) => {
+                    return c.setFeePool(feePool.address);
+                });
             });
-
-            await call(core, deployer, (c) => {
-                return c.setFeePool(feePool.address);
-            });
-        });
-    });
+        },
+    );
 }
 
 async function deployLPPool() {
-    await deployOrAttach<LPPool>("LPPool", undefined, [AddressZero, p2p.address], async (contract) => {
+    await deployOrAttach<LPPool>("LPPool", undefined, [AddressZero, joinToken.address], async (contract) => {
         lpPool = contract;
     });
 }

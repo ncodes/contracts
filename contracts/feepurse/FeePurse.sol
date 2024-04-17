@@ -5,7 +5,7 @@ import "../common/SafeERC20.sol";
 import "../token/interfaces/IERC20.sol";
 import "../common/Writable.sol";
 
-/// @notice FeePurse stores P2P tokens to be used to pay fees
+/// @notice FeePurse stores NATIVE tokens to be used to pay fees
 contract FeePurse is Writable {
     using SafeERC20 for IERC20;
 

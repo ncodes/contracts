@@ -4,11 +4,11 @@ pragma solidity ^0.8.13;
 import "../common/Ownable.sol";
 
 struct Info {
-    // The asset exchange rate to P2P (e.g 1 ASSET -> P2P)
+    // The asset exchange rate to NATIVE_TOKEN (e.g 1 ASSET -> NATIVE_TOKEN)
     uint256 curRate;
     // The basis point fee to charged by protocol on the asset
     uint256 feeBp;
-    // The fixed fee rate charged by the protocol (denominated in P2P)
+    // The fixed fee rate charged by the protocol (denominated in NATIVE_TOKEN)
     uint256 feeFixed;
     // Indicates whether the asset is verified
     bool verified;

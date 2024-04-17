@@ -349,8 +349,8 @@ contract Core is Ownable, ERC1155Holder {
     /// @param _instantSwapFeeBp Fee for ERC20/ERC20 swap
     /// @param _synthSwapFeeBp Fee for ERC20/SYNTH swap
     /// @param _stableSwapFeeBp Fee for ERC20(stablecoin)/ERC20(stablecoin)
-    /// @param _fixedSynthSwapFee Fee for SYNTH/SYNTH swap (in P2P)
-    /// @param _fixedNFTSwapFee Fee for NFT/NFT swap (in P2P)
+    /// @param _fixedSynthSwapFee Fee for SYNTH/SYNTH swap (in NATIVE_TOKEN)
+    /// @param _fixedNFTSwapFee Fee for NFT/NFT swap (in NATIVE_TOKEN)
     /// @param _instantNFTSwapFeeBp Fee for NFT/ERC20 swap
     function setProtoFee(
         uint256 _instantSwapFeeBp,
