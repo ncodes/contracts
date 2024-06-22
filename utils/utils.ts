@@ -4,6 +4,7 @@ import {BigNumber, BigNumberish, constants} from "ethers";
 import {ethers, network} from "hardhat";
 import moment from "moment";
 import * as erc20 from "../artifacts/contracts/token/TOKEN.sol/TOKEN.json";
+import {StandardMerkleTree} from "@openzeppelin/merkle-tree";
 
 export const toHex = ethers.utils.hexlify;
 
