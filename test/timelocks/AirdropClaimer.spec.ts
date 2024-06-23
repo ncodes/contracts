@@ -1,13 +1,13 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
 import {ethers} from "hardhat";
-import {AirdropClaimer, TOKEN, TimelockWallet, VestingWallet} from "../../typechain-types";
-import {advanceBlockTime, powOf, toBN, toDec} from "../../utils/utils";
+import {AirdropClaimer, TOKEN, TimelockWallet, VestingWallet, NFT} from "../../typechain-types";
+import {AddressZero, advanceBlockTime, powOf, toBN, toDec} from "../../utils/utils";
 import {randomBytes} from "crypto";
 import {utils} from "ethers";
 import {StandardMerkleTree} from "@openzeppelin/merkle-tree";
 
-const values = [
+const trialnetAirdropTreeValues = [
     ["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", 0, "5000000000000000000", 5000, 86400],
     ["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", 0, "2500000000000000000", 10000, 86400],
     ["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", 0, "2500000000000000000", 0, 86400],
@@ -17,8 +17,14 @@ const values = [
     ["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", 2, "5000000000000000000", 5000, 86400],
 ];
 
-export function generateTree(values: any[]) {
+const nftAllocTreeValues = [[1, "5000000000000000000", 5000, 86400]];
+
+export function generateTrialnetTree(values: any[]) {
     return StandardMerkleTree.of(values, ["address", "uint", "uint256", "uint256", "uint256"]);
+}
+
+export function generateNftAllocTree(values: any[]) {
+    return StandardMerkleTree.of(values, ["uint256", "uint256", "uint256", "uint256"]);
 }
 
 describe("AirdropClaimer", function () {
@@ -30,8 +36,11 @@ describe("AirdropClaimer", function () {
     let airdropClaimer: AirdropClaimer;
     let token: TOKEN;
     let tree: StandardMerkleTree<any>;
+    let nftTree: StandardMerkleTree<any>;
     let supply = "";
     let deployerBal = toBN("0");
+    const baseURI = "ipfs://abc/";
+    let nft: NFT;
 
     beforeEach(async () => {
         accts = await ethers.getSigners();
@@ -45,12 +54,24 @@ describe("AirdropClaimer", function () {
         token = (await TOKEN.deploy("REWARD_TOKEN", "REWARD_TOKEN", supply, 18)) as TOKEN;
 
         let factory = await ethers.getContractFactory("AirdropClaimer");
-        airdropClaimer = (await factory.deploy(token.address, Buffer.alloc(32))) as AirdropClaimer;
+        airdropClaimer = (await factory.deploy(Buffer.alloc(32), Buffer.alloc(32), token.address, AddressZero)) as AirdropClaimer;
 
         await token.transfer(airdropClaimer.address, "100000000000000000000");
-        deployerBal = await token.balanceOf(deployer.address);
 
-        tree = generateTree(values);
+        tree = generateTrialnetTree(trialnetAirdropTreeValues);
+        nftTree = generateNftAllocTree(nftAllocTreeValues);
+
+        let nftFac = await ethers.getContractFactory("NFT");
+        nft = (await nftFac.deploy("NFT", "NFT", baseURI, 1000, 0, AddressZero, deployer.address, AddressZero, AddressZero)) as NFT;
+        await nft.setAllocator(deployer.address);
+        await nft.toggleAllowMint();
+        await nft.setCost(0);
+        await airdropClaimer.setNft(nft.address);
+
+        await airdropClaimer.setRoot(tree.root);
+        await airdropClaimer.setNftRewardRoot(nftTree.root);
+
+        deployerBal = await token.balanceOf(deployer.address);
     });
 
     describe(".setRewardToken", () => {
@@ -68,44 +89,40 @@ describe("AirdropClaimer", function () {
         });
     });
 
-    describe(".setTrialnetRoot", () => {
+    describe(".setRoot", () => {
         context("when the caller is the deployer", () => {
             it("should set the reward token", async () => {
                 const root = randomBytes(32);
-                await airdropClaimer.setTrialnetRoot(root);
+                await airdropClaimer.setRoot(root);
                 expect(await airdropClaimer.root()).to.equal(utils.hexlify(root));
             });
         });
 
         context("when the caller is not the deployer", () => {
             it("should revert", async () => {
-                await expect(airdropClaimer.connect(user).setTrialnetRoot(randomBytes(32))).to.be.revertedWith("OWNABLE: NOT_OWNER");
+                await expect(airdropClaimer.connect(user).setRoot(randomBytes(32))).to.be.revertedWith("OWNABLE: NOT_OWNER");
             });
         });
     });
 
     describe(".claimReward", () => {
         it("should revert with='SENDER_MUST_BE_ADDR' when sender isn't the beneficiary", async () => {
-            await airdropClaimer.setTrialnetRoot(tree.root);
-            const proof = tree.getProof(values[0]);
+            const proof = tree.getProof(trialnetAirdropTreeValues[0]);
             await expect(airdropClaimer.claimReward(proof, user2.address, 0, 1000, 0, 86400)).to.be.revertedWith("SENDER_MUST_BE_ADDR");
         });
 
         it("should revert with='Invalid proof' when proof is invalid", async () => {
-            await airdropClaimer.setTrialnetRoot(tree.root);
-            const proof = tree.getProof(values[0]);
+            const proof = tree.getProof(trialnetAirdropTreeValues[0]);
             await expect(airdropClaimer.claimReward(proof, deployer.address, 0, 1000, 0, 86400)).to.be.revertedWith("Invalid proof");
         });
 
         it("should revert with 'INVALID_CLAIM_ID' when claim ID is invalid", async () => {
-            await airdropClaimer.setTrialnetRoot(tree.root);
-            const proof = tree.getProof(values[0]);
+            const proof = tree.getProof(trialnetAirdropTreeValues[0]);
             await expect(airdropClaimer.claimReward(proof, deployer.address, 1, "5000000000000000000", 5000, 86400)).to.be.revertedWith("INVALID_CLAIM_ID");
         });
 
         it("should be successful when proof is valid", async () => {
-            await airdropClaimer.setTrialnetRoot(tree.root);
-            const proof = tree.getProof(values[0]);
+            const proof = tree.getProof(trialnetAirdropTreeValues[0]);
 
             const now = await advanceBlockTime(1);
             const vestingWalletId = await airdropClaimer.buildVestingWalletId(deployer.address, 0);
@@ -126,8 +143,7 @@ describe("AirdropClaimer", function () {
         });
 
         it("should revert with='PROOF_USED' if proof was re-used", async () => {
-            await airdropClaimer.setTrialnetRoot(tree.root);
-            const proof = tree.getProof(values[0]);
+            const proof = tree.getProof(trialnetAirdropTreeValues[0]);
 
             await expect(airdropClaimer.claimReward(proof, deployer.address, 0, "5000000000000000000", 5000, 86400)).to.emit(airdropClaimer, "RewardClaim");
 
@@ -136,16 +152,15 @@ describe("AirdropClaimer", function () {
 
         it("should be successful claim with multiple valid proofs", async () => {
             const factory = await ethers.getContractFactory("VestingWallet");
-            await airdropClaimer.setTrialnetRoot(tree.root);
 
-            let proof = tree.getProof(values[0]);
+            let proof = tree.getProof(trialnetAirdropTreeValues[0]);
             await expect(airdropClaimer.claimReward(proof, deployer.address, 0, "5000000000000000000", 5000, 86400)).to.emit(airdropClaimer, "RewardClaim");
             const vestingWalletId = await airdropClaimer.buildVestingWalletId(deployer.address, 0);
             const vestingW = factory.attach(await airdropClaimer.vestingWallets(vestingWalletId)) as VestingWallet;
             expect(await vestingW.beneficiary()).to.equal(deployer.address);
             expect(await vestingW["releasable(address)"](token.address)).to.equal("0");
 
-            proof = tree.getProof(values[1]);
+            proof = tree.getProof(trialnetAirdropTreeValues[1]);
             await expect(airdropClaimer.claimReward(proof, deployer.address, 0, "2500000000000000000", 10000, 86400)).to.emit(airdropClaimer, "RewardClaim");
             expect(await vestingW.beneficiary()).to.equal(deployer.address);
             expect((await vestingW["releasable(address)"](token.address)).gt(0)).to.be.true;
@@ -160,10 +175,9 @@ describe("AirdropClaimer", function () {
 
         it("should be successful claim proof with no tgeAlloc=0", async () => {
             const factory = await ethers.getContractFactory("VestingWallet");
-            await airdropClaimer.setTrialnetRoot(tree.root);
 
             await advanceBlockTime(1);
-            const proof = tree.getProof(values[2]);
+            const proof = tree.getProof(trialnetAirdropTreeValues[2]);
             await expect(airdropClaimer.claimReward(proof, deployer.address, 0, "2500000000000000000", 0, 86400)).to.emit(airdropClaimer, "RewardClaim");
             const vestingWalletId = await airdropClaimer.buildVestingWalletId(deployer.address, 0);
             const vestingW = factory.attach(await airdropClaimer.vestingWallets(vestingWalletId)) as VestingWallet;
@@ -180,26 +194,22 @@ describe("AirdropClaimer", function () {
 
     describe(".claimPresale", () => {
         it("should revert with='SENDER_MUST_BE_ADDR' when sender isn't the beneficiary", async () => {
-            await airdropClaimer.setTrialnetRoot(tree.root);
-            const proof = tree.getProof(values[0]);
+            const proof = tree.getProof(trialnetAirdropTreeValues[0]);
             await expect(airdropClaimer.claimPresale(proof, user2.address, 2, 1000, 0, 86400)).to.be.revertedWith("SENDER_MUST_BE_ADDR");
         });
 
         it("should revert with='Invalid proof' when proof is invalid", async () => {
-            await airdropClaimer.setTrialnetRoot(tree.root);
-            const proof = tree.getProof(values[0]);
+            const proof = tree.getProof(trialnetAirdropTreeValues[0]);
             await expect(airdropClaimer.claimPresale(proof, deployer.address, 2, 1000, 0, 86400)).to.be.revertedWith("Invalid proof");
         });
 
         it("should revert with 'INVALID_CLAIM_ID' when claim ID is invalid", async () => {
-            await airdropClaimer.setTrialnetRoot(tree.root);
-            const proof = tree.getProof(values[0]);
+            const proof = tree.getProof(trialnetAirdropTreeValues[0]);
             await expect(airdropClaimer.claimPresale(proof, deployer.address, 3, "5000000000000000000", 5000, 86400)).to.be.revertedWith("INVALID_CLAIM_ID");
         });
 
         it("should be successful when proof is valid", async () => {
-            await airdropClaimer.setTrialnetRoot(tree.root);
-            const proof = tree.getProof(values[6]);
+            const proof = tree.getProof(trialnetAirdropTreeValues[6]);
 
             const now = await advanceBlockTime(1);
             const vestingWalletId = await airdropClaimer.buildVestingWalletId(deployer.address, 2);
@@ -222,8 +232,7 @@ describe("AirdropClaimer", function () {
 
     describe(".claimDexDropReward", () => {
         it("should revert with 'INVALID_CLAIM_ID' when claim ID is invalid", async () => {
-            await airdropClaimer.setTrialnetRoot(tree.root);
-            const proof = tree.getProof(values[0]);
+            const proof = tree.getProof(trialnetAirdropTreeValues[0]);
             await expect(airdropClaimer.claimDexDropReward(proof, deployer.address, 3, "5000000000000000000", 5000, 86400)).to.be.revertedWith("INVALID_CLAIM_ID");
         });
 
@@ -238,8 +247,7 @@ describe("AirdropClaimer", function () {
             });
 
             it("should extend vesting start time by dex drop lock time when donation was not paid", async () => {
-                await airdropClaimer.setTrialnetRoot(tree.root);
-                const proof = tree.getProof(values[5]);
+                const proof = tree.getProof(trialnetAirdropTreeValues[5]);
                 const now = await advanceBlockTime(1);
                 await expect(airdropClaimer.claimDexDropReward(proof, deployer.address, 1, "2500000000000000000", 5000, 86400))
                     .to.be.emit(airdropClaimer, "RewardClaim")
@@ -271,8 +279,7 @@ describe("AirdropClaimer", function () {
             });
 
             it("should extend vesting immediately and release Tge allocation when donation was paid", async () => {
-                await airdropClaimer.setTrialnetRoot(tree.root);
-                const proof = tree.getProof(values[5]);
+                const proof = tree.getProof(trialnetAirdropTreeValues[5]);
                 const now = await advanceBlockTime(1);
                 await expect(airdropClaimer.claimDexDropReward(proof, deployer.address, 1, "2500000000000000000", 5000, 86400, {value: donation}))
                     .to.be.emit(airdropClaimer, "RewardClaim")
@@ -306,8 +313,7 @@ describe("AirdropClaimer", function () {
             });
 
             it("should extend vesting start time by dex drop lock time", async () => {
-                await airdropClaimer.setTrialnetRoot(tree.root);
-                const proof = tree.getProof(values[5]);
+                const proof = tree.getProof(trialnetAirdropTreeValues[5]);
                 const now = await advanceBlockTime(1);
                 await expect(airdropClaimer.claimDexDropReward(proof, deployer.address, 1, "2500000000000000000", 5000, 86400))
                     .to.be.emit(airdropClaimer, "RewardClaim")
@@ -340,6 +346,45 @@ describe("AirdropClaimer", function () {
         });
     });
 
+    describe(".claimNFTReward", () => {
+        it("should revert if token is unknown", async () => {
+            const proof = nftTree.getProof(nftAllocTreeValues[0]);
+            await expect(airdropClaimer.claimNFTReward(proof, 1, "5000000000000000000", 5000, 86400)).to.be.revertedWith("ERC721: invalid token ID");
+        });
+
+        it("should revert if token is not owned by sender", async () => {
+            await expect(nft.mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
+            const proof = nftTree.getProof(nftAllocTreeValues[0]);
+            await expect(airdropClaimer.connect(user2).claimNFTReward(proof, 1, "5000000000000000000", 5000, 86400)).to.be.revertedWith("NOT_NFT_OWNER");
+        });
+
+        it("should revert if proof is invalid", async () => {
+            await expect(nft.mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
+            const proof = nftTree.getProof(nftAllocTreeValues[0]);
+            await expect(airdropClaimer.claimNFTReward(proof, 1, "5000000000000000000", 1000, 86400)).to.be.revertedWith("Invalid proof");
+        });
+
+        it("should successfully claim reward", async () => {
+            await expect(nft.mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
+            const proof = nftTree.getProof(nftAllocTreeValues[0]);
+
+            const curBal = await token.balanceOf(deployer.address);
+            await expect(airdropClaimer.claimNFTReward(proof, 1, "5000000000000000000", 5000, 86400)).not.to.be.reverted;
+            expect(await token.balanceOf(deployer.address)).to.eq(curBal.add("2500000000000000000"));
+            expect(await token.balanceOf(airdropClaimer.address)).to.eq("95000000000000000000");
+
+            const vestingWalletId = await airdropClaimer.buildVestingWalletId(deployer.address, 3);
+            expect(await token.balanceOf(await airdropClaimer.vestingWallets(vestingWalletId))).to.eq("2500000000000000000");
+        });
+
+        it("should revert if proof has been used", async () => {
+            await expect(nft.mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
+            const proof = nftTree.getProof(nftAllocTreeValues[0]);
+            await expect(airdropClaimer.claimNFTReward(proof, 1, "5000000000000000000", 5000, 86400)).not.to.be.reverted;
+            await expect(airdropClaimer.claimNFTReward(proof, 1, "5000000000000000000", 5000, 86400)).to.be.revertedWith("PROOF_USED");
+        });
+    });
+
     describe(".withdrawETH", () => {
         const lockTime = 86400;
         const donation = "1000000000000000000";
@@ -355,8 +400,8 @@ describe("AirdropClaimer", function () {
         });
 
         it("should withdraw donated ETH", async () => {
-            await airdropClaimer.setTrialnetRoot(tree.root);
-            const proof = tree.getProof(values[5]);
+            const proof = tree.getProof(trialnetAirdropTreeValues[5]);
+
             const now = await advanceBlockTime(1);
             await expect(airdropClaimer.claimDexDropReward(proof, deployer.address, 1, "2500000000000000000", 5000, 86400, {value: donation}))
                 .to.be.emit(airdropClaimer, "RewardClaim")
@@ -373,9 +418,10 @@ describe("AirdropClaimer", function () {
 
             expect(await ethers.provider.getBalance(airdropClaimer.address)).to.eq("1000000000000000000");
 
+            const curBal = await ethers.provider.getBalance(user2.address);
             await expect(airdropClaimer.withdrawETH(user2.address)).to.emit(airdropClaimer, "WithdrawnETH").withArgs(user2.address, "1000000000000000000");
 
-            expect(await ethers.provider.getBalance(user2.address)).to.eq("10001000000000000000000");
+            expect(await ethers.provider.getBalance(user2.address)).to.eq(curBal.add("1000000000000000000"));
         });
     });
 
