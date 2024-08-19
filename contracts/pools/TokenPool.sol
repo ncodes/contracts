@@ -31,7 +31,6 @@ contract TokenPool is Ownable, Pausable, ReentrancyGuard {
     mapping(address => uint256) public rewards;
     uint256 private _totalSupply;
     mapping(address => uint256) private _balances;
-    mapping(address => VestStake) public vesting;
     string[2][] public requiredBadges;
 
     event RewardAdded(uint256 reward);
@@ -68,6 +67,11 @@ contract TokenPool is Ownable, Pausable, ReentrancyGuard {
     function setFeePool(address addr) external onlyOwner {
         feePool = IFeePool(addr);
         emit UpdatedFeePool(addr);
+    }
+
+    /// @notice Get the fee pool contract
+    function getFeePool() external view returns (address) {
+        return address(feePool);
     }
 
     /// @notice Set badge manager
@@ -131,32 +135,17 @@ contract TokenPool is Ownable, Pausable, ReentrancyGuard {
         _totalSupply += _amount;
         _balances[_owner] += _amount;
         stakingToken.transferFrom(_account, address(this), _amount);
-        feePool.notifyStake(_owner, _amount);
+
+        if (address(feePool) != address(0)) {
+            feePool.notifyStake(_owner, _amount);
+        }
     }
 
     /// @notice Add stake to the contract
     /// @param _amount The amount to add to the contract.
     function stake(uint256 _amount) external nonReentrant whenNotPaused updateReward(msg.sender) {
-        require(vesting[msg.sender].vestedAt < block.timestamp, "HAS_VESTING");
         _stake(_amount, msg.sender, msg.sender);
         emit Staked(msg.sender, _amount);
-    }
-
-    /// @notice Add stake under a vesting schedule.
-    /// @param _owner The owner of the vested token.
-    /// @param _amount The amount to be vested.
-    /// @param _cliffEndAt The cliff end time.
-    /// @param _vestedAt The time when the amount is fully vested.
-    function stakeVested(
-        address _owner,
-        uint256 _amount,
-        uint256 _cliffEndAt,
-        uint256 _vestedAt
-    ) external nonReentrant whenNotPaused updateReward(_owner) {
-        require(vesting[_owner].vestedAt < block.timestamp, "HAS_VESTING");
-        _stake(_amount, msg.sender, _owner);
-        vesting[_owner] = VestStake(_amount, _cliffEndAt, _vestedAt, 0);
-        emit VestStaked(_owner, _amount);
     }
 
     /// @notice Withdraw stake from the contract
@@ -165,21 +154,15 @@ contract TokenPool is Ownable, Pausable, ReentrancyGuard {
         _totalSupply -= _amount;
         _balances[msg.sender] -= _amount;
         stakingToken.transfer(msg.sender, _amount);
-        feePool.notifyWithdraw(msg.sender, _amount);
+
+        if (address(feePool) != address(0)) {
+            feePool.notifyWithdraw(msg.sender, _amount);
+        }
     }
 
     /// @notice Withdraw the stake from the contract
     /// @param _amount The amount to withdraw from the contract.
     function withdraw(uint256 _amount) public nonReentrant updateReward(msg.sender) {
-        VestStake storage stk = vesting[msg.sender];
-        if (stk.vestedAt >= block.timestamp) {
-            require(stk.cliffEndAt < block.timestamp, "IN_CLIFF");
-            uint256 amtPerSec = stk.amount / (stk.vestedAt - stk.cliffEndAt);
-            uint256 elapsed = block.timestamp - stk.cliffEndAt;
-            uint256 withdrawable = elapsed * amtPerSec - stk.withdrawn;
-            require(_amount <= withdrawable, "EXCEEDED_VESTED");
-            stk.withdrawn += _amount;
-        }
         _withdraw(_amount);
         emit StakeWithdrawn(msg.sender, _amount);
     }

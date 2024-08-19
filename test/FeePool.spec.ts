@@ -1,15 +1,12 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
-import {BigNumber} from "ethers";
 import {ethers} from "hardhat";
-import {BadgeManager, ENERGON, FeePool, MINTABLE_TOKEN, NFT, TokenPool} from "../typechain-types";
+import {BadgeManager, FeePool, MINTABLE_TOKEN, TokenPool} from "../typechain-types";
 import {advanceBlockTime, toBN} from "../utils/utils";
 
 describe("FeePool", function () {
     let tokenPool: TokenPool;
     let feePool: FeePool;
-    let nft: NFT;
-    let energon: ENERGON;
     let deployer: SignerWithAddress;
     let user2: SignerWithAddress;
     let notifier: SignerWithAddress;
@@ -21,9 +18,6 @@ describe("FeePool", function () {
     let badgeMgr: BadgeManager;
     let tokenDec = toBN(10).pow(18);
     let nowTs: number;
-    const maxSupply = 3;
-    const traitsAllocs = [100, 200, 300];
-    const baseURI = "ipfs://abc/";
 
     beforeEach(async () => {
         accts = await ethers.getSigners();
@@ -49,31 +43,11 @@ describe("FeePool", function () {
 
         let supply2 = toBN("1000000000000000000000000");
         let energonFac = await ethers.getContractFactory("ENERGON");
-        energon = (await energonFac.deploy("ENERGON", "ENR", supply2, 18)) as ENERGON;
-
-        let nftFac = await ethers.getContractFactory("NFT");
-        nft = (await nftFac.deploy("NFT", "NFT", baseURI, maxSupply, 0, feePool.address, deployer.address, energon.address, rewardToken.address)) as NFT;
-        await nft.setAllocator(deployer.address);
-        await nft.toggleAllowMint();
-        await nft.toggleAllowAlloc();
-        await nft.setCost(1);
-        await feePool.setNFT(nft.address);
 
         let badgeFac = await ethers.getContractFactory("BadgeManager");
         badgeMgr = (await badgeFac.deploy()) as BadgeManager;
         await tokenPool.setBadgeMgrManager(badgeMgr.address);
         await feePool.setBadgeMgrManager(badgeMgr.address);
-    });
-
-    describe(".setNFT", () => {
-        it("should revert with reason=OWNABLE: NOT_OWNER when sender is not owner", async () => {
-            await expect(feePool.connect(user2).setNFT(user2.address)).to.be.revertedWith("OWNABLE: NOT_OWNER");
-        });
-
-        it("should successfully set address", async () => {
-            await expect(feePool.setNFT(user2.address)).not.to.be.reverted;
-            expect(await feePool.nft()).to.eql(user2.address);
-        });
     });
 
     describe(".setTokenPool", () => {
@@ -239,192 +213,6 @@ describe("FeePool", function () {
         });
     });
 
-    describe(".nftEarned", () => {
-        let tokenId: BigNumber;
-        let tokenId2: BigNumber;
-        const expectedAmount = 10;
-
-        context("with one nft staked only", () => {
-            beforeEach(async () => {
-                // Mint NFT
-                await expect(nft.mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
-                const userTokens = await nft.tokensOfOwner(deployer.address);
-                expect(userTokens).to.eql([toBN(1)]);
-                tokenId = userTokens[0];
-
-                // Allocate and Stake NFT
-                await energon.addMinters([nft.address]);
-                await rewardToken.addMinters([nft.address]);
-                const msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "uint256"], [deployer.address, tokenId, expectedAmount]));
-                const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
-                const signedMsg = await deployer.signMessage(msgHashBytes);
-                await nft.setAllocator(deployer.address);
-                await expect(nft.allocate(tokenId, expectedAmount, signedMsg, {value: 300}))
-                    .to.emit(nft, "Allocated")
-                    .withArgs(deployer.address, tokenId, expectedAmount);
-
-                // Add some token balance to the fee pool
-                const feeAmt = tokenDec.mul(1000000);
-                await feeToken.transfer(feePool.address, feeAmt);
-                await feePool.connect(notifier).notifyFeeDeposit(feeToken.address, feeAmt);
-            });
-
-            it("should return correct amount after 1 day", async () => {
-                nowTs = await advanceBlockTime(86400);
-                expect((await feePool.nftEarned(tokenId, feeToken.address)).div(tokenDec).eq(999999)).to.be.true;
-            });
-        });
-
-        context("with two nft staked only", () => {
-            beforeEach(async () => {
-                // Mint NFT (user 1)
-                await expect(nft.mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
-                const userTokens = await nft.tokensOfOwner(deployer.address);
-                expect(userTokens).to.eql([toBN(1)]);
-                tokenId = userTokens[0];
-
-                // Mint NFT (user 2)
-                await nft.allowAddr(user2.address, 1, true);
-                await expect(nft.connect(user2).mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
-                const userTokens2 = await nft.tokensOfOwner(user2.address);
-                expect(userTokens2).to.eql([toBN(2)]);
-                tokenId2 = userTokens2[0];
-
-                // Allocate and Stake NFT (1)
-                await energon.addMinters([nft.address]);
-                await rewardToken.addMinters([nft.address]);
-                let msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "uint256"], [deployer.address, tokenId, expectedAmount]));
-                let msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
-                let signedMsg = await deployer.signMessage(msgHashBytes);
-                await nft.setAllocator(deployer.address);
-                await expect(nft.allocate(tokenId, expectedAmount, signedMsg, {value: 300}))
-                    .to.emit(nft, "Allocated")
-                    .withArgs(deployer.address, tokenId, expectedAmount);
-
-                // Allocate and Stake NFT (2)
-                msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "uint256"], [user2.address, tokenId2, expectedAmount]));
-                msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
-                signedMsg = await deployer.signMessage(msgHashBytes);
-                await nft.setAllocator(deployer.address);
-                await expect(nft.connect(user2).allocate(tokenId2, expectedAmount, signedMsg, {value: 300}))
-                    .to.emit(nft, "Allocated")
-                    .withArgs(user2.address, tokenId2, expectedAmount);
-
-                // Add some token balance to the fee pool
-                const feeAmt = tokenDec.mul(1000000);
-                await feeToken.transfer(feePool.address, feeAmt);
-                await feePool.connect(notifier).notifyFeeDeposit(feeToken.address, feeAmt);
-            });
-
-            it("should return correct amount after 1 day", async () => {
-                nowTs = await advanceBlockTime(86400);
-                expect((await feePool.nftEarned(tokenId, feeToken.address)).div(tokenDec).eq(499999)).to.be.true;
-                expect((await feePool.nftEarned(tokenId2, feeToken.address)).div(tokenDec).eq(499999)).to.be.true;
-            });
-        });
-
-        context("with two nft staked and one regular token stake only", () => {
-            beforeEach(async () => {
-                const traits = [0, 1];
-                let expectedAmount = traitsAllocs[traits[0]] + traitsAllocs[traits[1]];
-
-                // Stake User Token
-                await stakingToken.approve(tokenPool.address, expectedAmount);
-                await tokenPool.stake(expectedAmount);
-                expect((await feePool.totalSupply()).eq(expectedAmount)).to.be.true;
-
-                // Mint NFT (user 1)
-                await expect(nft.mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
-                const userTokens = await nft.tokensOfOwner(deployer.address);
-                expect(userTokens).to.eql([toBN(1)]);
-                tokenId = userTokens[0];
-
-                // Mint NFT (user 2)
-                await nft.allowAddr(user2.address, 1, true);
-                await expect(nft.connect(user2).mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
-                const userTokens2 = await nft.tokensOfOwner(user2.address);
-                expect(userTokens2).to.eql([toBN(2)]);
-                tokenId2 = userTokens2[0];
-
-                // Allocate and Stake NFT (1)
-                await energon.addMinters([nft.address]);
-                await rewardToken.addMinters([nft.address]);
-                let msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "uint256"], [deployer.address, tokenId, expectedAmount]));
-                let msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
-                let signedMsg = await deployer.signMessage(msgHashBytes);
-                await nft.setAllocator(deployer.address);
-                await expect(nft.allocate(tokenId, expectedAmount, signedMsg, {value: 300}))
-                    .to.emit(nft, "Allocated")
-                    .withArgs(deployer.address, tokenId, expectedAmount);
-                expect((await feePool.totalSupply()).eq(toBN(expectedAmount).add(expectedAmount))).to.be.true;
-
-                // Allocate and Stake NFT (2)
-                msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "uint256"], [user2.address, tokenId2, expectedAmount]));
-                msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
-                signedMsg = await deployer.signMessage(msgHashBytes);
-                await nft.setAllocator(deployer.address);
-                await expect(nft.connect(user2).allocate(tokenId2, expectedAmount, signedMsg, {value: 300}))
-                    .to.emit(nft, "Allocated")
-                    .withArgs(user2.address, tokenId2, expectedAmount);
-                expect((await feePool.totalSupply()).eq(toBN(expectedAmount).add(expectedAmount).add(expectedAmount))).to.be.true;
-
-                // Add some token balance to the fee pool
-                const feeAmt = tokenDec.mul(1000000);
-                await feeToken.transfer(feePool.address, feeAmt);
-                await feePool.connect(notifier).notifyFeeDeposit(feeToken.address, feeAmt);
-            });
-
-            it("should return correct amount after 1 day", async () => {
-                nowTs = await advanceBlockTime(86400);
-                expect((await feePool.earned(deployer.address, feeToken.address)).div(tokenDec).eq(333333)).to.be.true;
-                expect((await feePool.nftEarned(tokenId, feeToken.address)).div(tokenDec).eq(333333)).to.be.true;
-                expect((await feePool.nftEarned(tokenId2, feeToken.address)).div(tokenDec).eq(333333)).to.be.true;
-            });
-        });
-
-        context("fee pool requires badges", () => {
-            it("should revert if sender does not have required badges", async () => {
-                await expect(badgeMgr.registerIssuer(deployer.address, "badge", [], [])).not.to.be.reverted;
-                await expect(badgeMgr.registerPath("badge", "path", [], [])).not.to.be.reverted;
-                await feePool.setRequiredBadges([["badge", "path"]]);
-
-                await expect(nft.mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
-                const userTokens = await nft.tokensOfOwner(deployer.address);
-                expect(userTokens).to.eql([toBN(1)]);
-                tokenId = userTokens[0];
-
-                await energon.addMinters([nft.address]);
-                await rewardToken.addMinters([nft.address]);
-                let msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "uint256"], [deployer.address, tokenId, expectedAmount]));
-                let msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
-                let signedMsg = await deployer.signMessage(msgHashBytes);
-                await nft.setAllocator(deployer.address);
-                await expect(nft.allocate(tokenId, expectedAmount, signedMsg, {value: 300})).to.be.revertedWith("FR: NOT_PERMITTED");
-            });
-
-            it("should revert if sender does not have required badges", async () => {
-                await expect(badgeMgr.registerIssuer(deployer.address, "badge", [], [])).not.to.be.reverted;
-                await expect(badgeMgr.registerPath("badge", "path", [], [])).not.to.be.reverted;
-                await feePool.setRequiredBadges([["badge", "path"]]);
-
-                await expect(nft.mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
-                const userTokens = await nft.tokensOfOwner(deployer.address);
-                expect(userTokens).to.eql([toBN(1)]);
-                tokenId = userTokens[0];
-
-                await badgeMgr.grantBadge("badge", "path", deployer.address, 0, [], []);
-
-                await energon.addMinters([nft.address]);
-                await rewardToken.addMinters([nft.address]);
-                let msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "uint256"], [deployer.address, tokenId, expectedAmount]));
-                let msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
-                let signedMsg = await deployer.signMessage(msgHashBytes);
-                await nft.setAllocator(deployer.address);
-                await expect(nft.allocate(tokenId, expectedAmount, signedMsg, {value: 300})).not.to.be.reverted;
-            });
-        });
-    });
-
     describe(".notifyFeeDeposit", () => {
         it("should revert with msg= when zero amount was provided", async () => {
             await expect(feePool.connect(notifier).notifyFeeDeposit(feeToken.address, 0)).to.be.revertedWith("FR: AMOUNT_REQ");
@@ -500,63 +288,6 @@ describe("FeePool", function () {
             expect((await feeToken.balanceOf(deployer.address)).eq(beforeBal.add(earned.div(2)))).to.be.true;
             const earned2 = await feePool.earned(deployer.address, feeToken.address);
             expect(earned2.eq(earned.div(2))).to.be.true;
-        });
-    });
-
-    describe(".withdrawNFTReward", () => {
-        let tokenId: BigNumber;
-        let expectedAmount = 10;
-
-        beforeEach(async () => {
-            // Mint NFT
-            await expect(nft.mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
-            const userTokens = await nft.tokensOfOwner(deployer.address);
-            expect(userTokens).to.eql([toBN(1)]);
-            tokenId = userTokens[0];
-
-            // Allocate and Stake NFT
-            await energon.addMinters([nft.address]);
-            await rewardToken.addMinters([nft.address]);
-            let msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "uint256"], [deployer.address, tokenId, expectedAmount]));
-            let msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
-            let signedMsg = await deployer.signMessage(msgHashBytes);
-            await nft.setAllocator(deployer.address);
-            await expect(nft.allocate(tokenId, expectedAmount, signedMsg, {value: 300}))
-                .to.emit(nft, "Allocated")
-                .withArgs(deployer.address, tokenId, expectedAmount);
-            expect(await feePool.nftBalanceOf(tokenId)).to.eql(toBN(expectedAmount));
-
-            // Add some token balance to the fee pool
-            const feeAmt = tokenDec.mul(1000000);
-            await feeToken.transfer(feePool.address, feeAmt);
-            await feePool.connect(notifier).notifyFeeDeposit(feeToken.address, feeAmt);
-        });
-
-        it("should revert with msg=NOT_OWNER when sender is not the NFT owner", async () => {
-            await expect(feePool.connect(user2).withdrawNFTReward(tokenId, feeToken.address, tokenDec.mul(100000))).to.revertedWith("FR: NOT_OWNER");
-        });
-
-        it("should revert with msg=INSUFFICIENT_BALANCE when NFT has earned less than the requested amount", async () => {
-            await expect(feePool.withdrawNFTReward(tokenId, feeToken.address, tokenDec.mul(100000))).to.revertedWith("FR: INSUFFICIENT_BALANCE");
-        });
-
-        it("should withdraw correctly", async () => {
-            nowTs = await advanceBlockTime(86400);
-            expect((await feePool.nftEarned(tokenId, feeToken.address)).div(tokenDec).eq(999999)).to.be.true;
-
-            // withdraw some
-            let before = await feeToken.balanceOf(deployer.address);
-            await expect(feePool.withdrawNFTReward(tokenId, feeToken.address, tokenDec.mul(100000)))
-                .to.emit(feePool, "RewardNFTWithdrawn")
-                .withArgs(tokenId, feeToken.address, deployer.address, tokenDec.mul(100000));
-            expect((await feePool.nftEarned(tokenId, feeToken.address)).div(tokenDec).eq(899999)).to.be.true;
-            expect(await feeToken.balanceOf(deployer.address)).to.eql(before.add(tokenDec.mul(100000)));
-
-            // withdraw the rest
-            before = await feeToken.balanceOf(deployer.address);
-            await feePool.withdrawNFTReward(tokenId, feeToken.address, tokenDec.mul(899999));
-            expect((await feePool.nftEarned(tokenId, feeToken.address)).div(tokenDec).eq(0)).to.be.true;
-            expect(await feeToken.balanceOf(deployer.address)).to.eql(before.add(tokenDec.mul(899999)));
         });
     });
 

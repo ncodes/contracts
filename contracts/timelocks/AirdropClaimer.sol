@@ -3,18 +3,15 @@ pragma solidity ^0.8.0;
 
 import "../common/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/finance/VestingWallet.sol";
+import "./WrappedVestingWallet.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 contract AirdropClaimer is Ownable {
     address public rewardToken;
     address public nft;
-    uint256 public contributionAmount = 0;
-    uint256 public dexDropLockTime = 0;
     bytes32 public root;
     bytes32 public nftRewardRoot;
-    bool public allowContribution = true;
     mapping(bytes32 => bool) public usedProofs;
     mapping(address => address) public vestingWallets;
     mapping(address => uint256) public unclaimedTgeAllocations;
@@ -35,7 +32,6 @@ contract AirdropClaimer is Ownable {
     event UpdatedRewardToken(address rewardToken);
     event UpdatedRoot(bytes32 root);
     event UpdatedAllowContribution(bool allowDonation);
-    event UpdatedContributionAmount(uint contributionAmount);
     event ClaimedTgeAlloc(address addr, uint256 amount);
     event RewardClaim(
         address beneficiary,
@@ -57,7 +53,6 @@ contract AirdropClaimer is Ownable {
         uint256 vestingStartTimestamp,
         uint256 vestingDurSec
     );
-    event UpdatedDexDropLockTime(uint256 dexDropLockTime);
     event WithdrawnETH(address beneficiary, uint256 amount);
     event WithdrawnRewardToken(address beneficiary, uint256 amount);
     event UpdatedNft(address nft);
@@ -89,24 +84,6 @@ contract AirdropClaimer is Ownable {
     function setNftRewardRoot(bytes32 _nftRewardRoot) public onlyOwner {
         nftRewardRoot = _nftRewardRoot;
         emit UpdatedNftRewardRoot(_nftRewardRoot);
-    }
-
-    /// @notice Enable or disable contribution
-    function setAllowContribution(bool _allowContribution) public onlyOwner {
-        allowContribution = _allowContribution;
-        emit UpdatedAllowContribution(_allowContribution);
-    }
-
-    /// @notice Set the contribution amount
-    function setContributionAmount(uint _contributionAmount) public onlyOwner {
-        contributionAmount = _contributionAmount;
-        emit UpdatedContributionAmount(_contributionAmount);
-    }
-
-    /// @notice Set the DEX drop lock time
-    function setDexDropLockTime(uint256 _dexDropLockTime) public onlyOwner {
-        dexDropLockTime = _dexDropLockTime;
-        emit UpdatedDexDropLockTime(_dexDropLockTime);
     }
 
     function buildVestingWalletId(address addr, uint claimId) public pure returns (address) {
@@ -144,15 +121,13 @@ contract AirdropClaimer is Ownable {
         address vestingWalletId = buildVestingWalletId(addr, claimId);
         address vestingWallet = vestingWallets[vestingWalletId];
         if (vestingWallet == address(0)) {
-            vestingWallet = address(new VestingWallet(addr, startTimestamp, vestingDurSec));
+            vestingWallet = address(new WrappedVestingWallet(addr, startTimestamp, vestingDurSec));
             vestingWallets[vestingWalletId] = vestingWallet;
         }
 
         // Transfer TGE allocation to the beneficiary
         uint256 tgeAlloc = (allocation * tgeAllocBp) / 10000;
-        if (claimId != 1) {
-            ERC20(rewardToken).transfer(addr, tgeAlloc);
-        }
+        ERC20(rewardToken).transfer(addr, tgeAlloc);
 
         // Transfer the rest to the vesting wallet
         ERC20(rewardToken).transfer(address(vestingWallet), allocation - tgeAlloc);
@@ -179,59 +154,6 @@ contract AirdropClaimer is Ownable {
         _claimReward(proof, addr, claimId, allocation, tgeAllocBp, uint64(block.timestamp), uint64(vestingDurSec));
     }
 
-    /// @notice Verify and claim pre-sale reward
-    /// @param proof The merkle proof
-    /// @param addr The address to claim the reward
-    /// @param claimId The claim ID
-    /// @param allocation The allocation to claim
-    /// @param tgeAllocBp The TGE allocation basis points
-    /// @param vestingDurSec The vesting duration in seconds
-    function claimPresale(
-        bytes32[] memory proof,
-        address addr,
-        uint claimId,
-        uint256 allocation,
-        uint tgeAllocBp,
-        uint256 vestingDurSec
-    ) public {
-        require(claimId == 2, "INVALID_CLAIM_ID");
-        _claimReward(proof, addr, claimId, allocation, tgeAllocBp, uint64(block.timestamp), uint64(vestingDurSec));
-    }
-
-    /// @notice Verify and claim the DEX drop reward
-    /// @param proof The merkle proof
-    /// @param addr The address to claim the reward
-    /// @param claimId The claim ID
-    /// @param allocation The allocation to claim
-    /// @param tgeAllocBp The TGE allocation basis points
-    /// @param vestingDurSec The vesting duration in seconds
-    function claimDexDropReward(
-        bytes32[] memory proof,
-        address addr,
-        uint claimId,
-        uint256 allocation,
-        uint tgeAllocBp,
-        uint256 vestingDurSec
-    ) public payable {
-        require(claimId == 1, "INVALID_CLAIM_ID");
-
-        uint64 startTime = uint64(block.timestamp + dexDropLockTime);
-        uint256 tgeAlloc = (allocation * tgeAllocBp) / 10000;
-
-        if (allowContribution && msg.value >= contributionAmount) {
-            startTime = uint64(block.timestamp);
-        }
-
-        _claimReward(proof, addr, claimId, allocation, tgeAllocBp, startTime, uint64(vestingDurSec));
-
-        if (allowContribution && msg.value >= contributionAmount) {
-            ERC20(rewardToken).transfer(addr, tgeAlloc);
-        } else {
-            unclaimedTgeAllocations[addr] += tgeAlloc;
-            unclaimedTgeAllocClaimTime[addr] = startTime;
-        }
-    }
-
     /// @notice Claim NFT reward
     /// @param proof The merkle proof
     /// @param tokenId The NFT token ID
@@ -254,7 +176,7 @@ contract AirdropClaimer is Ownable {
         address vestWalletId = buildVestingWalletId(msg.sender, 3);
         address vestingWallet = vestingWallets[vestWalletId];
         if (vestingWallet == address(0)) {
-            vestingWallet = address(new VestingWallet(msg.sender, uint64(block.timestamp), uint64(vestingDurSec)));
+            vestingWallet = address(new WrappedVestingWallet(msg.sender, uint64(block.timestamp), uint64(vestingDurSec)));
             vestingWallets[vestWalletId] = vestingWallet;
         }
 
@@ -288,14 +210,6 @@ contract AirdropClaimer is Ownable {
         emit ClaimedTgeAlloc(addr, unclaimedTgeAllocations[addr]);
 
         unclaimedTgeAllocations[addr] = 0;
-    }
-
-    /// @notice Withdraw ETH from the contract
-    /// @param beneficiary The beneficiary address
-    function withdrawETH(address beneficiary) public onlyOwner {
-        uint256 amount = address(this).balance;
-        payable(beneficiary).transfer(amount);
-        emit WithdrawnETH(beneficiary, amount);
     }
 
     /// @notice Withdraw all reward tokens from the contract

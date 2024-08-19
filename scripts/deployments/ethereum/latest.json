@@ -1,11 +1,11 @@
 {
   "meta": {
-    "created": 1708560858727
+    "created": 1716195522321
   },
   "contracts": {
     "TOKEN": {
-      "address": "0xf03502BC34b97664b6f9e6B625F2e4d6cB4Fc012",
-      "gasUsed": 741974
+      "address": "0x264FaE2D34Dd1e6e2f619A09939018dcAe34C845",
+      "gasUsed": 741986
     }
   }
 }

@@ -1,6 +1,6 @@
 import {EthersError, getParsedEthersError} from "@enzoferey/ethers-error-parser";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import {Contract, ContractTransaction, Signer, Wallet} from "ethers";
+import {BigNumberish, Contract, ContractTransaction, Signer, Wallet} from "ethers";
 import fs from "fs";
 import {ethers, network} from "hardhat";
 import path from "path";
@@ -75,23 +75,28 @@ let deployed: Deployments = {
 };
 
 async function deployMainnet() {
-    await deployBadgeManager();
-    await deployNativeToken("Joint Test Token", "tJOIN");
-    await deployMarketCore();
-    await deployCore();
-    await deployAssetRegistry();
-    await deployOperatorManager();
-    await deployFeePurse();
+    // await deployToken("BANDIT", "BANDIT", powOf(1000000000, 18), 18);
+    // await deployToken("DROID", "DROID", powOf(1000000000, 18), 18);
+    // await deployToken("MULTIPLIER", "MULTI", powOf(1000000000, 18), 18);
+    // await deployToken("WARBOND", "BOND", powOf(10000000000, 18), 18);
+
+    // await deployBadgeManager();
+    await deployNativeToken("Joint", "JOIN", "10000000000000000000000000000");
+    // await deployMarketCore();
+    // await deployCore();
+    // await deployAssetRegistry();
+    // await deployOperatorManager();
+    // await deployFeePurse();
     // await deployRandomness();
-    await deployDummyRandomness();
-    await deployMediatorManager();
-    await deployDisputeManager();
-    await deployMinerRegistry();
+    // await deployDummyRandomness();
+    // await deployMediatorManager();
+    // await deployDisputeManager();
+    // await deployMinerRegistry();
     // await deployWrappedETH();
     // await deployNFT();
     // await deployTokenPoolAndFeePool();
     // await deployLPPool();
-}AddressZero
+}
 
 async function deployLocal() {
     await deployBadgeManager();
@@ -123,8 +128,8 @@ async function main() {
     deployer = accts[0];
     inventor = accts[0];
 
-    await deployMainnet();
-    // await deployLocal();
+    // await deployMainnet();
+    await deployLocal();
 }
 
 async function deployBadgeManager() {
@@ -193,6 +198,10 @@ async function deployNativeToken(name = "Joint Test Token", symbol = "JOIN", sup
 
 async function deployFakeUSDTToken(name = "Fake USDT2", symbol = "USDT2", supply = "10000000000000") {
     await deployOrAttach<TOKEN>("TOKEN", undefined, [name, symbol, supply, 6], async (contract) => {});
+}
+
+async function deployToken(name: string, symbol: string, supply: BigNumberish, decimal = 18) {
+    await deployOrAttach<TOKEN>("TOKEN," + name, undefined, [name, symbol, supply, decimal], async (contract) => {});
 }
 
 async function deployWrappedETH() {

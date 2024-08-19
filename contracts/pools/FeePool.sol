@@ -11,7 +11,6 @@ import "../badge/interfaces/IBadge.sol";
 contract FeePool is Ownable, ReentrancyGuard {
     address public tokenPool;
     address public notifier;
-    address public nft;
     IBadge public badge;
 
     uint256 public rewardsDuration = 30 days;
@@ -26,13 +25,10 @@ contract FeePool is Ownable, ReentrancyGuard {
     mapping(address => uint256) private _balances;
     string[2][] public requiredBadges;
 
-    event StakedNFT(uint256 tokenId, address nftAddress, uint256 amount);
     event RewardWithdrawn(address indexed token, address indexed user, uint256 reward);
-    event RewardNFTWithdrawn(uint256 tokenId, address indexed token, address indexed user, uint256 reward);
     event Recovered(address indexed token, uint256 amount);
     event RewardAdded(address indexed token, uint256 reward);
     event UpdatedRewardDuration(uint256 dur);
-    event UpdatedNFT(address addr);
     event UpdatedTokenPool(address addr);
     event UpdatedNotifier(address addr);
     event UpdatedBadgeManager(address addr);
@@ -54,11 +50,6 @@ contract FeePool is Ownable, ReentrancyGuard {
         _;
     }
 
-    modifier onlyNFT() {
-        require(msg.sender == nft, "FR: NOT_NFT");
-        _;
-    }
-
     /// @notice Initialize the fee rewards contract.
     /// @param _tokenPool The token pool contract address
     /// @param _notifier The notifier contract
@@ -72,13 +63,6 @@ contract FeePool is Ownable, ReentrancyGuard {
     function setRewardDuration(uint256 dur) external onlyOwner {
         rewardsDuration = dur;
         emit UpdatedRewardDuration(dur);
-    }
-
-    /// @notice Set the NFT contract address
-    /// @param addr The new NFT contract address
-    function setNFT(address addr) external onlyOwner {
-        nft = addr;
-        emit UpdatedNFT(addr);
     }
 
     /// @notice Set the token pool contract address
@@ -154,37 +138,10 @@ contract FeePool is Ownable, ReentrancyGuard {
             rewards[feeToken][account];
     }
 
-    /// @notice Calculate the reward earned by an NFT token
-    /// @param tokenId The ID of the NFT token
-    /// @param feeToken The fee token address
-    function nftEarned(uint256 tokenId, address feeToken) public view returns (uint256) {
-        return
-            ((_balances[getAddressOfNFT(tokenId)] *
-                (rewardPerToken(feeToken) - userRewardPerTokenPaid[feeToken][getAddressOfNFT(tokenId)])) / 1e18) +
-            rewards[feeToken][getAddressOfNFT(tokenId)];
-    }
-
     /// @notice Get reward available for the reward duration.
     /// @param feeToken The fee token address
     function getRewardForDuration(address feeToken) external view returns (uint256) {
         return rewardRates[feeToken] * rewardsDuration;
-    }
-
-    /// @notice Get the address of an NFT token
-    /// @param tokenId The ID of the NFT token
-    function getAddressOfNFT(uint256 tokenId) public pure returns (address) {
-        return address(ripemd160(abi.encodePacked(tokenId)));
-    }
-
-    /// @notice Stake an NFT
-    /// @param _tokenId The ID of the NFT token
-    /// @param _amount The amount to stake
-    function stakeNFT(uint256 _tokenId, uint256 _amount) external nonReentrant onlyNFT updateReward(address(0)) {
-        require(canStake(IERC721(nft).ownerOf(_tokenId)), "FR: NOT_PERMITTED");
-        address tokenAddr = getAddressOfNFT(_tokenId);
-        _totalSupply += _amount;
-        _balances[tokenAddr] += _amount;
-        emit StakedNFT(_tokenId, tokenAddr, _amount);
     }
 
     /// @notice Called when an account increased their stake on the staking contract
@@ -213,22 +170,6 @@ contract FeePool is Ownable, ReentrancyGuard {
         rewards[feeToken][msg.sender] = reward - _amount;
         IERC20(feeToken).transfer(msg.sender, _amount);
         emit RewardWithdrawn(feeToken, msg.sender, _amount);
-    }
-
-    /// @notice Withdraw reward belonging to a given NFT token
-    /// @param tokenId The ID of the NFT token
-    /// @param feeToken The fee token address
-    /// @param _amount The amount to withdraw
-    function withdrawNFTReward(uint256 tokenId, address feeToken, uint256 _amount) external nonReentrant {
-        address _owner = IERC721(nft).ownerOf(tokenId);
-        require(_owner == msg.sender, "FR: NOT_OWNER");
-        address nftAddr = getAddressOfNFT(tokenId);
-        _updateReward(nftAddr);
-        uint256 reward = rewards[feeToken][nftAddr];
-        require(reward >= _amount, "FR: INSUFFICIENT_BALANCE");
-        rewards[feeToken][nftAddr] = reward - _amount;
-        IERC20(feeToken).transfer(_owner, _amount);
-        emit RewardNFTWithdrawn(tokenId, feeToken, _owner, _amount);
     }
 
     /// @notice Notify the contract of fee token transfer
@@ -277,12 +218,6 @@ contract FeePool is Ownable, ReentrancyGuard {
     /// @param account The address of the account
     function balanceOf(address account) external view returns (uint256) {
         return _balances[account];
-    }
-
-    /// @notice Return amount staked by an NFT token
-    /// @param tokenId The ID of the NFT token
-    function nftBalanceOf(uint256 tokenId) external view returns (uint256) {
-        return _balances[getAddressOfNFT(tokenId)];
     }
 
     /// @notice Return balance of a token

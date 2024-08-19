@@ -111,6 +111,22 @@
     "MinerRegistry": {
       "address": "0x4fDEE423445866c9e626F5BAA116F8a080A21aC0",
       "gasUsed": 3155173
+    },
+    "BANDIT": {
+      "address": "0xda668F1c6B6329f19afc657fD9D8093E6187e3eF",
+      "gasUsed": 987550
+    },
+    "DROID": {
+      "address": "0xAa77e14277F727B3C5158A07DFf83019d063a131",
+      "gasUsed": 990397
+    },
+    "MULTIPLIER": {
+      "address": "0x9c2F13C5fCc4f956921CeA990356166D63B663f4",
+      "gasUsed": 1013060
+    },
+    "WARBOND": {
+      "address": "0x5Eb896c6de72f763D0F3D26ee7F63F575D466902",
+      "gasUsed": 1011621
     }
   }
 }

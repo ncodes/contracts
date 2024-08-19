@@ -2,9 +2,8 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
 import {BigNumber} from "ethers";
 import {ethers} from "hardhat";
-import moment from "moment";
 import {BadgeManager, FeePool, TOKEN, TokenPool} from "../typechain-types";
-import {advanceBlockTime, setBlockTime, setBlockTimeNow, toBN} from "../utils/utils";
+import {advanceBlockTime, toBN} from "../utils/utils";
 
 describe("TokenPool", function () {
     let tokenPool: TokenPool;
@@ -66,20 +65,6 @@ describe("TokenPool", function () {
         it("should add stake successfully", async () => {
             await expect(tokenPool.connect(user2).stake(1000)).not.to.be.reverted;
             expect(await tokenPool.balanceOf(user2.address)).to.eql(toBN(1000));
-        });
-
-        it("should revert with reason=HAS_VESTING when sender has an active vest schedule", async () => {
-            const amount = tokenDec.mul(1000);
-            await stakingToken.transfer(user3.address, amount);
-            await stakingToken.connect(user3).approve(tokenPool.address, amount);
-
-            const owner = user2;
-            const nowTs = await advanceBlockTime(1);
-            const cliffEnd = moment.unix(nowTs).add(1, "days").unix();
-            const vestedAt = moment.unix(nowTs).add(6, "days").unix();
-            await expect(tokenPool.connect(user3).stakeVested(owner.address, amount, cliffEnd, vestedAt)).not.to.be.reverted;
-
-            await expect(tokenPool.connect(user2).stake(1000)).to.be.revertedWith("HAS_VESTING");
         });
 
         context("when required badges are set", () => {
@@ -176,7 +161,9 @@ describe("TokenPool", function () {
         });
 
         it("should revert with reason=INSUFFICIENT_BALANCE when user has insufficient reward balance", async () => {
-            await expect(tokenPool.connect(user2).withdrawReward(tokenDec.mul(2))).to.be.revertedWith("INSUFFICIENT_BALANCE");
+            await expect(tokenPool.connect(user2).withdrawReward(tokenDec.mul(2))).to.be.revertedWith(
+                "INSUFFICIENT_BALANCE",
+            );
         });
 
         it("should successfully withdraw reward", async () => {
@@ -219,7 +206,9 @@ describe("TokenPool", function () {
         it("should revert with reason=INVALID_TOKEN_ADDRESS when asset is the staking asset", async () => {
             await stakingToken.approve(tokenPool.address, tokenDec.mul(1000));
             await tokenPool.stake(1000);
-            await expect(tokenPool.recoverERC20(stakingToken.address, 1)).to.be.revertedWith("TP: INVALID_TOKEN_ADDRESS");
+            await expect(tokenPool.recoverERC20(stakingToken.address, 1)).to.be.revertedWith(
+                "TP: INVALID_TOKEN_ADDRESS",
+            );
         });
 
         it("should withdraw successfully", async () => {
@@ -258,119 +247,19 @@ describe("TokenPool", function () {
         });
     });
 
-    describe(".stakeVested", () => {
-        it("should successfully stake and add a vest entry and revert if owner is already vesting", async () => {
-            await stakingToken.approve(tokenPool.address, tokenDec.mul(1000));
-            const owner = accts[1];
-            const amount = 1000;
-            const nowTs = await advanceBlockTime(1);
-            const cliffEnd = moment.unix(nowTs).add(1, "days").unix();
-            const vestedAt = moment.unix(nowTs).add(5, "days").unix();
-            await expect(tokenPool.stakeVested(owner.address, amount, cliffEnd, vestedAt)).not.to.be.reverted;
-            await expect(tokenPool.stakeVested(owner.address, amount, cliffEnd, vestedAt)).to.be.revertedWith("HAS_VESTING");
-        });
-    });
-
     describe(".withdraw", () => {
-        let nowTs: number;
-        beforeEach(async () => {
-            nowTs = await advanceBlockTime(1);
-        });
+        it("should successfully withdraw stake", async () => {
+            const userStake = tokenDec.mul(1000);
+            await stakingToken.transfer(user2.address, userStake);
+            await stakingToken.connect(user2).approve(tokenPool.address, userStake);
 
-        context("when stake is not vested", () => {
-            it("should successfully withdraw stake", async () => {
-                const userStake = tokenDec.mul(1000);
-                await stakingToken.transfer(user2.address, userStake);
-                await stakingToken.connect(user2).approve(tokenPool.address, userStake);
+            // stake 1000
+            await tokenPool.connect(user2).stake(tokenDec.mul(1000));
 
-                // stake 1000
-                await tokenPool.connect(user2).stake(tokenDec.mul(1000));
-
-                // withdraw 100
-                await expect(tokenPool.connect(user2).withdraw(100)).not.to.be.reverted;
-                expect((await stakingToken.balanceOf(user2.address)).eq(100)).to.be.true;
-                expect((await tokenPool.balanceOf(user2.address)).eq(tokenDec.mul(1000).sub(100))).to.be.true;
-            });
-        });
-
-        context("when stake is vested", () => {
-            let owner: SignerWithAddress;
-            let amount: BigNumber;
-            let cliffEnd: number;
-            let vestedAt: number;
-
-            function amountPerSec(): BigNumber {
-                return amount.div(vestedAt - cliffEnd);
-            }
-
-            async function calculateVested() {
-                const vestInfo = await tokenPool.vesting(user2.address);
-                const amtPerSec = amountPerSec();
-                const timeElapsed = nowTs - cliffEnd;
-                return Promise.resolve(toBN(timeElapsed).mul(amtPerSec.sub(vestInfo.withdrawn)));
-            }
-
-            beforeEach(async () => {
-                amount = tokenDec.mul(1000);
-                await stakingToken.transfer(user3.address, amount);
-                await stakingToken.connect(user3).approve(tokenPool.address, amount);
-
-                owner = user2;
-                nowTs = await advanceBlockTime(1);
-                cliffEnd = moment.unix(nowTs).add(1, "days").unix();
-                vestedAt = moment.unix(nowTs).add(6, "days").unix();
-                await expect(tokenPool.connect(user3).stakeVested(owner.address, amount, cliffEnd, vestedAt)).not.to.be.reverted;
-            });
-
-            it("should revert with reason= when stake is still in cliff period", async () => {
-                await expect(tokenPool.connect(user2).withdraw(100)).to.be.revertedWith("IN_CLIFF");
-            });
-
-            it("should revert when attempting to withdraw more than vested portion", async () => {
-                nowTs = await setBlockTime(cliffEnd + 1);
-                const vested = await calculateVested();
-                await expect(tokenPool.connect(user2).withdraw(vested.add(1))).to.be.revertedWith("EXCEEDED_VESTED");
-            });
-
-            it("should successfully withdraw vested portion (1 second)", async () => {
-                nowTs = await setBlockTime(cliffEnd + 1);
-                const vested = await calculateVested();
-                expect(vested).to.eql(amountPerSec());
-                await expect(tokenPool.connect(user2).withdraw(vested)).not.to.be.reverted;
-                expect(await stakingToken.balanceOf(user2.address)).to.eql(vested);
-            });
-
-            it("should successfully withdraw vested portion (2 days)", async () => {
-                nowTs = await setBlockTime(cliffEnd + 86400 * 2);
-                const vested = await calculateVested();
-                expect(vested).to.eql(amountPerSec().mul(86400 * 2));
-                await expect(tokenPool.connect(user2).withdraw(vested)).not.to.be.reverted;
-                expect(await stakingToken.balanceOf(user2.address)).to.eql(vested);
-            });
-
-            it("should allow multiple withdrawal as long as vested portion was not exceed", async () => {
-                nowTs = await setBlockTime(cliffEnd + 86400 * 2);
-                const vested = await calculateVested();
-                expect(vested).to.eql(amountPerSec().mul(86400 * 2));
-                await expect(tokenPool.connect(user2).withdraw(vested.div(2))).not.to.be.reverted;
-                await expect(tokenPool.connect(user2).withdraw(vested.div(2))).not.to.be.reverted;
-                expect(await stakingToken.balanceOf(user2.address)).to.eql(vested);
-            });
-
-            it("should successfully withdraw all amount when fully vested", async () => {
-                nowTs = await setBlockTime(vestedAt);
-                const vested = await calculateVested();
-                await expect(tokenPool.connect(user2).withdraw(vested)).not.to.be.reverted;
-                expect(await stakingToken.balanceOf(user2.address)).to.eql(vested);
-            });
-
-            it("should successfully withdraw all amount when fully vested and vest end date has been passed", async () => {
-                nowTs = await setBlockTimeNow(vestedAt);
-                const vested = await calculateVested();
-                nowTs = await advanceBlockTime(86400); // go pass the vest end time
-                await expect(tokenPool.connect(user2).withdraw(vested)).not.to.be.reverted;
-                expect(await stakingToken.balanceOf(user2.address)).to.eql(vested);
-            });
+            // withdraw 100
+            await expect(tokenPool.connect(user2).withdraw(100)).not.to.be.reverted;
+            expect((await stakingToken.balanceOf(user2.address)).eq(100)).to.be.true;
+            expect((await tokenPool.balanceOf(user2.address)).eq(tokenDec.mul(1000).sub(100))).to.be.true;
         });
     });
 });

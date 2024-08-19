@@ -8,5 +8,7 @@ interface IFeePool {
 
     function notifyFeeDeposit(address token, uint256 amount) external;
 
-    function stakeNFT(uint256 _tokenId, uint256 _amount) external;
+    function withdrawReward(address feeToken, uint256 _amount) external;
+
+    function earned(address account, address feeToken) external view returns (uint256);
 }

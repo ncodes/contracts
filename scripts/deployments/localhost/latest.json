@@ -1,6 +1,6 @@
 {
   "meta": {
-    "created": 1713360233918
+    "created": 1724091173536
   },
   "contracts": {
     "BadgeManager": {
@@ -9,7 +9,7 @@
     },
     "TOKEN": {
       "address": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
-      "gasUsed": 741868
+      "gasUsed": 741880
     },
     "MarketCore": {
       "address": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
@@ -23,7 +23,7 @@
     "AuxLib": {
       "address": "0x0165878A594ca255338adfa4d48449f69242Eb8F",
       "isLib": true,
-      "gasUsed": 2049537
+      "gasUsed": 2049525
     },
     "LiquidityLib": {
       "address": "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853",
@@ -82,7 +82,7 @@
     },
     "Core": {
       "address": "0x68B1D87F95878fE05B998F19b66F4baba5De1aed",
-      "gasUsed": 5307209
+      "gasUsed": 5307221
     },
     "AssetRegistry": {
       "address": "0xa85233C63b9Ee964Add6F2cffe00Fd84eb32338f",
@@ -110,7 +110,7 @@
     },
     "NFT": {
       "address": "0x998abeb3E57409262aE5b751f60747921B33613E",
-      "gasUsed": 4208196
+      "gasUsed": 4186667
     },
     "ENERGON": {
       "address": "0x99bbA657f2BbC93c02D617f8bA121cB8Fc104Acf",

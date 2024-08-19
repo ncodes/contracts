@@ -247,7 +247,7 @@ contract NFT is ReentrancyGuard, ERC721Enumerable, Ownable, DefaultOperatorFilte
         engBalances[_tokenId] = _alloc;
         IERC20(energon).mint(address(this), _alloc);
         IERC20(token).mint(address(this), _alloc);
-        IFeePool(feePool).stakeNFT(_tokenId, _alloc);
+        //        IFeePool(feePool).stakeNFT(_tokenId, _alloc);
         emit Allocated(msg.sender, _tokenId, _alloc);
     }
 

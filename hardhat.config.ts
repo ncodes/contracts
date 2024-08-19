@@ -33,32 +33,32 @@ module.exports = {
             //     blockNumber: 17073960,
             // },
         },
-        ethereum: {
-            url: `https://mainnet.infura.io/v3/${process.env.API_KEY}`,
-            accounts: deployKey ? [process.env.DEPLOY_KEY] : undefined,
-        },
-        goerli: {
-            url: `https://goerli.infura.io/v3/${process.env.API_KEY}`,
-            accounts: deployKey ? [process.env.DEPLOY_KEY] : undefined,
-        },
-        sepolia: {
-            url: `https://sepolia.infura.io/v3/${process.env.API_KEY}`,
-            accounts: deployKey ? [process.env.DEPLOY_KEY] : undefined,
-            // gasPrice: 600000000000,
-            // gasData: {
-            //     maxFeePerGas: "200000000000",
-            //     maxPriorityFeePerGas: "200000000000",
-            //     type: 2,
-            // },
-        },
-        arbitrum: {
-            url: "https://arb1.arbitrum.io/rpc",
-            accounts: deployKey ? [process.env.DEPLOY_KEY] : undefined,
-        },
-        "arbitrum-sepolia": {
-            url: "https://sepolia-rollup.arbitrum.io/rpc",
-            accounts: deployKey ? [process.env.DEPLOY_KEY] : undefined,
-        },
+        // ethereum: {
+        //     url: `https://mainnet.infura.io/v3/${process.env.API_KEY}`,
+        //     accounts: deployKey ? [process.env.DEPLOY_KEY] : undefined,
+        // },
+        // goerli: {
+        //     url: `https://goerli.infura.io/v3/${process.env.API_KEY}`,
+        //     accounts: deployKey ? [process.env.DEPLOY_KEY] : undefined,
+        // },
+        // sepolia: {
+        //     url: `https://sepolia.infura.io/v3/${process.env.API_KEY}`,
+        //     accounts: deployKey ? [process.env.DEPLOY_KEY] : undefined,
+        //     // gasPrice: 600000000000,
+        //     // gasData: {
+        //     //     maxFeePerGas: "200000000000",
+        //     //     maxPriorityFeePerGas: "200000000000",
+        //     //     type: 2,
+        //     // },
+        // },
+        // arbitrum: {
+        //     url: "https://arb1.arbitrum.io/rpc",
+        //     accounts: deployKey ? [process.env.DEPLOY_KEY] : undefined,
+        // },
+        // "arbitrum-sepolia": {
+        //     url: "https://sepolia-rollup.arbitrum.io/rpc",
+        //     accounts: deployKey ? [process.env.DEPLOY_KEY] : undefined,
+        // },
     },
     etherscan: {
         apiKey: process.env.ETHERSCAN_API_KEY,

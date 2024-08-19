@@ -1,7 +1,7 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
 import {ethers} from "hardhat";
-import {MultiBeneficiaryTimelockWallet, TOKEN, TimelockWallet} from "../../typechain-types";
+import {MultiBeneficiaryTimelockWallet, TOKEN, VestingWallet} from "../../typechain-types";
 import {advanceBlockTime, powOf, toBN, toDec} from "../../utils/utils";
 
 describe("MultiBeneficiaryTimelockWallet", function () {
@@ -32,7 +32,13 @@ describe("MultiBeneficiaryTimelockWallet", function () {
         let factory = await ethers.getContractFactory("MultiBeneficiaryTimelockWallet");
         const now = await advanceBlockTime(1);
         const startTime = now + startTimeDur;
-        multiTL = (await factory.deploy(token.address, allocator.address, tgeAllocPct * 100, startTime, vestingDur)) as MultiBeneficiaryTimelockWallet;
+        multiTL = (await factory.deploy(
+            token.address,
+            allocator.address,
+            tgeAllocPct * 100,
+            startTime,
+            vestingDur,
+        )) as MultiBeneficiaryTimelockWallet;
     });
 
     describe(".setAllocator", () => {
@@ -45,7 +51,9 @@ describe("MultiBeneficiaryTimelockWallet", function () {
 
         context("when the caller is not the deployer", () => {
             it("should revert", async () => {
-                await expect(multiTL.connect(user2).setAllocator(user3.address)).to.be.revertedWith("OWNABLE: NOT_OWNER");
+                await expect(multiTL.connect(user2).setAllocator(user3.address)).to.be.revertedWith(
+                    "OWNABLE: NOT_OWNER",
+                );
             });
         });
     });
@@ -72,15 +80,24 @@ describe("MultiBeneficiaryTimelockWallet", function () {
 
         it("should revert if contract contains insufficient token to be claimed", async () => {
             const alloc = powOf(1000, 18);
-            const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint", "address", "uint256"], [chainId, user2.address, alloc]));
+            const msgHash = ethers.utils.keccak256(
+                ethers.utils.defaultAbiCoder.encode(["uint", "address", "uint256"], [chainId, user2.address, alloc]),
+            );
             const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
             const signedMsg = await allocator.signMessage(msgHashBytes);
-            await expect(multiTL.claim(user2.address, alloc, signedMsg)).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+            await expect(multiTL.claim(user2.address, alloc, signedMsg)).to.be.revertedWith(
+                "ERC20: transfer amount exceeds balance",
+            );
         });
 
         it("should claim successfully when signature is valid and enough claimable token exist in the contract", async () => {
             const alloc = toDec(powOf(1000, 18));
-            const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint", "address", "uint256"], [chainId, user2.address, alloc.toFixed()]));
+            const msgHash = ethers.utils.keccak256(
+                ethers.utils.defaultAbiCoder.encode(
+                    ["uint", "address", "uint256"],
+                    [chainId, user2.address, alloc.toFixed()],
+                ),
+            );
             const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
             const signedMsg = await allocator.signMessage(msgHashBytes);
 
@@ -105,12 +122,14 @@ describe("MultiBeneficiaryTimelockWallet", function () {
             expect(await token.balanceOf(multiTL.address)).to.equal(0);
 
             // check the released amount in the timelock
-            const timelockWalletIns = (await ethers.getContractAt("TimelockWallet", timelockWallet)) as TimelockWallet;
+            const timelockWalletIns = (await ethers.getContractAt("VestingWallet", timelockWallet)) as VestingWallet;
             await advanceBlockTime((await timelockWalletIns.start()).add(vestingDur + 1).toNumber());
             expect(await timelockWalletIns["releasable(address)"](token.address)).to.eq(expectedAmount.toFixed());
 
             // It should fail if claim is attempted again
-            await expect(multiTL.claim(user2.address, alloc.toFixed(), signedMsg)).to.be.revertedWith("TGE_ALLOC_CLAIMED");
+            await expect(multiTL.claim(user2.address, alloc.toFixed(), signedMsg)).to.be.revertedWith(
+                "TGE_ALLOC_CLAIMED",
+            );
 
             // release timelock wallet
             const user2Bal = await token.balanceOf(user2.address);
