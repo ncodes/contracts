@@ -186,8 +186,6 @@ library AuxLib {
         require(isUnique(sp.ids), "OC: IDS_NUNIQ");
         require(!liq.paused, "OC: LIQ_PAUSED");
         require(sp.amount <= liq.amount, "OC: LOW_LIQ");
-        require(sp.offerId > 0 || sp.amount >= liq.minSwap, "OC: AMOUNT_BELOW_MIN_SWAP");
-        require(sp.offerId > 0 || liq.maxSwap == 0 || sp.amount <= liq.maxSwap, "OC: AMOUNT_ABOVE_MAX_SWAP");
         require(sp.offerId > 0 || sp.maxPrice == 0 || sp.maxPrice >= liq.price, "OC: MAX_PRICE_TOO_LOW");
     }
 

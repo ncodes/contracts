@@ -4,7 +4,7 @@ module.exports = {
     {
       files: "*.ts",
       options: {
-        printWidth: 120,
+        printWidth: 300,
         tabWidth: 4,
         useTabs: false,
         singleQuote: false,

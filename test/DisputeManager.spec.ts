@@ -29,13 +29,7 @@ describe("DisputeManager", function () {
     let mid: string;
     let baseDec: BigNumber;
     let quoteDec: BigNumber;
-    let marketCreator: SignerWithAddress,
-        provider: SignerWithAddress,
-        swapper: SignerWithAddress,
-        inventor: SignerWithAddress,
-        user5: SignerWithAddress,
-        user6: SignerWithAddress,
-        user7: SignerWithAddress;
+    let marketCreator: SignerWithAddress, provider: SignerWithAddress, swapper: SignerWithAddress, inventor: SignerWithAddress, user5: SignerWithAddress, user6: SignerWithAddress, user7: SignerWithAddress;
     let supply: BigNumberish;
     let ticketCancelDur = 0;
     let ticketMatureDur = 0;
@@ -138,7 +132,7 @@ describe("DisputeManager", function () {
     async function provideLiquidity(provider: SignerWithAddress, provLiqBal: BigNumber, basePrice: BigNumber, timeToPay = 0) {
         await baseAsset.transfer(provider.address, provLiqBal);
         await baseAsset.connect(provider).approve(core.address, provLiqBal);
-        await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [provLiqBal, basePrice], [], [], [0, 0, timeToPay, 0, 0]);
+        await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [provLiqBal, basePrice], [], [], [timeToPay, 0, 0]);
     }
 
     function createOrder_BaseOn_QuoteOff(mid: string) {

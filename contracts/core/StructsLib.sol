@@ -166,8 +166,6 @@ library StructsLib {
         uint256[] wantOrIds;
         uint256[] wantAndIds;
         uint256 price;
-        uint256 minSwap;
-        uint256 maxSwap;
         uint256 timeToPay;
         address target;
     }

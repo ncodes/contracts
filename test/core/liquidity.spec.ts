@@ -81,17 +81,7 @@ describe("Core - Liquidity", function () {
         await medMgr.updateTicketPool(0, vars.ticketBondAmt, 10, 10, 100, 100, 1, 0, 0, false, false);
     });
 
-    async function createMarket(
-        creator: SignerWithAddress = deployer,
-        base: string,
-        quote: string,
-        baseType: number,
-        quoteType: number,
-        permPut: boolean,
-        permSwap: boolean,
-        commission: BigNumberish,
-        mediatorPoolId: BigNumberish,
-    ) {
+    async function createMarket(creator: SignerWithAddress = deployer, base: string, quote: string, baseType: number, quoteType: number, permPut: boolean, permSwap: boolean, commission: BigNumberish, mediatorPoolId: BigNumberish) {
         const mid = makeMarketID(creator.address, base, quote, baseType, quoteType);
         await mc.connect(creator).createMarket(base, quote, baseType, quoteType, permPut, permSwap, commission, mediatorPoolId);
         return Promise.resolve(mid);
@@ -100,7 +90,7 @@ describe("Core - Liquidity", function () {
     async function provideLiquidity(provider: SignerWithAddress, liquidityAmt: BigNumber, basePrice: BigNumber, timeToPay = 0) {
         await baseAsset.transfer(provider.address, liquidityAmt);
         await baseAsset.connect(provider).approve(cAddr, liquidityAmt);
-        await core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liquidityAmt, basePrice], [], [], [0, 0, timeToPay, 0, 0]);
+        await core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liquidityAmt, basePrice], [], [], [timeToPay, 0, 0]);
     }
 
     describe(".setLiquidityManager", () => {
@@ -729,35 +719,35 @@ describe("Core - Liquidity", function () {
     describe(".updateFungibleLiquidity", () => {
         it("should revert with reason='EXPIRED_TX' when transaction has expired", async () => {
             const now = await advanceBlockTime(1);
-            await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, now, 0])).to.be.revertedWith("EXPIRED_TX");
+            await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, now, 0])).to.be.revertedWith("EXPIRED_TX");
         });
 
         it("should revert with reason='UNKNOWN_MARKET' when market does not exist", async () => {
-            await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith("UNKNOWN_MARKET");
+            await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0])).to.be.revertedWith("UNKNOWN_MARKET");
         });
 
         context("market is permissioned and sender is not the owner of the market and also no permitted", () => {
             it("should revert with reason='NO_PUT_PERM'", async () => {
                 await mc.createMarket(baseAddr, quoteAddr, 1, 0, true, true, 0, 0);
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith("MC: NO_PUT_PERM");
+                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0])).to.be.revertedWith("MC: NO_PUT_PERM");
             });
         });
 
         it("should revert with reason='UNEXP_BASE' when base asset is not fungible", async () => {
             mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC20, false, false, 0, 0);
-            await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: UNEXP_BASE");
+            await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0])).to.be.revertedWith("OC: UNEXP_BASE");
         });
 
         context("market is instant but timeToPay was provided", () => {
             it("should revert with reason='TTP_NREQ'", async () => {
                 mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 1, 0, 0])).to.be.revertedWith("OC: TTP_NREQ");
+                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [1, 0, 0])).to.be.revertedWith("OC: TTP_NREQ");
             });
         });
 
         it("should revert with reason=LOW_TTP when timeToPay is lesser than default minimum", async () => {
             mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0, 0);
-            await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 0], [], [], [0, 0, 1, 0, 0])).to.be.revertedWith("OC: LOW_TTP");
+            await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 0], [], [], [1, 0, 0])).to.be.revertedWith("OC: LOW_TTP");
         });
 
         context("base asset is ERC20", () => {
@@ -767,16 +757,16 @@ describe("Core - Liquidity", function () {
                     await baseAsset.connect(provider).approve(core.address, "200");
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, true, false, 0, 0);
                     await mc.permitPut(mid, provider.address);
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0])).not.to.be.reverted;
                     let liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount.toNumber()).to.equal(100);
 
                     // When PUT perm is revoked, should not be able to put liquidity
                     await mc.revokePut(mid, provider.address);
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith("MC: NO_PUT_PERM");
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0])).to.be.revertedWith("MC: NO_PUT_PERM");
 
                     // Should be able to remove liquidity
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [100, 100], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [100, 100], [], [], [0, 0, 0])).not.to.be.reverted;
                     liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount.toNumber()).to.equal(0);
                 });
@@ -786,13 +776,13 @@ describe("Core - Liquidity", function () {
                 it("should revert with reason='OC: PRICE_REQ' when quote is ERC20", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
                     await baseAsset.connect(provider).approve(core.address, "100");
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: PRICE_REQ");
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], [], [], [0, 0, 0])).to.be.revertedWith("OC: PRICE_REQ");
                 });
 
                 it("should revert with reason='OC: PRICE_REQ' when quote is SYNTH", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0, 0);
                     await baseAsset.connect(provider).approve(core.address, "100");
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: PRICE_REQ");
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], [], [], [0, 0, 0])).to.be.revertedWith("OC: PRICE_REQ");
                 });
             });
 
@@ -800,9 +790,7 @@ describe("Core - Liquidity", function () {
                 it("should revert with reason='ERC20: transfer amount exceeds balance'", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, 0, false, false, 0, 0);
                     await baseAsset.connect(provider).approve(core.address, "100");
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith(
-                        "ERC20: transfer amount exceeds balance",
-                    );
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0])).to.be.revertedWith("ERC20: transfer amount exceeds balance");
                 });
             });
 
@@ -810,9 +798,7 @@ describe("Core - Liquidity", function () {
                 it("should revert with reason='ERC20: transfer amount exceeds balance'", async () => {
                     await baseAsset.approve(cAddr, "99");
                     mid = await createMarket(undefined, baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                    await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith(
-                        "ERC20: insufficient allowance",
-                    );
+                    await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0])).to.be.revertedWith("ERC20: insufficient allowance");
                 });
             });
 
@@ -820,16 +806,13 @@ describe("Core - Liquidity", function () {
                 it("should update sender's liquidity correctly", async () => {
                     await baseAsset.approve(cAddr, "200");
                     mid = await createMarket(undefined, baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                    await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0, 0, 0])).to.emit(
-                        core,
-                        "UpdatedFungibleLiquidity",
-                    );
+                    await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0])).to.emit(core, "UpdatedFungibleLiquidity");
                     let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.amount.toNumber()).to.equal(100);
                     expect(liq.price.toNumber()).to.equal(100);
 
                     // Try again
-                    await core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 101], [], [], [0, 0, 0, 0, 0]);
+                    await core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 101], [], [], [0, 0, 0]);
                     liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.amount.toNumber()).to.equal(200);
                     expect(liq.price.toNumber()).to.equal(101);
@@ -846,10 +829,7 @@ describe("Core - Liquidity", function () {
                     it("should set target", async () => {
                         await baseAsset.approve(cAddr, "200");
                         mid = await createMarket(undefined, baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                        await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, swapper.address, [100, 100], [], [], [0, 0, 0, 0, 0])).to.emit(
-                            core,
-                            "UpdatedFungibleLiquidity",
-                        );
+                        await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, swapper.address, [100, 100], [], [], [0, 0, 0])).to.emit(core, "UpdatedFungibleLiquidity");
                         let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                         expect(liq.target).to.eql(swapper.address);
                     });
@@ -862,10 +842,7 @@ describe("Core - Liquidity", function () {
                     const wantAndIds = [toBN(2), toBN(3)];
                     await baseAsset.approve(cAddr, "200");
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721, false, false, 0, 0);
-                    await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], wantOrIds, wantAndIds, [0, 0, 0, 0, 0])).to.emit(
-                        core,
-                        "UpdatedFungibleLiquidity",
-                    );
+                    await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], wantOrIds, wantAndIds, [0, 0, 0])).to.emit(core, "UpdatedFungibleLiquidity");
                     let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.wantOrIds).to.eql(wantOrIds);
                     expect(liq.wantAndIds).to.eql(wantAndIds);
@@ -880,16 +857,13 @@ describe("Core - Liquidity", function () {
                     await baseAsset.approve(cAddr, "200");
                     await mc.createMarket(baseAddr, quoteAddr, 1, 0, true, false, 0, 0);
                     await mc.permitPut(mid, marketCreator.address);
-                    await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0, 0, 0])).to.emit(
-                        core,
-                        "UpdatedFungibleLiquidity",
-                    );
+                    await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0])).to.emit(core, "UpdatedFungibleLiquidity");
                     let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.amount.toNumber()).to.equal(100);
                     expect(liq.price.toNumber()).to.equal(100);
 
                     // Try again
-                    await core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 101], [], [], [0, 0, 0, 0, 0]);
+                    await core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 101], [], [], [0, 0, 0]);
                     liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.amount.toNumber()).to.equal(200);
                     expect(liq.price.toNumber()).to.equal(101);
@@ -899,87 +873,17 @@ describe("Core - Liquidity", function () {
             context("sender has no existing liquidity, amount=0", () => {
                 it("should revert with message='AMOUNT_REQ'", async () => {
                     await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 100], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: AMOUNT_REQ");
+                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 100], [], [], [0, 0, 0])).to.be.revertedWith("OC: AMOUNT_REQ");
                 });
 
                 it("should update price only when sender previously had liquidity", async () => {
                     await baseAsset.approve(cAddr, 100);
                     await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0, 0, 0])).to.emit(core, "UpdatedFungibleLiquidity");
-                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 120], [], [], [0, 0, 0, 0, 0])).to.emit(core, "UpdatedFungibleLiquidity");
+                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0])).to.emit(core, "UpdatedFungibleLiquidity");
+                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 120], [], [], [0, 0, 0])).to.emit(core, "UpdatedFungibleLiquidity");
                     let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.amount.toNumber()).to.equal(100);
                     expect(liq.price.toNumber()).to.equal(120);
-                });
-            });
-
-            context("minSwap and maxSwap were provided", () => {
-                beforeEach(async () => {
-                    await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                    await baseAsset.approve(cAddr, 100);
-                });
-
-                context("minSwap=0, maxSwap=0", () => {
-                    it("should be successful", async () => {
-                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 15], [], [], [0, 0, 0, 0, 0])).to.emit(core, "UpdatedFungibleLiquidity");
-                        let liq = await core.getLiquidity(mid, marketCreator.address, 0);
-                        expect(liq.amount.toNumber()).to.equal(100);
-                        expect(liq.minSwap.toNumber()).to.equal(0);
-                        expect(liq.maxSwap.toNumber()).to.equal(0);
-                    });
-                });
-
-                context("minSwap=0, maxSwap=10", () => {
-                    it("should be successful", async () => {
-                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 15], [], [], [0, 10, 0, 0, 0])).to.emit(core, "UpdatedFungibleLiquidity");
-                        let liq = await core.getLiquidity(mid, marketCreator.address, 0);
-                        expect(liq.amount.toNumber()).to.equal(100);
-                        expect(liq.minSwap.toNumber()).to.equal(0);
-                        expect(liq.maxSwap.toNumber()).to.equal(10);
-                    });
-                });
-
-                context("minSwap=10, maxSwap=0", () => {
-                    it("should be successful", async () => {
-                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 15], [], [], [10, 0, 0, 0, 0])).not.to.be.reverted;
-                        let liq = await core.getLiquidity(mid, marketCreator.address, 0);
-                        expect(liq.amount.toNumber()).to.equal(100);
-                        expect(liq.minSwap.toNumber()).to.equal(10);
-                        expect(liq.maxSwap.toNumber()).to.equal(0);
-                    });
-                });
-
-                context("minSwap=10, maxSwap=10", () => {
-                    it("should revert", async () => {
-                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 15], [], [], [10, 10, 0, 0, 0])).to.be.revertedWith("MIN_MAX_SWAP_INV");
-                    });
-                });
-
-                context("minSwap=10, maxSwap=9", () => {
-                    it("should revert", async () => {
-                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 15], [], [], [10, 10, 0, 0, 0])).to.be.revertedWith("MIN_MAX_SWAP_INV");
-                    });
-                });
-
-                context("existing liquidity has minSwap=0, maxSwap=10 | new update has minSwap=10, maxSwap=0", () => {
-                    it("should revert", async () => {
-                        await core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [50, 15], [], [], [0, 10, 0, 0, 0]);
-                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [50, 15], [], [], [10, 0, 0, 0, 0])).not.to.be.reverted;
-                    });
-                });
-
-                context("existing liquidity has minSwap=0, maxSwap=10 | new update has minSwap=10, maxSwap=10", () => {
-                    it("should revert", async () => {
-                        await core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [50, 15], [], [], [0, 10, 0, 0, 0]);
-                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [50, 15], [], [], [10, 10, 0, 0, 0])).to.be.revertedWith("MIN_MAX_SWAP_INV");
-                    });
-                });
-
-                context("existing liquidity has minSwap=0, maxSwap=10 | new update has minSwap=11, maxSwap=10", () => {
-                    it("should revert", async () => {
-                        await core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [50, 15], [], [], [0, 10, 0, 0, 0]);
-                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [50, 15], [], [], [11, 10, 0, 0, 0])).to.be.revertedWith("MIN_MAX_SWAP_INV");
-                    });
                 });
             });
 
@@ -991,13 +895,13 @@ describe("Core - Liquidity", function () {
                 it("should revert with msg= when value is non-zero but less than minimum time to pay", async () => {
                     await baseAsset.approve(cAddr, 100);
                     await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [50, 15], [], [], [0, 10, 1, 0, 0])).to.be.revertedWith("OC: LOW_TTP");
+                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [50, 15], [], [], [1, 0, 0])).to.be.revertedWith("OC: LOW_TTP");
                 });
 
                 it("should set the liquidity timeToPay", async () => {
                     await baseAsset.approve(cAddr, 100);
                     await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                    await core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [50, 15], [], [], [0, 10, 120, 0, 0]);
+                    await core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [50, 15], [], [], [120, 0, 0]);
                     const liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.timeToPay.toNumber()).to.eql(120);
                 });
@@ -1008,7 +912,7 @@ describe("Core - Liquidity", function () {
                     await core.setMinTimeToPay(2);
                     await baseAsset.approve(cAddr, 100);
                     await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                    await core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [50, 15], [], [], [0, 10, 120, 0, 1]);
+                    await core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [50, 15], [], [], [120, 0, 1]);
                     const liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.paused).to.be.true;
                 });
@@ -1018,29 +922,21 @@ describe("Core - Liquidity", function () {
                 it("should revert with reason=UNEXP_BASE", async () => {
                     mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 2, 0);
                     await mc.createMarket(baseAddr, quoteAddr, 2, 0, false, false, 0, 0);
-                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 1], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: UNEXP_BASE");
+                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 1], [], [], [0, 0, 0])).to.be.revertedWith("OC: UNEXP_BASE");
                 });
             });
 
             context("quote asset is NFT and price was provided", () => {
                 it("should revert with reason=OC: PRICE_NREQ", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721, false, false, 0, 0);
-                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 1], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: PRICE_NREQ");
+                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 1], [], [], [0, 0, 0])).to.be.revertedWith("OC: PRICE_NREQ");
                 });
             });
 
             context("quote asset is not NFT and want IDs was provided", () => {
                 it("should revert with reason=OC: WANT_IDS_NREQ", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
-                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 1], [0], [1], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: WANT_IDS_NREQ");
-                });
-            });
-
-            context("quote asset is NFT and minSwap and maxSwap was provided", () => {
-                it("should revert with reason=OC: MIN_MAX_SWAP_NREQ", async () => {
-                    mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721, false, false, 0, 0);
-                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], [0], [1], [1, 0, 0, 0, 0])).to.be.revertedWith("OC: MIN_MAX_SWAP_NREQ");
-                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], [0], [1], [0, 1, 0, 0, 0])).to.be.revertedWith("OC: MIN_MAX_SWAP_NREQ");
+                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 1], [0], [1], [0, 0, 0])).to.be.revertedWith("OC: WANT_IDS_NREQ");
                 });
             });
 
@@ -1049,13 +945,9 @@ describe("Core - Liquidity", function () {
                     await baseAsset.approve(cAddr, "100");
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721, false, false, 0, 0);
                     const wantOrIds = [1, 1];
-                    await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], wantOrIds, [], [0, 0, 0, 0, 0])).to.be.revertedWith(
-                        "OC: WANT_IDS_NUNIQ",
-                    );
+                    await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], wantOrIds, [], [0, 0, 0])).to.be.revertedWith("OC: WANT_IDS_NUNIQ");
                     const wantAndIds = [1, 1];
-                    await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], [], wantAndIds, [0, 0, 0, 0, 0])).to.be.revertedWith(
-                        "OC: WANT_IDS_NUNIQ",
-                    );
+                    await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], [], wantAndIds, [0, 0, 0])).to.be.revertedWith("OC: WANT_IDS_NUNIQ");
                 });
             });
 
@@ -1069,12 +961,8 @@ describe("Core - Liquidity", function () {
                         wantAndIds.push(i);
                     }
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721, false, false, 0, 0);
-                    await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], wantOrIds, [], [0, 0, 0, 0, 0])).to.be.revertedWith(
-                        "OC: WANT_IDS_HSIZE",
-                    );
-                    await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], [], wantAndIds, [0, 0, 0, 0, 0])).to.be.revertedWith(
-                        "OC: WANT_IDS_HSIZE",
-                    );
+                    await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], wantOrIds, [], [0, 0, 0])).to.be.revertedWith("OC: WANT_IDS_HSIZE");
+                    await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], [], wantAndIds, [0, 0, 0])).to.be.revertedWith("OC: WANT_IDS_HSIZE");
                 });
             });
 
@@ -1082,13 +970,13 @@ describe("Core - Liquidity", function () {
                 it("should be successful when wantOrIds is set", async () => {
                     await baseAsset.approve(cAddr, "100");
                     mid = await createMarket(marketCreator, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721, false, false, 0, 0);
-                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], [1], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], [1], [], [0, 0, 0])).not.to.be.reverted;
                 });
 
                 it("should be successful when wantAndIds is set", async () => {
                     await baseAsset.approve(cAddr, "100");
                     mid = await createMarket(marketCreator, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721, false, false, 0, 0);
-                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], [], [1], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 0], [], [1], [0, 0, 0])).not.to.be.reverted;
                 });
             });
 
@@ -1097,19 +985,19 @@ describe("Core - Liquidity", function () {
                 beforeEach(async () => {
                     await baseAsset.approve(cAddr, liqAmt);
                     await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0, 0, 0])).to.emit(core, "UpdatedFungibleLiquidity");
+                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0])).to.emit(core, "UpdatedFungibleLiquidity");
                     const mkt = await mc.getMarket(mid);
                     expect(mkt.numLiquidity).to.eq(liqAmt);
                 });
 
                 it("should revert with reason=LOW_LIQ when amount is greater than available liquidity", async () => {
-                    await expect(core.updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [liqAmt + 1, 1], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: LOW_LIQ");
+                    await expect(core.updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [liqAmt + 1, 1], [], [], [0, 0, 0])).to.be.revertedWith("OC: LOW_LIQ");
                 });
 
                 it("should deduct liquidity", async () => {
                     const baseBal = await baseAsset.balanceOf(deployer.address);
 
-                    await expect(core.updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [50, 1], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                    await expect(core.updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [50, 1], [], [], [0, 0, 0])).not.to.be.reverted;
                     expect(await baseAsset.balanceOf(deployer.address)).to.eql(baseBal.add(50));
                     const liqBal = await core.getLiquidity(mid, deployer.address, 0);
                     expect(liqBal.amount).to.eql(toBN(50));
@@ -1124,14 +1012,14 @@ describe("Core - Liquidity", function () {
             context("sender sent insufficient native value", () => {
                 it("should revert with reason='OC: LOW_DEPOSIT'", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: LOW_DEPOSIT");
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0])).to.be.revertedWith("OC: LOW_DEPOSIT");
                 });
             });
 
             context("sender sent sufficient native value", () => {
                 it("should create liquidity successfully", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0], {value: "100"} as any)).not.to.be.reverted;
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0], {value: "100"} as any)).not.to.be.reverted;
                     expect(await core.provider.getBalance(core.address)).to.eq(100);
 
                     let liq = await core.getLiquidity(mid, provider.address, 0);
@@ -1142,12 +1030,12 @@ describe("Core - Liquidity", function () {
             context("sender has existing liquidity", () => {
                 it("should update sender's liquidity correctly", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
-                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0], {value: "100"} as any);
+                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0], {value: "100"} as any);
 
                     let liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount.toNumber()).to.equal(100);
 
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0], {value: "100"} as any)).not.to.be.reverted;
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0], {value: "100"} as any)).not.to.be.reverted;
                     expect(await core.provider.getBalance(core.address)).to.eq(200);
 
                     liq = await core.getLiquidity(mid, provider.address, 0);
@@ -1158,7 +1046,7 @@ describe("Core - Liquidity", function () {
             context("deduct=true", () => {
                 it("should remove liquidity correctly", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
-                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0, 0, 0], {value: "100"} as any);
+                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0], {value: "100"} as any);
 
                     let liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount.toNumber()).to.equal(100);
@@ -1166,7 +1054,7 @@ describe("Core - Liquidity", function () {
                     // get provider balance
                     const providerBalance = await core.provider.getBalance(provider.address);
 
-                    const tx = await core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [50, 10045], [], [], [0, 0, 0, 0, 0]);
+                    const tx = await core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [50, 10045], [], [], [0, 0, 0]);
                     liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount.toNumber()).to.equal(50);
 
@@ -1187,7 +1075,7 @@ describe("Core - Liquidity", function () {
         context("base asset is SYNTH and quote is ERC20", () => {
             it("should successfully add liquidity", async () => {
                 mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.ERC20, false, false, 0, 0);
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10], [], [], [0, 0, 0])).not.to.be.reverted;
                 let liq = await core.getLiquidity(mid, provider.address, 0);
                 expect(liq.amount.toNumber()).to.equal(100);
                 expect(liq.price.toNumber()).to.equal(10);
@@ -1195,12 +1083,12 @@ describe("Core - Liquidity", function () {
 
             it("should successfully remove liquidity", async () => {
                 mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.ERC20, false, false, 0, 0);
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10], [], [], [0, 0, 0])).not.to.be.reverted;
                 let liq = await core.getLiquidity(mid, provider.address, 0);
                 expect(liq.amount.toNumber()).to.equal(100);
                 expect(liq.price.toNumber()).to.equal(10);
 
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [10, 10], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [10, 10], [], [], [0, 0, 0])).not.to.be.reverted;
                 liq = await core.getLiquidity(mid, provider.address, 0);
                 expect(liq.amount.toNumber()).to.equal(90);
 
@@ -1218,20 +1106,16 @@ describe("Core - Liquidity", function () {
             });
 
             it("should revert with reason=PRICE_REQ when price was not provided", async () => {
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 0], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: PRICE_REQ");
+                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 0], [], [], [0, 0, 0])).to.be.revertedWith("OC: PRICE_REQ");
             });
 
             it("should revert with reason=AMOUNT_REQ when price was not provided", async () => {
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 1], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: AMOUNT_REQ");
-            });
-
-            it("should revert with reason=MIN_MAX_SWAP_INV when price was not provided", async () => {
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [1, 1], [], [], [2, 1, 0, 0, 0])).to.be.revertedWith("OC: MIN_MAX_SWAP_INV");
+                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 1], [], [], [0, 0, 0])).to.be.revertedWith("OC: AMOUNT_REQ");
             });
 
             context("deduct = false", () => {
                 it("should revert with msg='LOW_BAL' when unable to lock fee", async () => {
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [tokenDec.mul(1), 1], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith("FP: LOW_BAL");
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [tokenDec.mul(1), 1], [], [], [0, 0, 0])).to.be.revertedWith("FP: LOW_BAL");
                 });
 
                 it("should successfully deduct fee when base asset has no asset registry record", async () => {
@@ -1243,7 +1127,7 @@ describe("Core - Liquidity", function () {
                     await token.approve(feePurse.address, toBN(fee));
                     await feePurse.deposit(toBN(fee));
 
-                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0])).not.to.be.reverted;
                     let liq = await core.getLiquidity(mid, deployer.address, 0);
                     expect(liq.protoFeePurseId).to.eq(1);
                     expect(liq.protoFeeRate.mul(liqAmt).div(tokenDec)).to.eq(toBN(protoFee));
@@ -1255,7 +1139,7 @@ describe("Core - Liquidity", function () {
                     // Set fees to 0 and adding new liquidity should recalculate fee rates
                     await mc.setCommission(mid, 0);
                     await core.setProtoFee(0, 0, 0, 0, 0, 0);
-                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [tokenDec.mul(1), 1], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                    await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [tokenDec.mul(1), 1], [], [], [0, 0, 0])).not.to.be.reverted;
                     const upLiq = await core.getLiquidity(mid, deployer.address, 0);
                     expect(liq.protoFeeRate).not.to.eql(upLiq.protoFeeRate);
                     const updProtoFeeRate = toBN(protoFee).mul(tokenDec).div(liqAmt.add(tokenDec)); //.div(toDec(liqAmt.add(tokenDec))).mul(toDec(tokenDec));
@@ -1281,7 +1165,7 @@ describe("Core - Liquidity", function () {
                         await token.approve(feePurse.address, expectedFee);
                         await feePurse.deposit(expectedFee);
 
-                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0])).not.to.be.reverted;
                         let liq = await core.getLiquidity(mid, deployer.address, 0);
                         expect(liq.protoFeePurseId).to.eq(1);
                         let protoPurseBal = await feePurse.getLocked(liq.protoFeePurseId);
@@ -1304,7 +1188,7 @@ describe("Core - Liquidity", function () {
                         await token.approve(feePurse.address, expectedFee);
                         await feePurse.deposit(expectedFee);
 
-                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0])).not.to.be.reverted;
                         let liq = await core.getLiquidity(mid, deployer.address, 0);
                         let protoPurseBal = await feePurse.getLocked(liq.protoFeePurseId);
                         let mktCreatorPurseBal = await feePurse.getLocked(liq.mktCreatorFeePurseId);
@@ -1325,7 +1209,7 @@ describe("Core - Liquidity", function () {
                         await token.approve(feePurse.address, fee);
                         await feePurse.deposit(fee);
 
-                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0])).not.to.be.reverted;
                         let liq = await core.getLiquidity(mid, deployer.address, 0);
                         expect(liq.amount).to.eql(liqAmt);
                         let protoPurseBal = await feePurse.getLocked(liq.protoFeePurseId);
@@ -1348,7 +1232,7 @@ describe("Core - Liquidity", function () {
                         await token.approve(feePurse.address, expectedFee);
                         await feePurse.deposit(expectedFee);
 
-                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0])).not.to.be.reverted;
                         let liq = await core.getLiquidity(mid, deployer.address, 0);
                         expect(liq.amount).to.eq(liqAmt);
                         let protoPurseBal = await feePurse.getLocked(liq.protoFeePurseId);
@@ -1368,7 +1252,7 @@ describe("Core - Liquidity", function () {
                         await token.approve(feePurse.address, fee);
                         await feePurse.deposit(fee);
 
-                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0])).not.to.be.reverted;
                         let liq = await core.getLiquidity(mid, deployer.address, 0);
                         expect(liq.amount).to.eq(toBN("1000000000000000000"));
                         let protoPurseBal = await feePurse.getLocked(liq.protoFeePurseId);
@@ -1388,7 +1272,7 @@ describe("Core - Liquidity", function () {
                         // Add liquidity
                         await token.approve(feePurse.address, fee);
                         await feePurse.deposit(fee);
-                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0])).not.to.be.reverted;
 
                         let liq = await core.getLiquidity(mid, deployer.address, 0);
                         expect(liq.amount).to.eq(liqAmt);
@@ -1402,7 +1286,7 @@ describe("Core - Liquidity", function () {
                         // Add liquidity again
                         await token.approve(feePurse.address, fee);
                         await feePurse.deposit(fee);
-                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0])).not.to.be.reverted;
                         let liq2 = await core.getLiquidity(mid, deployer.address, 0);
                         expect(liq2.amount).to.eq(liqAmt.mul(2));
                         expect(liq2.protoFeePurseId).to.eq(3);
@@ -1428,7 +1312,7 @@ describe("Core - Liquidity", function () {
                     await token.connect(provider).approve(feePurse.address, fee);
                     await feePurse.connect(provider).deposit(fee);
 
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0])).not.to.be.reverted;
                     let liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount).to.eq(liqAmt);
                     expect(liq.price).to.eq(1);
@@ -1439,7 +1323,7 @@ describe("Core - Liquidity", function () {
                     expect(await feePurse.balanceOf(provider.address)).to.eql(toBN(0));
 
                     // deduct
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [liqAmt.div(2), 1], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [liqAmt.div(2), 1], [], [], [0, 0, 0])).not.to.be.reverted;
                     liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount).to.eq(liqAmt.div(2));
                     expect(liq.protoFeePurseId).to.eq(3);
@@ -1449,7 +1333,7 @@ describe("Core - Liquidity", function () {
                     expect(protoPurseBal.add(mktCreatorPurseBal)).to.eql(fee.div(2));
 
                     // deduct again
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [tokenDec.mul(1), 1], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [tokenDec.mul(1), 1], [], [], [0, 0, 0])).not.to.be.reverted;
                     liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount).to.eq(0);
                     expect(liq.protoFeePurseId).to.eq(0);
@@ -1474,22 +1358,22 @@ describe("Core - Liquidity", function () {
 
             it("should revert with reason='WANT_IDS_HSIZE' when wantOrId or wantAndId exceed length limit", async () => {
                 const ids = Array(17).fill(0).map((_, i) => i); // prettier-ignore
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 0], ids, [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: WANT_IDS_HSIZE");
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 0], [], ids, [0, 0, 0, 0, 0])).to.be.revertedWith("OC: WANT_IDS_HSIZE");
+                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 0], ids, [], [0, 0, 0])).to.be.revertedWith("OC: WANT_IDS_HSIZE");
+                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 0], [], ids, [0, 0, 0])).to.be.revertedWith("OC: WANT_IDS_HSIZE");
             });
 
             it("should revert with reason='WANT_IDS_NUNIQ' when wantOrId or wantAndId contain duplicates", async () => {
                 const ids = [1, 1];
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 0], ids, [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: WANT_IDS_NUNIQ");
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 0], [], ids, [0, 0, 0, 0, 0])).to.be.revertedWith("OC: WANT_IDS_NUNIQ");
+                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 0], ids, [], [0, 0, 0])).to.be.revertedWith("OC: WANT_IDS_NUNIQ");
+                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 0], [], ids, [0, 0, 0])).to.be.revertedWith("OC: WANT_IDS_NUNIQ");
             });
 
             it("should revert with reason='AMOUNT_REQ' when a new liquidity is created and amount was not provided", async () => {
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 0], [1], [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: AMOUNT_REQ");
+                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [0, 0], [1], [], [0, 0, 0])).to.be.revertedWith("OC: AMOUNT_REQ");
             });
 
             it("should revert with reason='PRICE_NREQ' when price was provided", async () => {
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [1, 1], [1], [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: PRICE_NREQ");
+                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [1, 1], [1], [], [0, 0, 0])).to.be.revertedWith("OC: PRICE_NREQ");
             });
 
             it("should successfully create liquidity", async () => {
@@ -1499,7 +1383,7 @@ describe("Core - Liquidity", function () {
                 await token.connect(provider).approve(feePurse.address, fee);
                 await feePurse.connect(provider).deposit(fee);
 
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 0], [1], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 0], [1], [], [0, 0, 0])).not.to.be.reverted;
 
                 let liq = await core.getLiquidity(mid, provider.address, 0);
                 expect(liq.amount).to.eq(liqAmt);
@@ -1511,7 +1395,7 @@ describe("Core - Liquidity", function () {
                 await token.transfer(provider.address, fee);
                 await token.connect(provider).approve(feePurse.address, fee);
                 await feePurse.connect(provider).deposit(fee);
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 1, false, constants.AddressZero, [liqAmt2, 0], [1], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                await expect(core.connect(provider).updateFungibleLiquidity(mid, 1, false, constants.AddressZero, [liqAmt2, 0], [1], [], [0, 0, 0])).not.to.be.reverted;
                 liq = await core.getLiquidity(mid, provider.address, 1);
                 expect(liq.amount).to.eq(liqAmt2);
                 expect(liq.protoFeePurseId).to.eq(2);
@@ -1522,7 +1406,7 @@ describe("Core - Liquidity", function () {
                 await token.transfer(provider.address, fee);
                 await token.connect(provider).approve(feePurse.address, fee);
                 await feePurse.connect(provider).deposit(fee);
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt3, 0], [1], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt3, 0], [1], [], [0, 0, 0])).not.to.be.reverted;
                 liq = await core.getLiquidity(mid, provider.address, 0);
                 expect(liq.amount).to.eq(liqAmt.add(liqAmt3));
                 expect(liq.protoFeePurseId).to.eq(3);
@@ -1530,7 +1414,7 @@ describe("Core - Liquidity", function () {
 
             context("deduct = true", () => {
                 it("should revert with reason='LOW_LIQ' when amount is less than available liquidity", async () => {
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [1, 0], [1], [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: LOW_LIQ");
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [1, 0], [1], [], [0, 0, 0])).to.be.revertedWith("OC: LOW_LIQ");
                 });
 
                 it("should successfully deduct liquidity", async () => {
@@ -1540,20 +1424,20 @@ describe("Core - Liquidity", function () {
                     await token.connect(provider).approve(feePurse.address, fee);
                     await feePurse.connect(provider).deposit(fee);
 
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 0], [1], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 0], [1], [], [0, 0, 0])).not.to.be.reverted;
                     let liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount).to.eq(liqAmt);
                     expect(await feePurse.getLocked(liq.protoFeePurseId)).to.eql(fee);
 
                     // deduct
                     const liqAmt2 = tokenDec.mul(1);
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [liqAmt2, 0], [1], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [liqAmt2, 0], [1], [], [0, 0, 0])).not.to.be.reverted;
                     liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount).to.eq(liqAmt.div(2));
                     expect(await feePurse.getLocked(liq.protoFeePurseId)).to.eql(fee.div(2));
 
                     // deduct again
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [liqAmt2, 0], [1], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [liqAmt2, 0], [1], [], [0, 0, 0])).not.to.be.reverted;
                     liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount).to.eq(0);
                     expect(await feePurse.getLocked(liq.protoFeePurseId)).to.eq(0);
@@ -1567,7 +1451,7 @@ describe("Core - Liquidity", function () {
                 mid = await createMarket(undefined, baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
                 const badges: [string, string][] = [["verified", ""]];
                 await mc.setRequiredBadges(mid, badges, []);
-                await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: MKT_BADGE_REQ");
+                await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0])).to.be.revertedWith("OC: MKT_BADGE_REQ");
             });
 
             it("should revert with msg=MKT_BADGE_REQ when sender does not have all required badges", async () => {
@@ -1582,7 +1466,7 @@ describe("Core - Liquidity", function () {
                 ];
                 await mc.setRequiredBadges(mid, badges, []);
 
-                await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0, 0, 0])).to.be.revertedWith("OC: MKT_BADGE_REQ");
+                await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0])).to.be.revertedWith("OC: MKT_BADGE_REQ");
             });
 
             it("should be successful when sender has all requested badges", async () => {
@@ -1600,7 +1484,7 @@ describe("Core - Liquidity", function () {
                 ];
                 await mc.setRequiredBadges(mid, badges, []);
 
-                await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+                await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0])).not.to.be.reverted;
                 let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                 expect(liq.amount.toNumber()).to.equal(100);
                 expect(liq.price.toNumber()).to.equal(100);
@@ -1617,7 +1501,7 @@ describe("Core - Liquidity", function () {
             await baseAsset.transfer(provider.address, "200");
             await baseAsset.connect(provider).approve(core.address, "200");
             mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
-            await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+            await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0])).not.to.be.reverted;
             await expect(
                 core.connect(provider).setSwapBadgeForLiquidity(mid, 0, [
                     ["badge", "path"],
@@ -1637,7 +1521,7 @@ describe("Core - Liquidity", function () {
             await baseAsset.transfer(provider.address, "200");
             await baseAsset.connect(provider).approve(core.address, "200");
             mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
-            await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0, 0, 0])).not.to.be.reverted;
+            await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0])).not.to.be.reverted;
             const badges: [string, string][] = [["badge", "path"]];
             await expect(core.connect(provider).setSwapBadgeForLiquidity(mid, 0, badges)).emit(core, "UpdatedLiquiditySwapBadges");
             expect(await core.getReqSwapBadges(mid, 0, provider.address)).to.eql([["badge", "path"]]);

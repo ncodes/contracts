@@ -76,10 +76,6 @@ library Structs {
         uint256 amount;
         // The price to sell 1 unit of liquidity for the quote asset.
         uint256 price;
-        // The minimum amount that can be swapped.
-        uint256 minSwap;
-        /// The maximum amount that can be swapped.
-        uint256 maxSwap;
         // The number of seconds payment is expected to be made before grace period
         uint256 timeToPay;
         // The number of open orders

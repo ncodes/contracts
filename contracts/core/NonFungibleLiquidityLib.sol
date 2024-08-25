@@ -70,7 +70,7 @@ library NonFungibleLiquidityLib {
         } else {
             uint256[] memory zero = new uint256[](0);
             s1.liquidity[slot.marketId][msg.sender].push(
-                Structs.Liquidity(zero, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, zero, zero, false, slot.target)
+                Structs.Liquidity(zero, 0, 0, 0, 0, 0, 0, 0, 0, 0, zero, zero, false, slot.target)
             );
             slot.lid = s1.liquidity[slot.marketId][msg.sender].length - 1;
             liq = s1.liquidity[slot.marketId][msg.sender][slot.lid];

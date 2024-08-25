@@ -89,7 +89,7 @@ describe("Core", function () {
     async function provideLiquidity(provider: SignerWithAddress, liquidityAmt: BigNumber, basePrice: BigNumber, timeToPay = 0) {
         await baseAsset.transfer(provider.address, liquidityAmt);
         await baseAsset.connect(provider).approve(cAddr, liquidityAmt);
-        await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [liquidityAmt, basePrice], [], [], [0, 0, timeToPay, 0, 0]);
+        await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [liquidityAmt, basePrice], [], [], [timeToPay, 0, 0]);
     }
 
     function createOrder_BaseOn_QuoteOff(mid: string, amount = 5, price = pricePerBase, lid = 0, ids: BigNumberish[] = []) {
@@ -263,7 +263,7 @@ describe("Core", function () {
 
                 // Add provider's liquidity
                 await baseAsset.connect(provider).approve(core.address, amountOfBase);
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0]);
+                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0]);
 
                 // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
                 const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
@@ -338,7 +338,7 @@ describe("Core", function () {
                 mid = makeMarketID(marketCreator2.address, nativeAssetAddr, quoteAddr, AssetType.NATIVE, AssetType.ERC20);
 
                 // Add provider's liquidity
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0], {value: amountOfBase});
 
                 // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
                 const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
@@ -475,7 +475,7 @@ describe("Core", function () {
                 await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.NATIVE, AssetType.ERC20, false, false, marketCom, 0);
                 mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, AssetType.NATIVE, AssetType.ERC20);
 
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0, 0, 0], {value: amountOfBase});
+                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0], {value: amountOfBase});
 
                 // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
                 const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());

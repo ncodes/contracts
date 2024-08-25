@@ -35,8 +35,6 @@ library FungibleLiquidityLib {
         uint256 price,
         uint256[] wantOrIds,
         uint256[] wantAndIds,
-        uint256 minSwap,
-        uint256 maxSwap,
         uint256 timeToPay
     );
 
@@ -62,8 +60,6 @@ library FungibleLiquidityLib {
         require(mkt.quote.isNFT() || (slot.wantOrIds.length == 0 && slot.wantAndIds.length == 0), "OC: WANT_IDS_NREQ");
         require(slot.wantOrIds.isUnique() && slot.wantAndIds.isUnique(), "OC: WANT_IDS_NUNIQ");
         require(slot.wantOrIds.isMaxLen16() && slot.wantAndIds.isMaxLen16(), "OC: WANT_IDS_HSIZE");
-        require(!mkt.quote.isNFT() || (slot.minSwap == 0 && slot.maxSwap == 0), "OC: MIN_MAX_SWAP_NREQ");
-        require(slot.minSwap == 0 || slot.maxSwap == 0 || slot.minSwap < slot.maxSwap, "OC: MIN_MAX_SWAP_INV");
 
         // Check if the sender has the required market PUT badges.
         LiqAuxLib.checkMarketPutBadges(s2, slot.marketId);
@@ -75,7 +71,7 @@ library FungibleLiquidityLib {
         } else {
             uint256[] memory zero = new uint256[](0);
             s1.liquidity[slot.marketId][msg.sender].push(
-                Structs.Liquidity(zero, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, zero, zero, false, slot.target)
+                Structs.Liquidity(zero, 0, 0, 0, 0, 0, 0, 0, 0, 0, zero, zero, false, slot.target)
             );
             slot.lid = s1.liquidity[slot.marketId][msg.sender].length - 1;
             liq = s1.liquidity[slot.marketId][msg.sender][slot.lid];
@@ -133,8 +129,6 @@ library FungibleLiquidityLib {
 
         liq.timeToPay = slot.timeToPay;
         liq.price = slot.price;
-        liq.minSwap = slot.minSwap;
-        liq.maxSwap = slot.maxSwap;
         liq.wantAndIds = slot.wantAndIds;
         liq.wantOrIds = slot.wantOrIds;
         liq.target = slot.target;
@@ -152,8 +146,6 @@ library FungibleLiquidityLib {
             slot.price,
             slot.wantOrIds,
             slot.wantAndIds,
-            slot.minSwap,
-            slot.maxSwap,
             slot.timeToPay
         );
     }

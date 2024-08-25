@@ -69,8 +69,6 @@ contract Core is Ownable, ERC1155Holder {
         uint256 price,
         uint256[] wantOrIds,
         uint256[] wantAndIds,
-        uint256 minSwap,
-        uint256 maxSwap,
         uint256 timeToPay
     );
     event UpdatedNonFungibleLiquidity(
@@ -638,11 +636,9 @@ contract Core is Ownable, ERC1155Holder {
     /// @param wantOrIds: List of token IDs where at least one token must match (req: when quote is non-fungible).
     /// @param wantAndIds: List of tokens IDs where all tokens must match (req: when quote is non-fungible)
     /// @param limits The swap and transaction limits
-    ///         0: minSwap: The minimum swap amount for the sender's liquidity. Must be less than maxSwap.
-    ///         1: maxSwap: The maximum swap amount for the sender's liquidity. Must be greater than minSwap.
-    ///         2: timeToPay: The maximum seconds within which payer must make payment.
-    ///         3: expireAt: The transaction deadline
-    ///         4: pause: Indicate whether to pause the liquidity
+    ///         0: timeToPay: The maximum seconds within which payer must make payment.
+    ///         1: expireAt: The transaction deadline
+    ///         2: pause: Indicate whether to pause the liquidity
     function updateFungibleLiquidity(
         address marketId,
         uint256 lid,
@@ -651,21 +647,19 @@ contract Core is Ownable, ERC1155Holder {
         uint256[2] memory amountAndPrice,
         uint256[] memory wantOrIds,
         uint256[] memory wantAndIds,
-        uint256[5] memory limits
-    ) external payable notExpired(limits[3]) marketMustExist(marketId) {
+        uint256[3] memory limits
+    ) external payable notExpired(limits[1]) marketMustExist(marketId) {
         StructsLib.UpdateLiquiditySlot memory slot = StructsLib.UpdateLiquiditySlot(
             marketId,
             lid,
             deduct,
-            limits[4] > 0,
+            limits[2] > 0,
             amountAndPrice[0],
             new uint256[](0),
             wantOrIds,
             wantAndIds,
             amountAndPrice[1],
             limits[0],
-            limits[1],
-            limits[2],
             target
         );
         FungibleLiquidityLib.updateFungibleLiquidity(state, state2, slot);
@@ -705,8 +699,6 @@ contract Core is Ownable, ERC1155Holder {
             wantOrIds,
             wantAndIds,
             price,
-            0,
-            0,
             limits[0],
             target
         );
