@@ -16,6 +16,7 @@ import {
     MediatorManager,
     MinerRegistry,
     NFT,
+    ProviderRegistry,
     Randomness,
     TokenPool,
 } from "../typechain-types";
@@ -56,6 +57,7 @@ let badgeMgr: BadgeManager;
 let operatorMgr: Operator;
 let randomness: Randomness;
 let assetReg: AssetRegistry;
+let provReg: ProviderRegistry;
 let feePurse: FeePurse;
 let deployer: SignerWithAddress;
 let accts: SignerWithAddress[];
@@ -79,9 +81,8 @@ async function deployMainnet() {
     // await deployToken("DROID", "DROID", powOf(1000000000, 18), 18);
     // await deployToken("MULTIPLIER", "MULTI", powOf(1000000000, 18), 18);
     // await deployToken("WARBOND", "BOND", powOf(10000000000, 18), 18);
-
+    // await deployNativeToken("Joint", "JOIN", "10000000000000000000000000000");
     // await deployBadgeManager();
-    await deployNativeToken("Joint", "JOIN", "10000000000000000000000000000");
     // await deployMarketCore();
     // await deployCore();
     // await deployAssetRegistry();
@@ -93,6 +94,7 @@ async function deployMainnet() {
     // await deployDisputeManager();
     // await deployMinerRegistry();
     // await deployWrappedETH();
+    // await deployProviderRegistry();
     // await deployNFT();
     // await deployTokenPoolAndFeePool();
     // await deployLPPool();
@@ -121,6 +123,7 @@ async function deployLocal() {
     }
 
     await deployMinerRegistry();
+    await deployProviderRegistry();
 }
 
 async function main() {
@@ -307,6 +310,25 @@ async function deployAssetRegistry() {
         await runStep(1, "Setting asset registry on Core", async () => {
             await call(core, deployer, (c) => {
                 return c.setAssetRegistry(assetReg.address);
+            });
+        });
+    });
+}
+
+async function deployProviderRegistry() {
+    await deployOrAttach<ProviderRegistry>("ProviderRegistry", undefined, [], async (contract, attached) => {
+        provReg = contract;
+        if (attached) return;
+
+        await runStep(1, "Setting Core as ProviderRegistry writer", async () => {
+            await call(provReg, deployer, (c) => {
+                return c.updateWriter(core.address, true);
+            });
+        });
+
+        await runStep(1, "Setting provider registry on Core", async () => {
+            await call(core, deployer, (c) => {
+                return c.setProviderRegistry(provReg.address);
             });
         });
     });

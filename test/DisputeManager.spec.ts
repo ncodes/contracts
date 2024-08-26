@@ -85,6 +85,7 @@ describe("DisputeManager", function () {
         factory = await ethers.getContractFactory("AssetRegistry");
         assetReg = await factory.deploy();
         await core.setAssetRegistry(assetReg.address);
+        await core.setProviderRegistry(vars.provReg.address);
 
         const Randomness = require("../artifacts/contracts/randomness/Randomness.sol/Randomness.json");
         randomness = await deployMockContract(deployer, Randomness.abi);
@@ -97,6 +98,7 @@ describe("DisputeManager", function () {
         factory = await ethers.getContractFactory("DisputeManager");
         dm = await factory.deploy(token.address, mc.address, core.address, medMgr.address, predictDur, evidenceDur);
 
+        await vars.provReg.updateWriter(core.address, true);
         await minerReg.updateWriter(dm.address, true);
         await dm.setMinerRegistry(minerReg.address);
         await dm.setMediatorManager(medMgr.address);

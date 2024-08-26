@@ -440,6 +440,7 @@ export async function initCoreTestSuite() {
         testERC721,
         testERC1155,
         assetReg,
+        provReg,
         deployer,
         user5,
         cAddr,

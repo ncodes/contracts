@@ -3,7 +3,7 @@ import {expect} from "chai";
 import {BigNumber, BigNumberish, constants} from "ethers";
 import {getAddress} from "ethers/lib/utils";
 import {randomAddressString} from "hardhat/internal/hardhat-network/provider/utils/random";
-import {AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MediatorManager, NFT, TOKEN} from "../../typechain-types";
+import {AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MediatorManager, NFT, ProviderRegistry, TOKEN} from "../../typechain-types";
 import {AddressZero, AssetType, advanceBlockTime, makeMarketID, pow10str, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
 
@@ -14,6 +14,7 @@ describe("Core - Liquidity", function () {
     let mc: MarketCore;
     let medMgr: MediatorManager;
     let badgeMgr: BadgeManager;
+    let provReg: ProviderRegistry;
     let testERC721: ERC721T;
     let testERC1155: ERC1155T;
     let assetReg: AssetRegistry;
@@ -46,6 +47,7 @@ describe("Core - Liquidity", function () {
         quoteAddr = vars.quoteAddr;
         core = vars.core;
         mc = vars.mc;
+        provReg = vars.provReg;
         nft = vars.nft;
         badgeMgr = vars.badgeMgr;
         testERC721 = vars.testERC721;
@@ -217,6 +219,9 @@ describe("Core - Liquidity", function () {
 
                 const mkt = await mc.getMarket(mid);
                 expect(mkt.numLiquidity).to.eq(2);
+
+                // Should register provider in the provider registry
+                expect(await provReg.getByAddr(deployer.address)).to.eq(1);
             });
 
             context("BASE = ERC1155", () => {
@@ -242,6 +247,9 @@ describe("Core - Liquidity", function () {
 
                     const mkt = await mc.getMarket(mid);
                     expect(mkt.numLiquidity).to.eq(2);
+
+                    // Should register provider in the provider registry
+                    expect(await provReg.getByAddr(deployer.address)).to.eq(1);
                 });
             });
 
@@ -751,27 +759,6 @@ describe("Core - Liquidity", function () {
         });
 
         context("base asset is ERC20", () => {
-            context("when sender has liquidity but has lost permission to put liquidity", () => {
-                it("should not be able to put more liquidity but should be able to remove existing liquidity", async () => {
-                    await baseAsset.transfer(provider.address, "200");
-                    await baseAsset.connect(provider).approve(core.address, "200");
-                    mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, true, false, 0, 0);
-                    await mc.permitPut(mid, provider.address);
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0])).not.to.be.reverted;
-                    let liq = await core.getLiquidity(mid, provider.address, 0);
-                    expect(liq.amount.toNumber()).to.equal(100);
-
-                    // When PUT perm is revoked, should not be able to put liquidity
-                    await mc.revokePut(mid, provider.address);
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0])).to.be.revertedWith("MC: NO_PUT_PERM");
-
-                    // Should be able to remove liquidity
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [100, 100], [], [], [0, 0, 0])).not.to.be.reverted;
-                    liq = await core.getLiquidity(mid, provider.address, 0);
-                    expect(liq.amount.toNumber()).to.equal(0);
-                });
-            });
-
             context("quote asset is not NFT", () => {
                 it("should revert with reason='OC: PRICE_REQ' when quote is ERC20", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
@@ -811,11 +798,18 @@ describe("Core - Liquidity", function () {
                     expect(liq.amount.toNumber()).to.equal(100);
                     expect(liq.price.toNumber()).to.equal(100);
 
+                    // Should register provider in the provider registry
+                    expect(await provReg.getByAddr(marketCreator.address)).to.eq(1);
+
                     // Try again
                     await core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 101], [], [], [0, 0, 0]);
                     liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.amount.toNumber()).to.equal(200);
                     expect(liq.price.toNumber()).to.equal(101);
+
+                    // Provider registry ID should not change on subsequent liquidity update
+                    expect(await provReg.getByAddr(marketCreator.address)).to.eq(1);
+                    expect(await provReg.get(1)).to.eq(marketCreator.address);
 
                     // Ensure contract has the correct liquidity balance
                     const contractBal = await baseAsset.balanceOf(cAddr);
@@ -852,7 +846,28 @@ describe("Core - Liquidity", function () {
                 });
             });
 
-            context("market is permissioned, but sender is permitted and sender has approved sufficient amount", () => {
+            context("market PUT permission is ON;when sender has liquidity but has lost permission to put liquidity", () => {
+                it("should not be able to put more liquidity but should be able to remove existing liquidity", async () => {
+                    await baseAsset.transfer(provider.address, "200");
+                    await baseAsset.connect(provider).approve(core.address, "200");
+                    mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, true, false, 0, 0);
+                    await mc.permitPut(mid, provider.address);
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0])).not.to.be.reverted;
+                    let liq = await core.getLiquidity(mid, provider.address, 0);
+                    expect(liq.amount.toNumber()).to.equal(100);
+
+                    // When PUT perm is revoked, should not be able to put liquidity
+                    await mc.revokePut(mid, provider.address);
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0])).to.be.revertedWith("MC: NO_PUT_PERM");
+
+                    // Should be able to remove liquidity
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, true, constants.AddressZero, [100, 100], [], [], [0, 0, 0])).not.to.be.reverted;
+                    liq = await core.getLiquidity(mid, provider.address, 0);
+                    expect(liq.amount.toNumber()).to.equal(0);
+                });
+            });
+
+            context("market PUT permission is ON; sender is permitted and has approved sufficient amount", () => {
                 it("should update sender's liquidity correctly", async () => {
                     await baseAsset.approve(cAddr, "200");
                     await mc.createMarket(baseAddr, quoteAddr, 1, 0, true, false, 0, 0);

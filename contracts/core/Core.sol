@@ -671,6 +671,7 @@ contract Core is Ownable, ERC1155Holder {
             target
         );
         FungibleLiquidityLib.updateFungibleLiquidity(state, state2, slot);
+        state2.provReg.register(msg.sender);
     }
 
     /// @notice Update non-fungible market (ERC721, ERC1155) liquidity
@@ -711,6 +712,7 @@ contract Core is Ownable, ERC1155Holder {
             target
         );
         NonFungibleLiquidityLib.updateNonFungibleLiquidity(state, state2, slot);
+        state2.provReg.register(msg.sender);
     }
 
     /// @notice Set required swap badges
