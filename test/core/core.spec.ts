@@ -128,6 +128,17 @@ describe("Core", function () {
         });
     });
 
+    describe(".setProviderRegistry", () => {
+        it('should revert with msg="OWNABLE: NOT_OWNER" when sender is not deployer', async () => {
+            await expect(core.connect(accts[1]).setProviderRegistry(accts[1].address)).to.be.revertedWith("OWNABLE: NOT_OWNER");
+        });
+
+        it("should succeed when sender is deployer", async () => {
+            await expect(core.setProviderRegistry(accts[1].address)).not.to.be.reverted;
+            expect((await core.state2()).provReg).to.eql(accts[1].address);
+        });
+    });
+
     describe(".setMinTimeToPay", () => {
         it("should revert with msg='OWNABLE: NOT_OWNER' when sender is not deployer", async () => {
             await expect(core.connect(accts[1]).setMinTimeToPay(2)).to.be.revertedWith("OWNABLE: NOT_OWNER");

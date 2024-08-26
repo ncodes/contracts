@@ -21,6 +21,7 @@ import {
     OfferLib,
     Operator,
     OrderLib,
+    ProviderRegistry,
     SwapFungibleLib,
     SwapNonFungibleLib,
     TOKEN,
@@ -275,6 +276,7 @@ export async function initCoreTestSuite() {
     let testERC721: ERC721T;
     let testERC1155: ERC1155T;
     let assetReg: AssetRegistry;
+    let provReg: ProviderRegistry;
     let operator: Operator;
     let deployer: SignerWithAddress;
     let user5: SignerWithAddress;
@@ -364,6 +366,11 @@ export async function initCoreTestSuite() {
     let assetRegFact = await getContractFactory("AssetRegistry");
     assetReg = (await assetRegFact.deploy()) as AssetRegistry;
 
+    let provRegFact = await getContractFactory("ProviderRegistry");
+    provReg = (await provRegFact.deploy()) as ProviderRegistry;
+
+    await provReg.updateWriter(core.address, true);
+    await core.setProviderRegistry(provReg.address);
     await core.setNFT(nft.address);
     await core.setDiscountForNFTHolder(nftDiscountBp);
     await core.setProtoFee(instantSwapFee, synthSwapFee, stableSwapFee, fixedSynthSwapFee, fixedNFTSwapFee, instantNFTSwapFee);

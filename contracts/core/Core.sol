@@ -119,6 +119,7 @@ contract Core is Ownable, ERC1155Holder {
     event UpdatedInventor(address addr);
     event UpdatedFeePoolConfig(uint256 interval);
     event UpdatedAssetRegistry(address addr);
+    event UpdatedProviderRegistry(address addr);
     event UpdatedMinTimeToPay(uint256 val);
     event UpdatedOrderGraceDur(uint256 val);
     event UpdatedMaxOpenOrders(uint256 val);
@@ -192,6 +193,13 @@ contract Core is Ownable, ERC1155Holder {
     function setAssetRegistry(address addr) external onlyOwner onlyOwner {
         state2.assetReg = IAssetRegistry(addr);
         emit UpdatedAssetRegistry(addr);
+    }
+
+    /// @notice Set provider registry
+    /// @param addr The address of the provider registry contract
+    function setProviderRegistry(address addr) external onlyOwner onlyOwner {
+        state2.provReg = IProviderRegistry(addr);
+        emit UpdatedProviderRegistry(addr);
     }
 
     /// @notice Set default time to pay

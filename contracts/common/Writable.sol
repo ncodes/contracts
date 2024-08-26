@@ -14,8 +14,9 @@ contract Writable is Ownable {
 
     event WriterUpdated(address addr, bool added);
 
-    /// @dev Set market manager
-    /// @param addr The market manager contract address.
+    /// @dev Add or remove a writer
+    /// @param addr The address to add or remove
+    /// @param add Whether to add or remove the address
     function updateWriter(address addr, bool add) external onlyOwner {
         emit WriterUpdated(addr, add);
         if (!add) return delete writers[addr];

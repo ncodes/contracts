@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "../common/Structs.sol";
 import "../assetregistry/interfaces/IAssetRegistry.sol";
+import "../providerregistry/interfaces/IProviderRegistry.sol";
 import "../token/interfaces/IERC20.sol";
 import "../market/interfaces/IMarketCore.sol";
 import "../pools/interfaces/IFeePool.sol";
@@ -95,6 +96,8 @@ library StructsLib {
         address nft;
         // ETH ERC20 token on native AMM
         address ammEth;
+        // Provider registry contract address
+        IProviderRegistry provReg;
         // Registry for asset information
         IAssetRegistry assetReg;
         // App token contract
