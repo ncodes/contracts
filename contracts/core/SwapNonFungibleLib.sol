@@ -239,6 +239,11 @@ library SwapNonFungibleLib {
                 IERC721Strip(mkt.base.addr).transferFrom(address(this), sp.addrs.recipient.setOrDef(msg.sender), liq.ids[i]);
             else IERC1155Strip(mkt.base.addr).safeTransferFrom(address(this), sp.addrs.recipient.setOrDef(msg.sender), liq.ids[i], 1, "");
 
+        // When quote is native, transfer excess quote deposit back to sender
+        if (mkt.quote.isNative() && msg.value > price) {
+            payable(msg.sender).transfer(msg.value - price);
+        }
+
         s2.marketCore.setCounters(sp.addrs.marketId, false, false, true, mkt.numLiquidity - liq.ids.length);
 
         emit Swap(

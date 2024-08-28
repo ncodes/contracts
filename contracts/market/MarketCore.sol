@@ -6,7 +6,6 @@ import "../common/Structs.sol";
 import "./MarketAuxLib.sol";
 import "../badge/interfaces/IBadge.sol";
 import "../mediator/interfaces/IMediatorManager.sol";
-import "hardhat/console.sol";
 
 /// MarketCore manages market state
 contract MarketCore is Writable {
@@ -173,13 +172,16 @@ contract MarketCore is Writable {
         require(quote != address(0), "MC: ZERO_QUOTE");
         require(baseType != Structs.AssetType.NATIVE || nativeAssetAddr == address(0) || base == nativeAssetAddr, "MC: BAD_NATIVE_ADDR");
         require(quoteType != Structs.AssetType.NATIVE || nativeAssetAddr == address(0) || quote == nativeAssetAddr, "MC: BAD_NATIVE_ADDR");
-        require(mediatorManager.poolExists(mediatePoolId), "MC: UNKNW_POOL");
-        address id = address(ripemd160(abi.encodePacked(msg.sender, base, quote, baseType, quoteType)));
-        require(mediatorManager.isApprovedMarket(mediatePoolId, id), "MC: NOT_APPROVED");
-        require(markets[id].createdAt == 0, "MC: MARKET_EXIST");
 
         Structs.Asset memory baseAsset = Structs.Asset(base, baseType);
         Structs.Asset memory quoteAsset = Structs.Asset(quote, quoteType);
+        bool isInstantPair = MarketAuxLib.isInstantPair(baseAsset, quoteAsset);
+        require(isInstantPair || mediatorManager.poolExists(mediatePoolId), "MC: UNKNW_POOL");
+
+        address id = address(ripemd160(abi.encodePacked(msg.sender, base, quote, baseType, quoteType)));
+        require(isInstantPair || mediatorManager.isApprovedMarket(mediatePoolId, id), "MC: NOT_APPROVED");
+        require(markets[id].createdAt == 0, "MC: MARKET_EXIST");
+
         markets[id].creator = msg.sender;
         markets[id].base = baseAsset;
         markets[id].quote = quoteAsset;

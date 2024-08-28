@@ -735,6 +735,28 @@ describe("Core - Swap", function () {
                 // protocol should receive fee
                 expect((await core.inventorBalanceOf(baseAddr)).eq(protoFee)).to.be.true;
             });
+
+            it("should return excess quote deposit", async () => {
+                await provideLiquidity(provider, amountOfBase, pricePerBase);
+
+                // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
+                const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                const swapCost = swapAmt.mul(pricePerBase).div(baseDec); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
+                const excess = toBN(100).mul(quoteDec);
+
+                const swapperBalBefore = await ethers.provider.getBalance(swapper.address);
+
+                // Calculate expected swapper fees (for on-chain swap)
+                const tx = await core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0, {value: swapCost.add(excess)});
+                await expect(tx).to.emit(core, "Swap").withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
+
+                // get gas used
+                const txReceipt = await tx.wait();
+                const gasUsed = txReceipt.gasUsed.mul(tx.gasPrice as BigNumber);
+
+                const swapperBalAfter = await ethers.provider.getBalance(swapper.address);
+                expect(swapperBalBefore.sub(swapCost).sub(gasUsed)).to.eq(swapperBalAfter);
+            });
         });
 
         context("base is ERC20 and quote is SYNTH", () => {
@@ -1851,6 +1873,29 @@ describe("Core - Swap", function () {
                 const totalFee = protoFee.add(marketCreatorFee);
                 expect(await core.provider.getBalance(provider.address)).to.eql(prevProviderBal.add(toBN(pricePerBase).sub(totalFee)));
                 expect(await core.inventorBalanceOf(quoteAddr)).to.eql(protoFee);
+            });
+
+            it("should return excess quote deposit", async () => {
+                marketCom = toBN(10);
+                await mc.setCommission(mid, marketCom);
+
+                await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
+
+                const excess = toBN(100).mul(quoteDec);
+                const swapperBalBefore = await swapper.getBalance();
+
+                const tx = await core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, pricePerBase, [], 0, 0, {value: pricePerBase.add(excess)});
+                await expect(tx).emit(core, "Swap").withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, 0, pricePerBase, 0, 0], false, ids, []);
+
+                const txReceipt = await tx.wait();
+                const gasUsed = txReceipt.gasUsed.mul(tx.gasPrice as BigNumber);
+
+                expect(await testERC721.ownerOf(1)).to.eql(swapper.address);
+                expect(await testERC721.ownerOf(2)).to.eql(swapper.address);
+                expect((await core.getLiquidity(mid, provider.address, 0)).ids).to.eql([]);
+
+                const swapperBalAfter = await swapper.getBalance();
+                expect(swapperBalBefore.sub(pricePerBase).sub(gasUsed)).to.eq(swapperBalAfter);
             });
         });
 

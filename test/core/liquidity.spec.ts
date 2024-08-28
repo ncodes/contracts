@@ -793,7 +793,9 @@ describe("Core - Liquidity", function () {
                 it("should update sender's liquidity correctly", async () => {
                     await baseAsset.approve(cAddr, "200");
                     mid = await createMarket(undefined, baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                    await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0])).to.emit(core, "UpdatedFungibleLiquidity");
+                    await expect(core.connect(marketCreator).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 100], [], [], [0, 0, 0]))
+                        .to.emit(core, "UpdatedFungibleLiquidity")
+                        .to.emit(provReg, "ProviderRegistered");
                     let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.amount.toNumber()).to.equal(100);
                     expect(liq.price.toNumber()).to.equal(100);
@@ -1025,9 +1027,16 @@ describe("Core - Liquidity", function () {
 
         context("base asset is NATIVE", () => {
             context("sender sent insufficient native value", () => {
-                it("should revert with reason='OC: LOW_DEPOSIT'", async () => {
+                it("should revert with reason='OC: INV_DEPOSIT'", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0])).to.be.revertedWith("OC: LOW_DEPOSIT");
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0])).to.be.revertedWith("OC: INV_DEPOSIT");
+                });
+            });
+
+            context("sender too much native value is sent (more than amount)", () => {
+                it("should revert with reason='OC: INV_DEPOSIT'", async () => {
+                    mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
+                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [100, 10045], [], [], [0, 0, 0], {value: 101} as any)).to.be.revertedWith("OC: INV_DEPOSIT");
                 });
             });
 

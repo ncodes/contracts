@@ -4,14 +4,13 @@ pragma solidity ^0.8.13;
 import "../common/Structs.sol";
 
 library MarketAuxLib {
-    
-/// @dev Check if an asset is a native asset.
+    /// @dev Check if an asset is a native asset.
     /// @param asset The asset object
     /// @return True if the asset is a native asset
     function isNative(Structs.Asset memory asset) public pure returns (bool) {
         return (asset.assetType == Structs.AssetType.NATIVE);
     }
-    
+
     /// @dev Check if an asset is a synthetic asset.
     /// @param asset The asset object
     /// @return True if the asset is a synthetic asset
@@ -58,24 +57,29 @@ library MarketAuxLib {
     /// @param mkt The market object
     /// @return True if the market includes an ERC20 or synthetic asset
     function isFungible(Structs.Market memory mkt) public pure returns (bool) {
-        return (isERC20(mkt.base) || isSynth(mkt.base) || isNative(mkt.base)) && (isERC20(mkt.quote) || isSynth(mkt.quote) || isNative(mkt.quote));
+        return
+            (isERC20(mkt.base) || isSynth(mkt.base) || isNative(mkt.base)) &&
+            (isERC20(mkt.quote) || isSynth(mkt.quote) || isNative(mkt.quote));
     }
-    
+
     /// @dev Check if a market is an instant market (both assets are on-chain).
     /// @param mkt The market object
     /// @return True if the market is an instant market
     function isInstantMarket(Structs.Market memory mkt) public pure returns (bool) {
-        return ((isERC20(mkt.base) && isERC20(mkt.quote)) ||
-            (isERC20(mkt.base) && isNFT(mkt.quote)) ||
-            (isERC20(mkt.base) && isNative(mkt.quote)) ||
-            
-            (isNFT(mkt.base) && isERC20(mkt.quote)) ||
-            (isNFT(mkt.base) && isNFT(mkt.quote))) || 
-            (isNFT(mkt.base) && isNative(mkt.quote)) ||
-            
-            (isNative(mkt.base) && isNative(mkt.quote)) ||
-            (isNative(mkt.base) && isERC20(mkt.quote)) ||
-            (isNative(mkt.base) && isNFT(mkt.quote));
+        return isInstantPair(mkt.base, mkt.quote);
+    }
+
+    function isInstantPair(Structs.Asset memory base, Structs.Asset memory quote) public pure returns (bool) {
+        return
+            (isERC20(base) && isERC20(quote)) ||
+            (isERC20(base) && isNFT(quote)) ||
+            (isERC20(base) && isNative(quote)) ||
+            (isNFT(base) && isERC20(quote)) ||
+            (isNFT(base) && isNFT(quote)) ||
+            (isNFT(base) && isNative(quote)) ||
+            (isNative(base) && isNative(quote)) ||
+            (isNative(base) && isERC20(quote)) ||
+            (isNative(base) && isNFT(quote));
     }
 
     /// @dev Check if a market includes an ERC20 or native asset on the base or quote side.
@@ -84,7 +88,6 @@ library MarketAuxLib {
     function hasERC20OrNative(Structs.Market memory mkt) public pure returns (bool) {
         return isERC20(mkt.base) || isERC20(mkt.quote) || isNative(mkt.base) || isNative(mkt.quote);
     }
-
 
     /// @dev Check if an asset exist on-chain
     /// @param asset The asset object

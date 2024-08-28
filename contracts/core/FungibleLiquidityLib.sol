@@ -93,7 +93,7 @@ library FungibleLiquidityLib {
             }
 
             if (mkt.base.isNative()) {
-                require(msg.value >= slot.amount, "OC: LOW_DEPOSIT");
+                require(msg.value == slot.amount, "OC: INV_DEPOSIT");
             }
 
             if (!mkt.hasERC20OrNative()) {

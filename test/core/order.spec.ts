@@ -818,6 +818,31 @@ describe("Core - Order", function () {
                 const mkt = await mc.getMarket(mid);
                 expect(mkt.numLiquidity).to.eql(amountOfBase.sub(swapAmt));
             });
+
+            it("should return excess quote deposit during order creation", async () => {
+                mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.NATIVE, false, false, marketCom, 0);
+                await provideLiquidity(provider, amountOfBase, pricePerBase);
+
+                // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
+                swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                swapCost = swapAmt.mul(pricePerBase).div(baseDec); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
+
+                const excess = toBN(100).mul(quoteDec);
+                const swapperBalBefore = await swapper.getBalance();
+
+                // create swap order.
+                const tx = await core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0, {value: swapCost.add(excess)});
+                await expect(tx.wait()).not.to.be.reverted;
+                const numOrders = (await core.state()).numOrders;
+                expect(numOrders.toNumber()).to.eql(1);
+
+                // get gas used
+                const txReceipt = await tx.wait();
+                const gasUsed = txReceipt.gasUsed.mul(tx.gasPrice as BigNumber);
+
+                const swapperBalAfter = await swapper.getBalance();
+                expect(swapperBalBefore.sub(swapCost).sub(gasUsed)).to.eq(swapperBalAfter);
+            });
         });
 
         context("base = NATIVE while quote = SYNTH", () => {

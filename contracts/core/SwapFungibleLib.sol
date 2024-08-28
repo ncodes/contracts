@@ -91,7 +91,6 @@ library SwapFungibleLib {
         uint256 price = (sp.offerId > 0) ? sp.maxPrice : liq.price;
 
         // Compute cost of swapping for base. Ensure swapper's quote balance is sufficient.
-        // uint baseDecimals = (mkt.base.isERC20()) ? IERC20(mkt.base.addr).decimals() : 18;
         uint256 cost = (sp.amount * price) / 10 ** ((mkt.base.isERC20()) ? IERC20(mkt.base.addr).decimals() : 18);
         require(!mkt.quote.isERC20() || IERC20(mkt.quote.addr).balanceOf(msg.sender) >= cost, "OC: LOW_QUOTE_BAL");
         require(!mkt.quote.isNative() || msg.value >= cost, "OC: LOW_QUOTE_BAL");
@@ -155,6 +154,11 @@ library SwapFungibleLib {
             IERC20(mkt.base.addr).safeTransfer(sp.addrs.recipient.setOrDef(msg.sender), sp.amount - feeInfo.totalFees);
         } else if (mkt.base.isNative()) {
             payable(sp.addrs.recipient.setOrDef(msg.sender)).transfer(sp.amount - feeInfo.totalFees);
+        }
+
+        // When quote is native, transfer excess quote deposit back to sender
+        if (mkt.quote.isNative() && msg.value > cost) {
+            payable(msg.sender).transfer(msg.value - cost);
         }
 
         emit Swap(

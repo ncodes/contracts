@@ -94,7 +94,7 @@ export function getERC20(provider: Provider, contractAddr: string) {
 
 export const AddressZero = constants.AddressZero;
 
-export function powOf(n: BigNumberish, power: BigNumberish) {
+export function powOf(n: BigNumberish, power: BigNumberish = 18) {
     return toBN(
         toDec(n)
             .mul(toDec(pow10(power)))

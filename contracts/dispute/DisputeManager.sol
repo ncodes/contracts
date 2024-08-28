@@ -4,7 +4,6 @@ pragma solidity ^0.8.13;
 import "../common/MathLib.sol";
 import "../common/Structs.sol";
 import "../mediator/interfaces/IMediatorManager.sol";
-import "../core/interfaces/ICore.sol";
 import "../market/interfaces/IMarketCore.sol";
 import "../token/interfaces/IERC20.sol";
 import "../common/Ownable.sol";
@@ -425,4 +424,18 @@ contract DisputeManager is Ownable {
         token.transfer(dest, amt);
         emit WithdrawnBalance(dest, amt);
     }
+}
+
+interface ICore {
+    function canCreateDispute(uint256 id, address addr) external view returns (bool);
+
+    function markAsDisputed(uint256 id) external;
+
+    function getOrder(uint256 id) external view returns (Structs.Order memory);
+
+    function releaseOrderByDispute(uint256 id) external;
+
+    function cancelOrderByDispute(uint256 id) external;
+
+    function updateOpenDisputesCount(address marketId, address provider, uint256 lid, bool incr) external;
 }

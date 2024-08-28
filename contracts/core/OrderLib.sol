@@ -67,12 +67,16 @@ library OrderLib {
 
         // When quote is ERC20, transfer quote into contract.
         // When quote is native, make sure the deposit sent is enough.
+        // If the deposit is more than the cost, send back the excess.
         if (mkt.quote.isERC20()) {
             uint256 cost = (sp.amount * o.price) / 10 ** 18;
             IERC20(mkt.quote.addr).transferFrom(msg.sender, address(this), cost);
         } else if (mkt.quote.isNative()) {
             uint256 cost = (sp.amount * o.price) / 10 ** 18;
             require(msg.value >= cost, "OC: LOW_DEPOSIT");
+            if (msg.value > cost) {
+                payable(msg.sender).transfer(msg.value - cost);
+            }
         }
 
         // Update liquidity

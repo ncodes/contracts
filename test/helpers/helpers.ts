@@ -341,7 +341,7 @@ export async function initCoreTestSuite() {
     wethAddr = weth.address;
 
     const libs = await makeLibs();
-    let marketCoreFact = await getContractFactory("MarketCore", {libraries: {}});
+    let marketCoreFact = await getContractFactory("MarketCore", {libraries: {MarketAuxLib: libs.MarketAuxLib.address}});
     mc = (await marketCoreFact.deploy(0)) as MarketCore;
 
     let coreFact = await getContractFactory("Core", {

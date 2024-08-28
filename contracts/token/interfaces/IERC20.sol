@@ -17,4 +17,6 @@ interface IERC20 {
     function mint(address to, uint256 amount) external;
 
     function approve(address spender, uint256 amount) external returns (bool);
+
+    function totalSupply() external view returns (uint256);
 }

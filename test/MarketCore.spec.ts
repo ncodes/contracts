@@ -59,17 +59,7 @@ describe("MarketCore", function () {
         await mediatorMgr.updateTicketPool(0, 0, 1, 1, 1, 1, 1, 1, 1, false, false);
     });
 
-    async function createMarket(
-        creator: SignerWithAddress = deployer,
-        base: string,
-        quote: string,
-        baseType: number,
-        quoteType: number,
-        permPut: boolean,
-        permSwap: boolean,
-        commission: BigNumberish,
-        mediatePoolId = 0,
-    ) {
+    async function createMarket(creator: SignerWithAddress = deployer, base: string, quote: string, baseType: number, quoteType: number, permPut: boolean, permSwap: boolean, commission: BigNumberish, mediatePoolId = 0) {
         const mid = makeMarketID(creator.address, base, quote, baseType, quoteType);
         await mc.connect(creator).createMarket(base, quote, baseType, quoteType, permPut, permSwap, commission, mediatePoolId);
         return Promise.resolve(mid);
@@ -101,8 +91,12 @@ describe("MarketCore", function () {
             });
         });
 
-        it("Should revert with 'MC: UNKNW_POOL' when mediator pool is unknown", async function () {
-            expect(mc.createMarket(baseAddr, quoteAddr, 0, 1, true, true, 0, 10)).to.be.revertedWith("MC: UNKNW_POOL");
+        it("Should revert with 'MC: UNKNW_POOL' when mediator pool is unknown and pair is not instant", async function () {
+            expect(mc.createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, true, true, 0, 10)).to.be.revertedWith("MC: UNKNW_POOL");
+        });
+
+        it("Should not revert with 'MC: UNKNW_POOL' when pair is instant", async function () {
+            expect(mc.createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, true, true, 0, 10)).not.to.be.revertedWith("MC: UNKNW_POOL");
         });
 
         it("Should create new market if not existing", async function () {
@@ -122,7 +116,12 @@ describe("MarketCore", function () {
         describe("when pool is approve-only", () => {
             it("should revert when market is not approved for the specified pool", async () => {
                 await mediatorMgr.updateTicketPool(1, 0, 1, 1, 1, 1, 1, 1, 1, false, true);
-                await expect(mc.createMarket(baseAddr, quoteAddr, 0, 1, false, false, 0, 1)).to.be.revertedWith("MC: NOT_APPROVED");
+                await expect(mc.createMarket(baseAddr, quoteAddr, AssetType.SYNTH, AssetType.ERC20, false, false, 0, 1)).to.be.revertedWith("MC: NOT_APPROVED");
+            });
+
+            it("should not revert with 'NOT_APPROVED' when market is instant", async () => {
+                await mediatorMgr.updateTicketPool(1, 0, 1, 1, 1, 1, 1, 1, 1, false, true);
+                await expect(mc.createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 1)).not.to.be.revertedWith("MC: NOT_APPROVED");
             });
 
             it("should successfully create market when approved for the specified pool", async () => {
