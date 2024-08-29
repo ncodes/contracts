@@ -176,11 +176,9 @@ library OrderReleaseLib {
                 s1.ints.instantNFTSwapFeeBp,
                 s1.ints.instantSwapFeeBp,
                 s1.ints.stableSwapFeeBp,
-                s2.ints.nftDiscountBp,
                 o.lid,
                 o.amount,
                 o.price,
-                s2.nft,
                 o.provider,
                 o.taker
             )
@@ -255,11 +253,9 @@ library OrderReleaseLib {
                 s1.ints.instantNFTSwapFeeBp,
                 s1.ints.instantSwapFeeBp,
                 s1.ints.stableSwapFeeBp,
-                s2.ints.nftDiscountBp,
                 o.lid,
                 o.amount,
                 o.price,
-                s2.nft,
                 o.provider,
                 o.taker
             )
@@ -318,11 +314,9 @@ library OrderReleaseLib {
                 s1.ints.instantNFTSwapFeeBp,
                 s1.ints.instantSwapFeeBp,
                 s1.ints.stableSwapFeeBp,
-                s2.ints.nftDiscountBp,
                 o.lid,
                 o.amount,
                 o.price,
-                s2.nft,
                 o.provider,
                 o.taker
             )

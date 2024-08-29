@@ -35,7 +35,6 @@ describe("Core - Order", function () {
     let quoteDec: BigNumber;
     let amountOfBase: BigNumber;
     let pricePerBase: BigNumber;
-    let nftDiscountBp: BigNumber;
     let fixedSynthSwapFee: BigNumberish;
     let synthSwapFee: BigNumberish;
     let fixedNFTSwapFee: BigNumberish;
@@ -86,7 +85,6 @@ describe("Core - Order", function () {
         orderLifeTime = vars.orderLifeTime;
         feePurse = vars.feePurse;
         synthSwapFee = vars.synthSwapFee;
-        nftDiscountBp = vars.nftDiscountBp;
         fixedNFTSwapFee = vars.fixedNFTSwapFee;
         medMgr = vars.mediatorMgr;
 
@@ -516,52 +514,6 @@ describe("Core - Order", function () {
                 });
             });
 
-            context("sender has NFT", () => {
-                beforeEach(async () => {
-                    await core.setDiscountForNFTHolder(5000); // 50%
-                    await nft.setMintCost(0);
-                    await nft.allowAddr(swapper.address, 1, true);
-                    await nft.connect(swapper).mint(1, false, Buffer.alloc(0), 0);
-                });
-
-                it("should apply fee discount", async () => {
-                    await provideLiquidity(provider, amountOfBase, pricePerBase);
-
-                    // Swap amount = 5 BASE (amount of BASE the swapper wants)
-                    swapAmt = toBN(5).mul(baseDec);
-
-                    // create swap order.
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
-                    const numOrders = (await core.state()).numOrders;
-                    expect(numOrders.toNumber()).to.eql(1);
-                    orderID = numOrders.toNumber() - 1;
-
-                    await expect(core.connect(swapper).markOrderAsPaid(orderID)).not.to.be.reverted;
-                    let protocolFee = swapAmt.mul((await core.state()).ints.synthSwapFeeBp).div(10000);
-                    protocolFee = protocolFee.mul((await core.state2()).ints.nftDiscountBp).div(10000);
-                    let marketCreatorFee = swapAmt.mul(marketCom).div(10000);
-                    marketCreatorFee = marketCreatorFee.mul((await core.state2()).ints.nftDiscountBp).div(10000);
-                    const totalFees = protocolFee.add(marketCreatorFee);
-                    await expect(core.connect(provider).releaseOrder(orderID)).to.emit(core, "Swap").withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, provider.address, [1, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
-
-                    // Protocol fee should be correct
-                    expect((await core.inventorBalanceOf(baseAddr)).eq(protocolFee)).to.be.true;
-
-                    // Market creator should be correct
-                    expect((await core.feeBalanceOf(marketCreator2.address, baseAddr)).eq(marketCreatorFee)).to.be.true;
-
-                    // swapper base asset balance should be expected
-                    expect((await baseAsset.balanceOf(swapper.address)).eq(swapAmt.sub(totalFees))).to.be.true;
-
-                    // contract base asset balance should be expected
-                    let liq = await core.getLiquidity(mid, provider.address, 0);
-                    expect((await baseAsset.balanceOf(cAddr)).eq(liq.amount.add(totalFees))).to.be.true;
-
-                    const mkt = await mc.getMarket(mid);
-                    expect(mkt.numLiquidity).to.eql(amountOfBase.sub(swapAmt));
-                });
-            });
-
             context("swapper provided a recipient", () => {
                 it("should swap to recipient", async () => {
                     await core.setProtoFee(0, 0, 0, 0, 0, 0);
@@ -587,75 +539,12 @@ describe("Core - Order", function () {
         });
 
         context("base = SYNTH while quote = ERC20", () => {
-            context("liquidity provider has NFT", () => {
-                beforeEach(async () => {
-                    nftDiscountBp = toBN(5000);
-                    await core.setDiscountForNFTHolder(5000); // 50%
-                    await nft.setMintCost(0);
-                    await nft.allowAddr(provider.address, 1, true);
-                    await nft.connect(provider).mint(1, false, Buffer.alloc(0), 0);
-                });
-
-                it("should apply NFT discount to fee", async () => {
-                    mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.ERC20, false, false, marketCom, 0);
-                    await provideLiquidity(provider, amountOfBase, pricePerBase);
-
-                    // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
-                    swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
-                    swapCost = swapAmt.mul(pricePerBase).div(baseDec); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
-
-                    // Approve swap cost so the contract can lock it
-                    await quoteAsset.transfer(swapper.address, swapCost);
-                    await quoteAsset.connect(swapper).approve(cAddr, swapCost);
-
-                    // create swap order.
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
-                    const numOrders = (await core.state()).numOrders;
-                    expect(numOrders.toNumber()).to.eql(1);
-                    orderID = numOrders.toNumber() - 1;
-
-                    await expect(core.connect(provider).markOrderAsPaid(orderID)).not.to.be.reverted;
-
-                    await expect(core.connect(swapper).releaseOrder(orderID)).to.emit(core, "Swap").withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, swapper.address, [1, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
-
-                    // Calculate fee
-                    const protoFeeDiscount = toDec(nftDiscountBp).div(100).div(100).mul(toDec(synthSwapFee));
-                    const protoFee = toDec(swapCost).mul(toDec(synthSwapFee).sub(protoFeeDiscount).div(100).div(100));
-                    const mktCreatorFeeDiscount = toDec(nftDiscountBp).div(100).div(100).mul(toDec(marketCom));
-                    const mktCreatorFee = toDec(swapCost).mul(toDec(marketCom).sub(mktCreatorFeeDiscount).div(100).div(100));
-                    const totalFees = toBN(protoFee.add(mktCreatorFee));
-
-                    // Protocol fee should be correct
-                    expect((await core.inventorBalanceOf(quoteAddr)).eq(toBN(protoFee))).to.be.true;
-
-                    // Market creator should be correct
-                    expect(await core.feeBalanceOf(deployer.address, quoteAddr)).to.eql(toBN(mktCreatorFee));
-
-                    // provider quote asset balance should be expected
-                    expect((await quoteAsset.balanceOf(provider.address)).eq(swapCost.sub(totalFees))).to.be.true;
-
-                    // swapper quote asset balance should be expected
-                    expect((await quoteAsset.balanceOf(swapper.address)).eq(toBN("0"))).to.be.true;
-
-                    // contract quote asset balance should be expected
-                    expect((await quoteAsset.balanceOf(cAddr)).eq(totalFees)).to.be.true;
-
-                    const mkt = await mc.getMarket(mid);
-                    expect(mkt.numLiquidity).to.eql(amountOfBase.sub(swapAmt));
-                });
-            });
-
             context("quote asset is sharable", () => {
                 beforeEach(async () => {
-                    nftDiscountBp = toBN(5000);
-                    await core.setDiscountForNFTHolder(5000); // 50%
-                    await nft.setMintCost(0);
-                    await nft.allowAddr(provider.address, 1, true);
-                    await nft.connect(provider).mint(1, false, Buffer.alloc(0), 0);
                     await assetReg.setSharable(quoteAddr, true);
                 });
 
-                it("should apply NFT discount to fee", async () => {
+                it("should compute correct fee", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.ERC20, false, false, marketCom, 0);
                     await provideLiquidity(provider, amountOfBase, pricePerBase);
 
@@ -681,10 +570,8 @@ describe("Core - Order", function () {
                     await expect(core.connect(swapper).releaseOrder(orderID)).to.emit(core, "Swap").withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, swapper.address, [1, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
 
                     // Calculate fee
-                    const protoFeeDiscount = toDec(nftDiscountBp).div(100).div(100).mul(toDec(synthSwapFee));
-                    const protoFee = toDec(swapCost).mul(toDec(synthSwapFee).sub(protoFeeDiscount).div(100).div(100));
-                    const mktCreatorFeeDiscount = toDec(nftDiscountBp).div(100).div(100).mul(toDec(marketCom));
-                    const mktCreatorFee = toDec(swapCost).mul(toDec(marketCom).sub(mktCreatorFeeDiscount).div(100).div(100));
+                    const protoFee = toDec(swapCost).mul(toDec(synthSwapFee).div(100).div(100));
+                    const mktCreatorFee = toDec(swapCost).mul(toDec(marketCom).div(100).div(100));
                     const totalFees = toBN(protoFee.add(mktCreatorFee));
 
                     // Protocol fee should be correctly split
@@ -1875,10 +1762,6 @@ describe("Core - Order", function () {
     });
 
     describe(".computeFee", () => {
-        beforeEach(async () => {
-            await core.setNFT(testERC721.address);
-        });
-
         context("for ERC20/ERC20", () => {
             it("should compute correct fee", async () => {
                 await core.setProtoFee(14, 0, 0, 0, 0, 0);
@@ -1903,21 +1786,6 @@ describe("Core - Order", function () {
                     const res = await core.computeSwapFee(mid, provider.address, 0, swapper.address, swapAmt, pricePerBase);
                     expect(res[0]).to.eql(toBN("7000000000000000"));
                     expect(res[1]).to.eql(toBN("500000000000000000"));
-                });
-            });
-
-            context("swapper has NFT", () => {
-                it("should compute correct fee", async () => {
-                    await core.setDiscountForNFTHolder(1000);
-                    await testERC721.connect(swapper).mint();
-                    await core.setProtoFee(14, 0, 0, 0, 0, 0);
-                    await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, 1000, 0);
-                    mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20);
-                    await provideLiquidity(provider, amountOfBase, pricePerBase);
-                    const swapAmt = toBN(5).mul(baseDec);
-                    const res = await core.computeSwapFee(mid, provider.address, 0, swapper.address, swapAmt, pricePerBase);
-                    expect(res[0]).to.eql(toBN("6300000000000000"));
-                    expect(res[1]).to.eql(toBN("450000000000000000"));
                 });
             });
         });
@@ -1945,21 +1813,6 @@ describe("Core - Order", function () {
                 const res = await core.computeSwapFee(mid, provider.address, 0, swapper.address, swapAmt, pricePerBase);
                 expect(res[0]).to.eql(toBN("7000000000000000"));
                 expect(res[1]).to.eql(toBN("500000000000000000"));
-            });
-
-            context("swapper owns an NFT", () => {
-                it("should compute correct fee", async () => {
-                    await core.setDiscountForNFTHolder(1000);
-                    await testERC721.connect(swapper).mint();
-                    await core.setProtoFee(0, 14, 0, 0, 0, 0);
-                    await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 1000, 0);
-                    mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH);
-                    await provideLiquidity(provider, amountOfBase, pricePerBase);
-                    const swapAmt = toBN(5).mul(baseDec);
-                    const res = await core.computeSwapFee(mid, provider.address, 0, swapper.address, swapAmt, pricePerBase);
-                    expect(res[0]).to.eql(toBN("6300000000000000"));
-                    expect(res[1]).to.eql(toBN("450000000000000000"));
-                });
             });
         });
 
@@ -1989,25 +1842,6 @@ describe("Core - Order", function () {
                 const res = await core.computeSwapFee(mid, provider.address, 0, swapper.address, 0, 0);
                 expect(res[0]).to.eql(toBN("140000000000000000"));
                 expect(res[1]).to.eql(toBN("10000000000000000000"));
-            });
-
-            context("swapper owns an NFT", () => {
-                it("should compute correct fee", async () => {
-                    await core.setDiscountForNFTHolder(5000);
-                    await testERC721.connect(swapper).mint();
-
-                    await core.setProtoFee(0, 0, 0, 0, 0, 14);
-                    await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721, false, false, 1000, 0);
-                    mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721);
-
-                    await baseAsset.transfer(provider.address, amountOfBase);
-                    await baseAsset.connect(provider).approve(core.address, amountOfBase);
-                    await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [], [], [0, 0, 0]);
-
-                    const res = await core.computeSwapFee(mid, provider.address, 0, swapper.address, 0, 0);
-                    expect(res[0]).to.eql(toBN("70000000000000000"));
-                    expect(res[1]).to.eql(toBN("5000000000000000000"));
-                });
             });
         });
 
@@ -2052,27 +1886,6 @@ describe("Core - Order", function () {
                 const res = await core.computeSwapFee(mid, provider.address, 0, swapper.address, 0, price);
                 expect(res[0]).to.eql(toBN("14000000000000000"));
                 expect(res[1]).to.eql(toBN("1000000000000000000"));
-            });
-
-            context("provider owns an NFT", () => {
-                it("should compute correct fee", async () => {
-                    await core.setDiscountForNFTHolder(5000);
-                    await testERC721.connect(provider).mint();
-
-                    await core.setProtoFee(0, 0, 0, 0, 0, 14);
-                    await mc.connect(marketCreator2).createMarket(testERC721.address, quoteAddr, AssetType.ERC721, AssetType.ERC20, false, false, 1000, 0);
-                    mid = makeMarketID(marketCreator2.address, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.ERC20);
-
-                    await testERC721.connect(provider).mint();
-                    await testERC721.connect(provider).setApprovalForAll(core.address, true);
-                    const ids = [toBN(1)];
-                    const price = pricePerBase;
-                    await core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, price, [], [], [0, 0, 0]);
-
-                    const res = await core.computeSwapFee(mid, provider.address, 0, swapper.address, 0, price);
-                    expect(res[0]).to.eql(toBN("7000000000000000"));
-                    expect(res[1]).to.eql(toBN("500000000000000000"));
-                });
             });
         });
 

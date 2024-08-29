@@ -1,5 +1,4 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import {Buffer} from "buffer";
 import {expect} from "chai";
 import {BigNumber, BigNumberish} from "ethers";
 import {getAddress} from "ethers/lib/utils";
@@ -581,56 +580,6 @@ describe("Core - Swap", function () {
 
                     await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, user5.address, 0, swapAmt, pricePerBase, [], 0, 0)).to.emit(core, "Swap");
                     expect(await baseAsset.balanceOf(user5.address)).to.eql(swapAmt);
-                });
-            });
-
-            context("sender has NFT", () => {
-                beforeEach(async () => {
-                    await core.setDiscountForNFTHolder(5000); // 50%
-                    await nft.setMintCost(0);
-                    await nft.allowAddr(swapper.address, 1, true);
-                    await nft.connect(swapper).mint(1, false, Buffer.alloc(0), 0);
-                });
-
-                it("should apply discount to fee", async () => {
-                    await provideLiquidity(provider, amountOfBase, pricePerBase);
-
-                    // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
-                    const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
-                    const swapCost = swapAmt.mul(pricePerBase).div(baseDec); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
-
-                    // Give swapper enough QUOTE to pay swap cost and swapper must approve contract to spend it
-                    await quoteAsset.transfer(swapper.address, swapCost);
-                    await quoteAsset.connect(swapper).approve(cAddr, swapCost);
-
-                    // Calculate expected swapper fees (for on-chain swap)
-                    let protoFee = swapAmt.mul((await core.state()).ints.instantSwapFeeBp).div(10000);
-                    protoFee = protoFee.mul((await core.state2()).ints.nftDiscountBp).div(10000);
-                    let marketCreatorFee = swapAmt.mul(marketCommission).div(10000);
-                    marketCreatorFee = marketCreatorFee.mul((await core.state2()).ints.nftDiscountBp).div(10000);
-                    const totalFees = protoFee.add(marketCreatorFee);
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0))
-                        .to.emit(core, "Swap")
-                        .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
-
-                    // swapper should get swap amount - swapper total fees
-                    expect((await baseAsset.balanceOf(swapper.address)).toString()).to.equal(swapAmt.sub(totalFees).toString());
-
-                    // provider should get full swap cost
-                    expect((await quoteAsset.balanceOf(provider.address)).toString()).to.equal(swapCost.toString());
-
-                    // swapper should have no quote balance = 0 (depleted)
-                    expect((await quoteAsset.balanceOf(swapper.address)).isZero()).to.be.true;
-
-                    // provider liquidity amount should = provider liquidity - swap amount (= 95)
-                    const liq = await core.getLiquidity(mid, provider.address, 0);
-                    expect(liq.amount.toString()).to.equal(amountOfBase.sub(swapAmt).toString());
-
-                    // market creator should receive fee
-                    expect((await core.feeBalanceOf(marketCreator2.address, baseAddr)).eq(marketCreatorFee)).to.be.true;
-
-                    // protocol should receive fee
-                    expect((await core.inventorBalanceOf(baseAddr)).eq(protoFee)).to.be.true;
                 });
             });
 
@@ -1796,37 +1745,6 @@ describe("Core - Swap", function () {
                     await expect(core.connect(user5).withdrawOperatorBalance(quoteAddr)).not.to.be.reverted;
                     expect(await quoteAsset.balanceOf(user5.address)).to.eql(protoFee.div(2));
                     expect(await core.operatorBalanceOf(user5.address, quoteAddr)).to.eq(0);
-                });
-            });
-
-            context("sender is an nft holder", () => {
-                it("should successfully share fees correctly", async () => {
-                    marketCom = toBN(10);
-                    await mc.setCommission(mid, marketCom);
-                    await assetReg.setSharable(quoteAddr, true);
-                    const nftDiscount = toBN(1000);
-                    await core.setDiscountForNFTHolder(nftDiscount);
-                    await core.setProtoFeeSplit(5000, 5000, 0);
-
-                    // mint nft for provider
-                    await nft.allowAddr(provider.address, 1, true);
-                    await nft.connect(provider).mint(1, false, Buffer.alloc(0), 0);
-
-                    // swap
-                    await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, pricePerBase, [], 0, 0)).not.to.be.reverted;
-
-                    // protocol and market fee
-                    let protoFee = toBN((await core.state()).ints.instantNFTSwapFeeBp);
-                    let marketFee = toBN(marketCom);
-                    protoFee = protoFee.sub(nftDiscount.mul(protoFee).div(10000)); // apply nft discount
-                    marketFee = marketFee.sub(nftDiscount.mul(marketFee).div(10000)); // apply nft discount
-                    protoFee = pricePerBase.mul(protoFee).div(10000); // get the expected protocol fee
-                    marketFee = pricePerBase.mul(marketFee).div(10000); // get the expected market fee
-
-                    expect(await quoteAsset.balanceOf(provider.address)).to.eql(toBN(pricePerBase).sub(protoFee.add(marketFee)));
-                    expect(await core.inventorBalanceOf(quoteAddr)).to.eql(protoFee.div(2));
-                    expect(await core.shareablesBalanceOf(quoteAddr)).to.eql(protoFee.div(2));
                 });
             });
 

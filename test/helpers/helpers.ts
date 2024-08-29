@@ -304,7 +304,6 @@ export async function initCoreTestSuite() {
     let fixedSynthSwapFee = toBN("100000000000000000"); // 0.1
     let fixedNFTSwapFee = toBN("100000000000000000"); // 0.1
     let instantNFTSwapFee = 10;
-    let nftDiscountBp = toBN(2500);
     let instantSwapFee = 12;
     let synthSwapFee = 14;
     let stableSwapFee = 10;
@@ -371,8 +370,6 @@ export async function initCoreTestSuite() {
 
     await provReg.updateWriter(core.address, true);
     await core.setProviderRegistry(provReg.address);
-    await core.setNFT(nft.address);
-    await core.setDiscountForNFTHolder(nftDiscountBp);
     await core.setProtoFee(instantSwapFee, synthSwapFee, stableSwapFee, fixedSynthSwapFee, fixedNFTSwapFee, instantNFTSwapFee);
     await core.setInventor(inventor.address);
     await mc.updateWriter(core.address, true);
@@ -478,7 +475,6 @@ export async function initCoreTestSuite() {
         instantNFTSwapFee,
         mediatorMgr,
         feePurse,
-        nftDiscountBp,
         instantSwapFee,
         synthSwapFee,
         randomness,

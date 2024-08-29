@@ -18,7 +18,6 @@ interface ContractParams {
     maxOpenOrders: number;
     maxOpenDisputes: number;
     transferToFeePoolInterval: number;
-    nftDiscountBP: number;
 
     // Market Core Params
     defaultDisputeDelayDur: number;
@@ -83,7 +82,6 @@ export function getParams(net: Network) {
         maxOpenOrders: toInt(process.env.OC_MAX_OPEN_ORDERS),
         maxOpenDisputes: toInt(process.env.OC_MAX_OPEN_DISPUTES),
         transferToFeePoolInterval: toInt(process.env.OC_TRANSFER_TO_FEE_POOL_INTERVAL),
-        nftDiscountBP: toInt(process.env.OC_NFT_DISCOUNT_BP),
 
         defaultDisputeDelayDur: toInt(process.env.MC_DEFAULT_DISPUTE_DELAY_DUR),
 

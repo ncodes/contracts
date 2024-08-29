@@ -163,14 +163,6 @@ library AuxLib {
         return (inf.feeBp, inf.feeFixed, inf.curRate);
     }
 
-    /// @dev Check if addr owns a native NFT
-    /// @param nft The address of the NFT
-    /// @param addr The address to check
-    /// @return bool True if addr owns a native NFT
-    function hasNativeNFT(address nft, address addr) public view returns (bool) {
-        return nft != address(0) && IERC721Strip(nft).balanceOf(addr) > 0;
-    }
-
     /// Check parameters for a SWAP operation involving a fungible base asset
     /// @param sp SwapSlot object
     /// @param mkt Market object

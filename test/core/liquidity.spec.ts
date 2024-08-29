@@ -3,7 +3,7 @@ import {expect} from "chai";
 import {BigNumber, BigNumberish, constants} from "ethers";
 import {getAddress} from "ethers/lib/utils";
 import {randomAddressString} from "hardhat/internal/hardhat-network/provider/utils/random";
-import {AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MediatorManager, NFT, ProviderRegistry, TOKEN} from "../../typechain-types";
+import {AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MediatorManager, ProviderRegistry, TOKEN} from "../../typechain-types";
 import {AddressZero, AssetType, advanceBlockTime, makeMarketID, pow10str, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
 
@@ -33,8 +33,6 @@ describe("Core - Liquidity", function () {
     let feePurse: FeePurse;
     let fixedSynthSwapFee: BigNumberish;
     let fixedNFTSwapFee: BigNumberish;
-    let nft: NFT;
-    let nftDiscountBp: BigNumber;
     let fixedFee: BigNumber;
     let curRate: BigNumber;
 
@@ -48,7 +46,6 @@ describe("Core - Liquidity", function () {
         core = vars.core;
         mc = vars.mc;
         provReg = vars.provReg;
-        nft = vars.nft;
         badgeMgr = vars.badgeMgr;
         testERC721 = vars.testERC721;
         testERC1155 = vars.testERC1155;
@@ -73,7 +70,6 @@ describe("Core - Liquidity", function () {
         user5 = vars.user5;
         fixedSynthSwapFee = vars.fixedSynthSwapFee;
         token = vars.token;
-        nftDiscountBp = vars.nftDiscountBp;
         fixedNFTSwapFee = vars.fixedNFTSwapFee;
         medMgr = vars.mediatorMgr;
 
@@ -371,7 +367,7 @@ describe("Core - Liquidity", function () {
                 await expect(core.updateNonFungibleLiquidity(mid, 0, false, constants.AddressZero, ids, 10, [], [], [0, 0, 0])).to.be.revertedWith("FP: LOW_BAL");
             });
 
-            context("sender has no native NFT to enable discount fee; base asset has asset registry record", () => {
+            context("base asset has asset registry record", () => {
                 it("should successfully transfer NFT to contract, lock correct liquidity fee", async () => {
                     mid = await createMarket(undefined, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.SYNTH, false, false, 0, 0);
                     await testERC721.mint();
@@ -397,38 +393,7 @@ describe("Core - Liquidity", function () {
                 });
             });
 
-            context("sender has native NFT to enable discount fee; base asset has asset registry record", () => {
-                it("should successfully transfer NFT to contract, lock correct liquidity fee", async () => {
-                    mid = await createMarket(undefined, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.SYNTH, false, false, 0, 0);
-                    await testERC721.mint();
-                    await testERC721.mint();
-                    await testERC721.setApprovalForAll(core.address, true);
-                    await nft.mint(1, false, Buffer.alloc(0), 0);
-
-                    await assetReg.set(testERC721.address, curRate, 0, fixedFee, true, false, false); // rate: 100, bp: 0.1
-
-                    const ids = [1, 2];
-                    const expectedFee = toDec(fixedFee).mul(ids.length);
-                    const discount = toDec(nftDiscountBp)
-                        .div(100)
-                        .div(100)
-                        .mul(toDec(expectedFee).div(pow10str(18)));
-                    const fee = toBN(expectedFee).sub(toBN(discount.mul(pow10str(18))));
-                    await token.approve(feePurse.address, fee);
-                    await feePurse.deposit(fee);
-
-                    await expect(core.updateNonFungibleLiquidity(mid, 0, false, constants.AddressZero, ids, 10, [], [], [0, 0, 0])).not.to.be.reverted;
-                    expect(await testERC721.balanceOf(core.address)).to.eql(toBN(2));
-                    expect(await testERC721.balanceOf(deployer.address)).to.eql(toBN(0));
-
-                    let liq = await core.getLiquidity(mid, marketCreator.address, 0);
-                    expect(await feePurse.getLocked(liq.protoFeePurseId)).to.eql(fee);
-                    expect(liq.ids).to.eql([toBN(1), toBN(2)]);
-                    expect(liq.price).to.eq(10);
-                });
-            });
-
-            context("sender has no native NFT to enable discount fee; base asset has no asset registry record", () => {
+            context("base asset has no asset registry record", () => {
                 it("should successfully transfer NFT to contract, lock correct liquidity fee", async () => {
                     mid = await createMarket(undefined, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.SYNTH, false, false, 0, 0);
                     await testERC721.mint();
@@ -437,31 +402,6 @@ describe("Core - Liquidity", function () {
 
                     const ids = [1, 2];
                     const expectedFee = toBN(fixedNFTSwapFee).mul(2);
-                    await token.approve(feePurse.address, expectedFee);
-                    await feePurse.deposit(expectedFee);
-
-                    await expect(core.updateNonFungibleLiquidity(mid, 0, false, constants.AddressZero, ids, 10, [], [], [0, 0, 0])).not.to.be.reverted;
-                    expect(await testERC721.balanceOf(core.address)).to.eql(toBN(2));
-                    expect(await testERC721.balanceOf(deployer.address)).to.eql(toBN(0));
-
-                    let liq = await core.getLiquidity(mid, marketCreator.address, 0);
-                    expect(await feePurse.getLocked(liq.protoFeePurseId)).to.eql(expectedFee);
-                    expect(liq.ids).to.eql([toBN(1), toBN(2)]);
-                    expect(liq.price).to.eq(10);
-                });
-            });
-
-            context("sender has native NFT to enable discount fee; base asset has no asset registry record", () => {
-                it("should successfully transfer NFT to contract, lock correct liquidity fee", async () => {
-                    mid = await createMarket(undefined, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.SYNTH, false, false, 0, 0);
-                    await testERC721.mint();
-                    await testERC721.mint();
-                    await testERC721.setApprovalForAll(core.address, true);
-                    await nft.mint(1, false, Buffer.alloc(0), 0);
-
-                    const ids = [1, 2];
-                    const discount = toDec(nftDiscountBp).div(100).div(100).mul(toDec(fixedNFTSwapFee).mul(ids.length));
-                    const expectedFee = toBN(toDec(fixedNFTSwapFee).mul(ids.length).sub(discount));
                     await token.approve(feePurse.address, expectedFee);
                     await feePurse.deposit(expectedFee);
 
@@ -1175,54 +1115,8 @@ describe("Core - Liquidity", function () {
                     expect(mkt.numLiquidity).to.eq(liqAmt.add(tokenDec));
                 });
 
-                describe("sender has NFT and base asset has asset registry record", () => {
-                    it("should successfully apply discount and lock correct fee (feeFixed: 0.1, nftDiscountBp: 2500)", async () => {
-                        await nft.mint(1, false, Buffer.alloc(0), 0);
-
-                        await assetReg.set(baseAddr, curRate, 0, fixedFee, false, false, false);
-                        const liqAmt = tokenDec.mul(2);
-                        let protoFee = toDec(toDec(liqAmt).mul(toDec(fixedFee)).div(pow10str(18)));
-                        let mktCreatorFee = toDec(toDec(liqAmt).mul(toDec(marketCom)).div(pow10str(18)));
-                        const fee = protoFee.add(mktCreatorFee);
-
-                        const expectedFee = toBN(fee.sub(fee.mul(toDec(nftDiscountBp).div(100).div(100))));
-                        await token.approve(feePurse.address, expectedFee);
-                        await feePurse.deposit(expectedFee);
-
-                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0])).not.to.be.reverted;
-                        let liq = await core.getLiquidity(mid, deployer.address, 0);
-                        expect(liq.protoFeePurseId).to.eq(1);
-                        let protoPurseBal = await feePurse.getLocked(liq.protoFeePurseId);
-                        let mktCreatorPurseBal = await feePurse.getLocked(liq.mktCreatorFeePurseId);
-                        expect(protoPurseBal.add(mktCreatorPurseBal)).to.eql(expectedFee);
-                        expect(await feePurse.balanceOf(deployer.address)).to.eq(0);
-                    });
-
-                    it("should successfully apply discount and lock correct fee (feeFixed: 0.5, nftDiscountBp: 2500)", async () => {
-                        await nft.mint(1, false, Buffer.alloc(0), 0);
-
-                        fixedFee = toBN("500000000000000000");
-                        await assetReg.set(baseAddr, curRate, 0, fixedFee, false, false, false);
-                        const liqAmt = tokenDec.mul(2);
-                        let protoFee = toDec(toDec(liqAmt).mul(toDec(fixedFee)).div(pow10str(18)));
-                        let mktCreatorFee = toDec(toDec(liqAmt).mul(toDec(marketCom)).div(pow10str(18)));
-                        const fee = protoFee.add(mktCreatorFee);
-
-                        const expectedFee = toBN(fee.sub(fee.mul(toDec(nftDiscountBp).div(100).div(100))));
-                        await token.approve(feePurse.address, expectedFee);
-                        await feePurse.deposit(expectedFee);
-
-                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0])).not.to.be.reverted;
-                        let liq = await core.getLiquidity(mid, deployer.address, 0);
-                        let protoPurseBal = await feePurse.getLocked(liq.protoFeePurseId);
-                        let mktCreatorPurseBal = await feePurse.getLocked(liq.mktCreatorFeePurseId);
-                        expect(protoPurseBal.add(mktCreatorPurseBal)).to.eql(expectedFee);
-                        expect(await feePurse.balanceOf(deployer.address)).to.eq(0);
-                    });
-                });
-
-                describe("sender does not have NFT and base asset has asset registry record", () => {
-                    it("should successfully apply discount and lock correct fee (feeFixed: 0.1)", async () => {
+                describe("base asset has asset registry record", () => {
+                    it("should successfully lock correct fee (feeFixed: 0.1)", async () => {
                         await assetReg.set(baseAddr, curRate, 0, fixedFee, false, false, false);
 
                         const liqAmt = tokenDec.mul(2);
@@ -1243,31 +1137,8 @@ describe("Core - Liquidity", function () {
                     });
                 });
 
-                describe("sender has NFT and base asset does not have asset registry record", () => {
-                    it("should successfully apply discount and lock correct fee (fixedSynthSwapFee: 0.1, nftDiscountBp: 2500)", async () => {
-                        await nft.mint(1, false, Buffer.alloc(0), 0);
-
-                        const liqAmt = tokenDec.mul(2);
-                        const protoFee = toDec(fixedSynthSwapFee).mul(toDec(liqAmt));
-                        const mktCreatorFee = toDec(marketCom).mul(toDec(liqAmt));
-                        const fee = protoFee.add(mktCreatorFee);
-
-                        const expectedFee = toBN(fee.sub(fee.mul(toDec(nftDiscountBp)).div(10000)).div(pow10str(18)));
-                        await token.approve(feePurse.address, expectedFee);
-                        await feePurse.deposit(expectedFee);
-
-                        await expect(core.updateFungibleLiquidity(mid, 0, false, constants.AddressZero, [liqAmt, 1], [], [], [0, 0, 0])).not.to.be.reverted;
-                        let liq = await core.getLiquidity(mid, deployer.address, 0);
-                        expect(liq.amount).to.eq(liqAmt);
-                        let protoPurseBal = await feePurse.getLocked(liq.protoFeePurseId);
-                        let mktCreatorPurseBal = await feePurse.getLocked(liq.mktCreatorFeePurseId);
-                        expect(protoPurseBal.add(mktCreatorPurseBal)).to.eql(expectedFee);
-                        expect(await feePurse.balanceOf(deployer.address)).to.eq(0);
-                    });
-                });
-
-                describe("sender does not have NFT and base asset does not have asset registry record", () => {
-                    it("should successfully calculate and lock correct fee (fixedSynthSwapFee: 0.1, nftDiscountBp: 2500)", async () => {
+                describe("base asset does not have asset registry record", () => {
+                    it("should successfully calculate and lock correct fee (fixedSynthSwapFee: 0.1)", async () => {
                         const liqAmt = tokenDec.mul(1);
                         const protoFee = toBN(toDec(fixedSynthSwapFee).mul(toDec(liqAmt)).div(pow10str(18)));
                         const mktCreatorFee = toBN(toDec(marketCom).mul(toDec(liqAmt)).div(pow10str(18)));

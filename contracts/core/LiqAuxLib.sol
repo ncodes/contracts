@@ -36,10 +36,6 @@ library LiqAuxLib {
         uint256 fee = amount * ((fixedFee > 0) ? fixedFee : fixedFeeInternal);
         fee = mkt.base.isSynth() ? fee / 10 ** 18 : fee;
 
-        if (fee > 0 && AuxLib.hasNativeNFT(s2.nft, msg.sender) && s2.ints.nftDiscountBp > 0) {
-            fee = fee - (fee * s2.ints.nftDiscountBp) / 10000;
-        }
-
         if (fee > 0) {
             uint256 prevLockedFee = s2.feePurse.getLocked(liq.protoFeePurseId);
             if (prevLockedFee > 0) s2.feePurse.unlock(msg.sender, liq.protoFeePurseId);
@@ -89,10 +85,6 @@ library LiqAuxLib {
     ) internal {
         uint256 fee = amount * mkt.commission;
         fee = mkt.base.isSynth() ? fee / 10 ** 18 : fee;
-
-        if (fee > 0 && AuxLib.hasNativeNFT(s2.nft, msg.sender) && s2.ints.nftDiscountBp > 0) {
-            fee = fee - (fee * s2.ints.nftDiscountBp) / 10000;
-        }
 
         if (fee > 0) {
             uint256 prevLockedFee = s2.feePurse.getLocked(liq.mktCreatorFeePurseId);

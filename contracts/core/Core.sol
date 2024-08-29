@@ -87,7 +87,6 @@ contract Core is Ownable, ERC1155Holder {
     event UpdatedPrice(address indexed marketId, address indexed provider, address indexed manager, uint256 lid, uint256 price);
     event TogglePause(address indexed marketId, address indexed provider, uint256 lid, bool paused);
     event UpdatedLiquidityManager(address indexed marketId, address indexed provider, address indexed manager, address oldManager);
-    event NFTDiscountUpdated(uint256 bp);
     event NewOffer(
         address marketId,
         address indexed provider,
@@ -125,7 +124,6 @@ contract Core is Ownable, ERC1155Holder {
     event UpdatedMaxOpenOrders(uint256 val);
     event UpdatedMaxOpenDisputes(uint256 val);
     event UpdatedDisputeManager(address addr);
-    event UpdatedNFT(address addr);
     event UpdatedOperator(address addr);
     event UpdatedMinerRegistry(address addr);
     event UpdatedAMMInfo(address swapRouter, address ethErc20Addr, uint256 poolFee);
@@ -185,7 +183,6 @@ contract Core is Ownable, ERC1155Holder {
         state.feeBPs[2] = 0;
         state2.token = IERC20(_token);
         state2.marketCore = IMarketCore(_marketCore);
-        state2.ints.nftDiscountBp = 2500;
     }
 
     /// @notice Set asset registry
@@ -251,13 +248,6 @@ contract Core is Ownable, ERC1155Holder {
         emit UpdatedMinerRegistry(addr);
     }
 
-    /// @notice Updated the NFT contract
-    /// @param addr The new address
-    function setNFT(address addr) external onlyOwner {
-        state2.nft = addr;
-        emit UpdatedNFT(addr);
-    }
-
     /// @notice Set native AMM information
     /// @param swapRouter The address of the swap router
     /// @param ethErc20Addr The address of the ETH ERC20 token
@@ -318,13 +308,6 @@ contract Core is Ownable, ERC1155Holder {
     function configureFeePool(uint256 interval) external onlyOwner {
         state.feePoolTxInterval = interval;
         emit UpdatedFeePoolConfig(interval);
-    }
-
-    /// @notice Set NFT holder discount
-    /// @param bp - The new base point
-    function setDiscountForNFTHolder(uint256 bp) external onlyOwner {
-        state2.ints.nftDiscountBp = bp;
-        emit NFTDiscountUpdated(bp);
     }
 
     /// @notice Set protocol fee split
@@ -469,11 +452,9 @@ contract Core is Ownable, ERC1155Holder {
                 state.ints.instantNFTSwapFeeBp,
                 state.ints.instantSwapFeeBp,
                 state.ints.stableSwapFeeBp,
-                state2.ints.nftDiscountBp,
                 lid,
                 orderAmt,
                 orderPrice,
-                state2.nft,
                 provider,
                 taker
             )

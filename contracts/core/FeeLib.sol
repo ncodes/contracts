@@ -31,11 +31,9 @@ struct ComputeFeeParams {
     uint256 instantNFTSwapFeeBp;
     uint256 instantSwapFeeBp;
     uint256 stableSwapFeeBp;
-    uint256 nftDiscountBp;
     uint256 lid;
     uint256 amount;
     uint256 price;
-    address nft;
     address provider;
     address taker;
 }
@@ -51,7 +49,6 @@ library FeeLib {
         FeeInfo memory feeInfo;
 
         uint256 denom = 10000;
-        bool takerHasNFT = p.nft != address(0) && AuxLib.hasNativeNFT(p.nft, p.taker);
 
         // ERC20/ERC20, ERC20/NATIVE, NATIVE/ERC20, NATIVE/NATIVE fee calculation.
         if (
@@ -63,13 +60,6 @@ library FeeLib {
             (feeInfo.feeBp, , ) = AuxLib.getFeeInfo(p.assetReg, p.mkt.base, p.instantSwapFeeBp);
             feeInfo.feeBp = AuxLib.isStable(p.assetReg, p.mkt) ? p.stableSwapFeeBp : feeInfo.feeBp;
             feeInfo.mktFeeBp = p.mkt.commission;
-
-            // If sender has NFT, apply NFT fee discount
-            if (takerHasNFT) {
-                feeInfo.feeBp = feeInfo.feeBp * 10 ** 2 - ((p.nftDiscountBp * feeInfo.feeBp * 10 ** 2) / denom);
-                feeInfo.mktFeeBp = feeInfo.mktFeeBp * 10 ** 2 - ((p.nftDiscountBp * feeInfo.mktFeeBp * 10 ** 2) / denom);
-                denom = 1000000;
-            }
 
             // Calculate fees
             feeInfo.mktCreatorFee = (p.amount * feeInfo.mktFeeBp) / denom;
@@ -87,14 +77,6 @@ library FeeLib {
             feeInfo.mktFeeBp = p.mkt.commission;
             (feeInfo.feeBp, , ) = AuxLib.getFeeInfo(p.assetReg, asset, p.synthSwapFeeBp);
 
-            // If taker's asset is synthetic (off-chain) and has the native NFT, apply discount.
-            // If provider's asset is synthetic (off-chain) and has the native NFT, apply discount.
-            if (p.nft != address(0) && AuxLib.hasNativeNFT(p.nft, (p.mkt.quote.isSynth()) ? p.taker : p.provider)) {
-                feeInfo.feeBp = feeInfo.feeBp * 10 ** 2 - ((p.nftDiscountBp * feeInfo.feeBp * 10 ** 2) / denom);
-                feeInfo.mktFeeBp = feeInfo.mktFeeBp * 10 ** 2 - ((p.nftDiscountBp * feeInfo.mktFeeBp * 10 ** 2) / denom);
-                denom = 1000000;
-            }
-
             // Determine which amount is subject to fee deduction.
             // When the base asset is ERC20 or Native, charge fee from order amount.
             // Otherwise charge fee from order cost.
@@ -111,13 +93,6 @@ library FeeLib {
         if ((p.mkt.base.isERC20() || p.mkt.base.isNative()) && p.mkt.quote.isNFT()) {
             (feeInfo.feeBp, , ) = AuxLib.getFeeInfo(p.assetReg, p.mkt.base, p.instantNFTSwapFeeBp);
             feeInfo.mktFeeBp = p.mkt.commission;
-
-            // If sender has NFT, apply NFT fee discount
-            if (takerHasNFT) {
-                feeInfo.feeBp = feeInfo.feeBp * 10 ** 2 - ((p.nftDiscountBp * feeInfo.feeBp * 10 ** 2) / denom);
-                feeInfo.mktFeeBp = feeInfo.mktFeeBp * 10 ** 2 - ((p.nftDiscountBp * feeInfo.mktFeeBp * 10 ** 2) / denom);
-                denom = 1000000;
-            }
 
             // Calculate fees
             feeInfo.mktCreatorFee = (p.liq.amount * feeInfo.mktFeeBp) / denom;
@@ -142,13 +117,6 @@ library FeeLib {
         if (p.mkt.base.isNFT() && (p.mkt.quote.isERC20() || p.mkt.quote.isNative())) {
             (feeInfo.feeBp, , ) = AuxLib.getFeeInfo(p.assetReg, p.mkt.base, p.instantNFTSwapFeeBp);
             feeInfo.mktFeeBp = p.mkt.commission;
-
-            // If provider has NFT, apply NFT fee discount
-            if (p.nft != address(0) && AuxLib.hasNativeNFT(p.nft, p.provider)) {
-                feeInfo.feeBp = feeInfo.feeBp * 10 ** 2 - ((p.nftDiscountBp * feeInfo.feeBp * 10 ** 2) / denom);
-                feeInfo.mktFeeBp = feeInfo.mktFeeBp * 10 ** 2 - ((p.nftDiscountBp * feeInfo.mktFeeBp * 10 ** 2) / denom);
-                denom = 1000000;
-            }
 
             // Calculate fees owed.
             feeInfo.mktCreatorFee = (p.price * feeInfo.mktFeeBp) / denom;

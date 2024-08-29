@@ -106,11 +106,9 @@ library SwapFungibleLib {
                 s1.ints.instantNFTSwapFeeBp,
                 s1.ints.instantSwapFeeBp,
                 s1.ints.stableSwapFeeBp,
-                s2.ints.nftDiscountBp,
                 sp.lid,
                 sp.amount,
                 price,
-                s2.nft,
                 sp.addrs.provider,
                 msg.sender
             )
@@ -205,11 +203,9 @@ library SwapFungibleLib {
                 s1.ints.instantNFTSwapFeeBp,
                 s1.ints.instantSwapFeeBp,
                 s1.ints.stableSwapFeeBp,
-                s2.ints.nftDiscountBp,
                 sp.lid,
                 sp.amount,
                 0,
-                s2.nft,
                 sp.addrs.provider,
                 msg.sender
             )

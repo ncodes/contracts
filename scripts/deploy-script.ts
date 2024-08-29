@@ -571,16 +571,6 @@ async function deployNFT() {
         async (contract, attached) => {
             nft = contract;
             // if (attached) return;
-
-            await runStep(1, "Setting NFT address and discount on Core contract", async () => {
-                await call(core, deployer, (c) => {
-                    return c.setDiscountForNFTHolder(params.nftDiscountBP);
-                });
-
-                await call(core, deployer, (c) => {
-                    return c.setNFT(nft.address);
-                });
-            });
         },
     );
 }

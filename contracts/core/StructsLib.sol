@@ -82,8 +82,6 @@ library StructsLib {
     }
 
     struct UintSlotState2 {
-        // Base point representing NFT fee discount
-        uint256 nftDiscountBp;
         // The fee tier of ETH pool on the native AMM DEX
         uint256 ammEthPoolFee;
     }
@@ -92,8 +90,6 @@ library StructsLib {
         UintSlotState2 ints;
         // Dispute manager contract address
         address disputeManager;
-        // NFT contract address
-        address nft;
         // ETH ERC20 token on native AMM
         address ammEth;
         // Provider registry contract address
