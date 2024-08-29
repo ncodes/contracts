@@ -37,7 +37,7 @@ import {DeployedContracts} from "../../types/types";
 import {makeMarketID, toBN} from "../../utils/utils";
 const {getContractFactory} = ethers;
 
-interface MakeCoreLibsResult {
+export interface MakeCoreLibsResult {
     AuxLib: AuxLib;
     MarketAuxLib: MarketAuxLib;
     LiquidityLib: LiquidityLib;

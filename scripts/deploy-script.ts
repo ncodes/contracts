@@ -4,7 +4,7 @@ import {BigNumberish, Contract, ContractTransaction, Signer, Wallet} from "ether
 import fs from "fs";
 import {ethers, network} from "hardhat";
 import path from "path";
-import {getCoreLibraries, makeLibs} from "../test/helpers/helpers";
+import {getCoreLibraries, MakeCoreLibsResult, makeLibs} from "../test/helpers/helpers";
 import {
     AssetRegistry,
     DisputeManager,
@@ -18,6 +18,7 @@ import {
     NFT,
     ProviderRegistry,
     Randomness,
+    Router,
     TokenPool,
 } from "../typechain-types";
 import {BadgeManager} from "../typechain-types/BadgeManager";
@@ -27,7 +28,7 @@ import {TOKEN} from "../typechain-types/TOKEN";
 import {WETH9} from "../typechain-types/WETH9";
 import {Deployments} from "../types/types";
 import {AddressZero} from "../utils/utils";
-import {Network, getParams} from "./params";
+import {getParams, Network} from "./params";
 
 // Supported ENV variables
 const step = process.env.STEP;
@@ -58,6 +59,7 @@ let operatorMgr: Operator;
 let randomness: Randomness;
 let assetReg: AssetRegistry;
 let provReg: ProviderRegistry;
+let router: Router;
 let feePurse: FeePurse;
 let deployer: SignerWithAddress;
 let accts: SignerWithAddress[];
@@ -68,6 +70,7 @@ let feePool: FeePool;
 let nft: NFT;
 let inventor: SignerWithAddress;
 let energonAddr: ENERGON;
+let libs: MakeCoreLibsResult;
 
 // Store previously deployed contract and library address here.
 // If set, they will be attached to instead of re-deploying
@@ -95,6 +98,7 @@ async function deployMainnet() {
     // await deployMinerRegistry();
     // await deployWrappedETH();
     // await deployProviderRegistry();
+    // await deployRouter();
     // await deployNFT();
     // await deployTokenPoolAndFeePool();
     // await deployLPPool();
@@ -124,6 +128,7 @@ async function deployLocal() {
 
     await deployMinerRegistry();
     await deployProviderRegistry();
+    await deployRouter();
 }
 
 async function main() {
@@ -231,9 +236,15 @@ async function deployOperatorManager() {
 }
 
 async function deployMarketCore() {
+    console.log("► Deploying libraries");
+    libs = await makeLibs(deployed.contracts, console.log);
+    console.log("🎉 Deployed libraries");
+
     await deployOrAttach<MarketCore>(
         "MarketCore",
-        undefined,
+        {
+            MarketAuxLib: libs.MarketAuxLib.address,
+        },
         [params.defaultDisputeDelayDur],
         async (contract, attached) => {
             marketCore = contract;
@@ -249,10 +260,11 @@ async function deployMarketCore() {
 }
 
 async function deployCore() {
-    let libs = undefined;
-    console.log("► Deploying Core libraries");
-    libs = await makeLibs(deployed.contracts, console.log);
-    console.log("🎉 Deployed Core libraries");
+    if (!libs) {
+        console.log("► Deploying Core libraries");
+        libs = await makeLibs(deployed.contracts, console.log);
+        console.log("🎉 Deployed Core libraries");
+    }
 
     await deployOrAttach<Core>(
         "Core",
@@ -331,6 +343,13 @@ async function deployProviderRegistry() {
                 return c.setProviderRegistry(provReg.address);
             });
         });
+    });
+}
+
+async function deployRouter() {
+    await deployOrAttach<Router>("Router", undefined, [core.address, provReg.address], async (contract, attached) => {
+        router = contract;
+        if (attached) return;
     });
 }
 
