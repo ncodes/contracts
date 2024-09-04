@@ -1,6 +1,6 @@
 {
   "meta": {
-    "created": 1724888618318
+    "created": 1725063600336
   },
   "contracts": {
     "BadgeManager": {
@@ -19,7 +19,7 @@
     "AuxLib": {
       "address": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
       "isLib": true,
-      "gasUsed": 1992896
+      "gasUsed": 1954268
     },
     "LiquidityLib": {
       "address": "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
@@ -29,27 +29,27 @@
     "OrderLib": {
       "address": "0x0165878A594ca255338adfa4d48449f69242Eb8F",
       "isLib": true,
-      "gasUsed": 3070407
+      "gasUsed": 3070419
     },
     "FeeLib": {
       "address": "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853",
       "isLib": true,
-      "gasUsed": 2091532
+      "gasUsed": 1792688
     },
     "OrderReleaseLib": {
       "address": "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6",
       "isLib": true,
-      "gasUsed": 3458013
+      "gasUsed": 3425229
     },
     "SwapNonFungibleLib": {
       "address": "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318",
       "isLib": true,
-      "gasUsed": 2939929
+      "gasUsed": 2912095
     },
     "SwapFungibleLib": {
       "address": "0x610178dA211FEF7D417bC0e6FeD39F05609AD788",
       "isLib": true,
-      "gasUsed": 3221077
+      "gasUsed": 3193494
     },
     "SwapLib": {
       "address": "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e",
@@ -59,22 +59,22 @@
     "WithdrawLib": {
       "address": "0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0",
       "isLib": true,
-      "gasUsed": 1055334
+      "gasUsed": 1054458
     },
     "OfferLib": {
       "address": "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82",
       "isLib": true,
-      "gasUsed": 2272034
+      "gasUsed": 2271779
     },
     "FungibleLiquidityLib": {
       "address": "0x9A676e781A523b5d0C0e43731313A708CB607508",
       "isLib": true,
-      "gasUsed": 3112802
+      "gasUsed": 3025500
     },
     "NonFungibleLiquidityLib": {
       "address": "0x0B306BF915C4d645ff596e518fAf3F9669b97016",
       "isLib": true,
-      "gasUsed": 3117473
+      "gasUsed": 3030233
     },
     "MarketCore": {
       "address": "0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1",
@@ -82,7 +82,7 @@
     },
     "Core": {
       "address": "0x68B1D87F95878fE05B998F19b66F4baba5De1aed",
-      "gasUsed": 5354275
+      "gasUsed": 5246974
     },
     "AssetRegistry": {
       "address": "0xa85233C63b9Ee964Add6F2cffe00Fd84eb32338f",
@@ -113,31 +113,31 @@
       "gasUsed": 4186655
     },
     "ENERGON": {
-      "address": "0x99bbA657f2BbC93c02D617f8bA121cB8Fc104Acf",
+      "address": "0x70e0bA845a1A0F2DA3359C97E0285013525FFC49",
       "gasUsed": 1581843
     },
     "WETH9": {
-      "address": "0x0E801D84Fa97b50751Dbf25036d067dCf18858bF",
+      "address": "0x4826533B4897376654Bb4d4AD88B7faFD0C98528",
       "gasUsed": 559298
     },
     "UNI": {
-      "address": "0x8f86403A4DE0BB5791fa46B8e795C547942fE4Cf",
+      "address": "0x99bbA657f2BbC93c02D617f8bA121cB8Fc104Acf",
       "gasUsed": 741760
     },
     "NGN": {
-      "address": "0x9d4454B023096f34B160D6B654540c56A1F81688",
+      "address": "0x0E801D84Fa97b50751Dbf25036d067dCf18858bF",
       "gasUsed": 741856
     },
     "MinerRegistry": {
-      "address": "0x5eb3Bc0a489C5A8288765d2336659EbCA68FCd00",
+      "address": "0x8f86403A4DE0BB5791fa46B8e795C547942fE4Cf",
       "gasUsed": 1561282
     },
     "ProviderRegistry": {
-      "address": "0x5f3f1dBD7B74C6B46e8c44f98792A1dAf8d69154",
+      "address": "0x4c5859f0F772848b2D91F1D83E2Fe57935348029",
       "gasUsed": 434052
     },
     "Router": {
-      "address": "0x82e01223d51Eb87e16A03E24687EDF0F294da6f1",
+      "address": "0xb7278A61aa25c888815aFC32Ad3cC52fF24fE575",
       "gasUsed": 1711455
     }
   }
