@@ -399,30 +399,26 @@ contract Core is Ownable, ERC1155Holder {
     }
 
     /// @notice Swap quote asset for base asset.
-    /// @param marketId The unique ID of the market.
-    /// @param provider The address of the base asset liquidity provider.
-    /// @param provider The address of the recipient (optional)
-    /// @param lid The liquidity ID
-    /// @param amount The quantity of base asset to be swapped.
-    /// @param maxPrice The maximum price to pay for amount.
+    /// param marketId The unique ID of the market.
+    /// param provider The address of the base asset liquidity provider.
+    /// param provider The address of the recipient (optional)
+    /// param lid The liquidity ID
+    /// param amount The quantity of base asset to be swapped.
+    /// param maxPrice The maximum price to pay for amount.
     ///         maxPrice protects the swapper from paying an unexpected cost
     ///         for amount in case the price was updated before the order was placed.
-    /// @param ids The ids of non-fungible quote assets (optional if quote is fungible)
-    /// @param txDeadline The transaction is reverted if current time >= expireAt
-    /// @param operator The ID of the interface operator
+    /// param ids The ids of non-fungible quote assets (optional if quote is fungible)
+    /// param txDeadline The transaction is reverted if current time >= expireAt
+    /// param operator The ID of the interface operator
     function swapQuoteForBase(
-        address marketId,
-        address provider,
-        address recipient,
-        uint256 lid,
-        uint256 amount,
-        uint256 maxPrice,
-        uint256[] memory ids,
-        uint256 txDeadline,
-        uint256 operator
-    ) external payable notExpired(txDeadline) marketMustExist(marketId) {
-        StructsLib.SwapSlotAddresses memory addrs = StructsLib.SwapSlotAddresses(marketId, provider, recipient);
-        SwapLib.swapQuoteForBase(state, state2, StructsLib.SwapSlot(lid, amount, maxPrice, ids, 0, operator, addrs));
+        StructsLib.SwapQuoteForBaseParams memory params
+    ) external payable notExpired(params.expireAt) marketMustExist(params.marketId) {
+        StructsLib.SwapSlotAddresses memory addrs = StructsLib.SwapSlotAddresses(params.marketId, params.provider, params.recipient);
+        SwapLib.swapQuoteForBase(
+            state,
+            state2,
+            StructsLib.SwapSlot(params.lid, params.amount, params.maxPrice, params.ids, 0, params.operator, addrs)
+        );
     }
 
     /// @notice Compute swap fee
@@ -614,83 +610,45 @@ contract Core is Ownable, ERC1155Holder {
         return state.liqManagers[provider][marketId];
     }
 
-    /// @notice Update fungible market (ERC20, SYNTH) liquidity
-    /// @param marketId The unique ID of the market.
-    /// @param lid The liquidity ID
-    /// @param deduct Indicate whether the liquidity should be deducted.
-    /// @param target Specify an address solely allowed to swap the liquidity
-    /// @param amountAndPrice The amount of base asset and quote price per base asset.
-    ///         0: amount: The amount of base asset to add as liquidity
-    ///         1: price: The quote price per base asset
-    /// @param wantOrIds: List of token IDs where at least one token must match (req: when quote is non-fungible).
-    /// @param wantAndIds: List of tokens IDs where all tokens must match (req: when quote is non-fungible)
-    /// @param limits The swap and transaction limits
-    ///         0: timeToPay: The maximum seconds within which payer must make payment.
-    ///         1: expireAt: The transaction deadline
-    ///         2: pause: Indicate whether to pause the liquidity
+    /// notice Update fungible market (ERC20, SYNTH) liquidity
+    /// @param params The liquidity parameters
     function updateFungibleLiquidity(
-        address marketId,
-        uint256 lid,
-        bool deduct,
-        address target,
-        uint256[2] memory amountAndPrice,
-        uint256[] memory wantOrIds,
-        uint256[] memory wantAndIds,
-        uint256[3] memory limits
-    ) external payable notExpired(limits[1]) marketMustExist(marketId) {
+        StructsLib.UpdateFungibleLiquidityParams memory params
+    ) external payable notExpired(params.expireAt) marketMustExist(params.marketId) {
         StructsLib.UpdateLiquiditySlot memory slot = StructsLib.UpdateLiquiditySlot(
-            marketId,
-            lid,
-            deduct,
-            limits[2] > 0,
-            amountAndPrice[0],
+            params.marketId,
+            params.lid,
+            params.deduct,
+            params.pause,
+            params.amount,
             new uint256[](0),
-            wantOrIds,
-            wantAndIds,
-            amountAndPrice[1],
-            limits[0],
-            target
+            params.wantOrIds,
+            params.wantAndIds,
+            params.price,
+            params.timeToPay,
+            params.target
         );
         FungibleLiquidityLib.updateFungibleLiquidity(state, state2, slot);
         state2.provReg.register(msg.sender);
     }
 
     /// @notice Update non-fungible market (ERC721, ERC1155) liquidity
-    /// @param marketId The unique ID of the market.
-    /// @param lid The liquidity ID
-    /// @param deduct Indicate whether the liquidity should be deducted.
-    /// @param target Specify an address solely allowed to swap the liquidity
-    /// @param ids Indicate the token ids to use as liquidity
-    /// @param price The quote price to accept for all tokens listed in <ids> (not required if quote asset is non-fungible)
-    /// @param wantOrIds: List of token IDs where at least one token must match (req: when quote is non-fungible).
-    /// @param wantAndIds: List of tokens IDs where all tokens must match (req: when quote is non-fungible)
-    /// @param limits The swap and transaction limits
-    ///         0: timeToPay: The maximum seconds within which payer must make payment.
-    ///         1: expireAt: The transaction deadline
-    ///         2: pause: Indicate whether to pause the liquidity
+    /// @param params The liquidity parameters
     function updateNonFungibleLiquidity(
-        address marketId,
-        uint256 lid,
-        bool deduct,
-        address target,
-        uint256[] memory ids,
-        uint256 price,
-        uint256[] memory wantOrIds,
-        uint256[] memory wantAndIds,
-        uint256[3] memory limits
-    ) external notExpired(limits[1]) marketMustExist(marketId) {
+        StructsLib.UpdateNonFungibleLiquidityParams memory params
+    ) external notExpired(params.expireAt) marketMustExist(params.marketId) {
         StructsLib.UpdateLiquiditySlot memory slot = StructsLib.UpdateLiquiditySlot(
-            marketId,
-            lid,
-            deduct,
-            limits[2] > 0,
+            params.marketId,
+            params.lid,
+            params.deduct,
+            params.pause,
             0,
-            ids,
-            wantOrIds,
-            wantAndIds,
-            price,
-            limits[0],
-            target
+            params.ids,
+            params.wantOrIds,
+            params.wantAndIds,
+            params.price,
+            params.timeToPay,
+            params.target
         );
         NonFungibleLiquidityLib.updateNonFungibleLiquidity(state, state2, slot);
         state2.provReg.register(msg.sender);
@@ -738,27 +696,21 @@ contract Core is Ownable, ERC1155Holder {
     }
 
     /// @notice Create an offer
-    /// @param marketId The market ID
-    /// @param provider The provider's address
-    /// @param lid The liquidity ID
-    /// @param amount The offer amount
-    /// @param price The offer price
-    /// @param ids The IDs of non-fungible assets
-    /// @param deadline The time when the offer expires.
-    function createOffer(
-        address marketId,
-        address provider,
-        address recipient,
-        uint256 lid,
-        uint256 amount,
-        uint256 price,
-        uint256[] memory ids,
-        uint256 deadline,
-        uint256 operator
-    ) public {
-        OfferLib.CreateOfferAddressParams memory offerAddrs = OfferLib.CreateOfferAddressParams(marketId, provider, recipient);
-        OfferLib.CreateOfferIntParams memory offerInts = OfferLib.CreateOfferIntParams(lid, amount, price, deadline, operator);
-        OfferLib.createOffer(state, state2, offerAddrs, offerInts, ids);
+    /// @param params The offer parameters
+    function createOffer(StructsLib.CreateOfferParams memory params) public {
+        OfferLib.CreateOfferAddressParams memory offerAddrs = OfferLib.CreateOfferAddressParams(
+            params.marketId,
+            params.provider,
+            params.recipient
+        );
+        OfferLib.CreateOfferIntParams memory offerInts = OfferLib.CreateOfferIntParams(
+            params.lid,
+            params.amount,
+            params.price,
+            params.deadline,
+            params.operator
+        );
+        OfferLib.createOffer(state, state2, offerAddrs, offerInts, params.ids);
     }
 
     /// @notice Create an offer

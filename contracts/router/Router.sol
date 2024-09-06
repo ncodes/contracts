@@ -7,6 +7,7 @@ import "../providerregistry/interfaces/IProviderRegistry.sol";
 import "../common/Structs.sol";
 import "../token/interfaces/IERC20.sol";
 import "hardhat/console.sol";
+import "../core/StructsLib.sol";
 
 struct Liquidity {
     uint256 provider;
@@ -133,19 +134,33 @@ contract Router is Ownable {
 
                 if (isERC20(mkt.quote)) {
                     uint256 operator = routeParams.operator;
-                    core.swapQuoteForBase(r.market, provider, address(0), liq.lid, liq.amount, liq.maxPrice, new uint256[](0), 0, operator);
+                    core.swapQuoteForBase(
+                        StructsLib.SwapQuoteForBaseParams({
+                            marketId: r.market,
+                            provider: provider,
+                            recipient: address(0),
+                            lid: liq.lid,
+                            amount: liq.amount,
+                            maxPrice: liq.maxPrice,
+                            ids: new uint256[](0),
+                            expireAt: 0,
+                            operator: operator
+                        })
+                    );
                 } else {
                     uint256 operator = routeParams.operator;
                     core.swapQuoteForBase{value: quoteAmt}(
-                        r.market,
-                        provider,
-                        address(0),
-                        liq.lid,
-                        liq.amount,
-                        liq.maxPrice,
-                        new uint256[](0),
-                        0,
-                        operator
+                        StructsLib.SwapQuoteForBaseParams({
+                            marketId: r.market,
+                            provider: provider,
+                            recipient: address(0),
+                            lid: liq.lid,
+                            amount: liq.amount,
+                            maxPrice: liq.maxPrice,
+                            ids: new uint256[](0),
+                            expireAt: 0,
+                            operator: operator
+                        })
                     );
                 }
             }

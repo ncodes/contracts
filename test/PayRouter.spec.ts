@@ -11,7 +11,7 @@ enum SourceType {
     Org,
 }
 
-describe.only("PayRouter", function () {
+describe("PayRouter", function () {
     let deployer: SignerWithAddress;
     let user2: SignerWithAddress;
     let user3: SignerWithAddress;

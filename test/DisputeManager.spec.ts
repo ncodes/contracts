@@ -134,7 +134,19 @@ describe("DisputeManager", function () {
     async function provideLiquidity(provider: SignerWithAddress, provLiqBal: BigNumber, basePrice: BigNumber, timeToPay = 0) {
         await baseAsset.transfer(provider.address, provLiqBal);
         await baseAsset.connect(provider).approve(core.address, provLiqBal);
-        await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [provLiqBal, basePrice], [], [], [timeToPay, 0, 0]);
+        await core.connect(provider).updateFungibleLiquidity({
+            marketId: mid,
+            target: AddressZero,
+            lid: 0,
+            amount: provLiqBal,
+            price: basePrice,
+            timeToPay: timeToPay,
+            expireAt: 0,
+            pause: false,
+            wantOrIds: [],
+            wantAndIds: [],
+            deduct: false,
+        });
     }
 
     function createOrder_BaseOn_QuoteOff(mid: string) {
@@ -143,7 +155,17 @@ describe("DisputeManager", function () {
             let basePrice = quoteDec.mul(10);
             await provideLiquidity(provider, provLiqBal, basePrice);
             const swapAmt = BigNumber.from(5).mul(baseDec);
-            const tx = await core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, basePrice, [], 0, 0);
+            const tx = await core.connect(swapper).swapQuoteForBase({
+                marketId: mid,
+                provider: provider.address,
+                recipient: AddressZero,
+                lid: 0,
+                amount: swapAmt,
+                maxPrice: basePrice,
+                ids: [],
+                expireAt: 0,
+                operator: 0,
+            });
             const res = await tx.wait();
             return resolve(res.events?.at(0)?.args?.numTypeInfo[0]);
         });

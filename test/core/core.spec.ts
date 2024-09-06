@@ -2,7 +2,7 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
 import {BigNumber, BigNumberish} from "ethers";
 import {ethers} from "hardhat";
-import {AssetRegistry, Core, ENERGON, ERC1155T, ERC721T, FeePool, FeePurse, MarketCore, MediatorManager, NFT, TOKEN} from "../../typechain-types";
+import {AssetRegistry, Core, FeePool, FeePurse, MarketCore, MediatorManager, TOKEN} from "../../typechain-types";
 import {AddressZero, AssetType, advanceBlockTime, getERC20, makeMarketID, powOf, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
 const {getContractFactory} = ethers;
@@ -13,11 +13,7 @@ describe("Core", function () {
     let core: Core;
     let mc: MarketCore;
     let medMgr: MediatorManager;
-    let energon: ENERGON;
-    let nft: NFT;
     let feePurse: FeePurse;
-    let testERC721: ERC721T;
-    let testERC1155: ERC1155T;
     let assetReg: AssetRegistry;
     let deployer: SignerWithAddress;
     let user5: SignerWithAddress;
@@ -48,11 +44,7 @@ describe("Core", function () {
         quoteAddr = vars.quoteAddr;
         core = vars.core;
         mc = vars.mc;
-        energon = vars.energon;
-        nft = vars.nft;
         feePurse = vars.feePurse;
-        testERC721 = vars.testERC721;
-        testERC1155 = vars.testERC1155;
         assetReg = vars.assetReg;
         deployer = vars.deployer;
         user5 = vars.user5;
@@ -89,7 +81,19 @@ describe("Core", function () {
     async function provideLiquidity(provider: SignerWithAddress, liquidityAmt: BigNumber, basePrice: BigNumber, timeToPay = 0) {
         await baseAsset.transfer(provider.address, liquidityAmt);
         await baseAsset.connect(provider).approve(cAddr, liquidityAmt);
-        await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [liquidityAmt, basePrice], [], [], [timeToPay, 0, 0]);
+        await core.connect(provider).updateFungibleLiquidity({
+            marketId: mid,
+            target: AddressZero,
+            lid: 0,
+            amount: liquidityAmt,
+            price: basePrice,
+            timeToPay: timeToPay,
+            expireAt: 0,
+            pause: false,
+            wantOrIds: [],
+            wantAndIds: [],
+            deduct: false,
+        });
     }
 
     function createOrder_BaseOn_QuoteOff(mid: string, amount = 5, price = pricePerBase, lid = 0, ids: BigNumberish[] = []) {
@@ -97,7 +101,17 @@ describe("Core", function () {
             try {
                 await provideLiquidity(provider, amountOfBase, price);
                 const swapAmt = toBN(amount).mul(baseDec);
-                const tx = await core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, lid, swapAmt, price, ids, 0, 0);
+                const tx = await core.connect(swapper).swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: lid,
+                    amount: swapAmt,
+                    maxPrice: price,
+                    ids: ids,
+                    expireAt: 0,
+                    operator: 0,
+                });
                 const res = await tx.wait();
                 return resolve(res.events?.at(0)?.args?.numTypeInfo[0]);
             } catch (e) {
@@ -229,7 +243,19 @@ describe("Core", function () {
                 // Make base asset non-shareable
                 await assetReg.setSharable(baseAddr, false);
 
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).to.emit(core, "Swap");
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).to.emit(core, "Swap");
 
                 // all protocol fee should go to inventor
                 expect(await core.inventorBalanceOf(baseAddr)).to.eql(protoFee);
@@ -274,7 +300,19 @@ describe("Core", function () {
 
                 // Add provider's liquidity
                 await baseAsset.connect(provider).approve(core.address, amountOfBase);
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0]);
+                await core.connect(provider).updateFungibleLiquidity({
+                    marketId: mid,
+                    target: AddressZero,
+                    lid: 0,
+                    amount: amountOfBase,
+                    price: pricePerBase,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                });
 
                 // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
                 const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
@@ -289,7 +327,19 @@ describe("Core", function () {
 
                 // Swap (allow fee to be shared)
                 await assetReg.setSharable(baseAddr, true);
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).to.emit(core, "Swap");
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).to.emit(core, "Swap");
 
                 // protocol share protocol fee
                 shareableBal = await core.shareablesBalanceOf(baseAddr);
@@ -349,7 +399,19 @@ describe("Core", function () {
                 mid = makeMarketID(marketCreator2.address, nativeAssetAddr, quoteAddr, AssetType.NATIVE, AssetType.ERC20);
 
                 // Add provider's liquidity
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0], {value: amountOfBase});
+                await core.connect(provider).updateFungibleLiquidity({
+                    marketId: mid,
+                    target: AddressZero,
+                    lid: 0,
+                    amount: amountOfBase,
+                    price: pricePerBase,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                });
 
                 // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
                 const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
@@ -364,7 +426,19 @@ describe("Core", function () {
 
                 // Swap (allow fee to be shared)
                 await assetReg.setSharable(baseAddr, true);
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).to.emit(core, "Swap");
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).to.emit(core, "Swap");
 
                 // protocol share protocol fee
                 expect((await core.inventorBalanceOf(baseAddr)).eq(protoFee.div(2))).to.be.true;
@@ -411,7 +485,19 @@ describe("Core", function () {
             const marketCreatorFee = swapAmt.mul(marketCom).div(10000);
 
             // Swap
-            await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+            await expect(
+                core.connect(swapper).swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: swapAmt,
+                    maxPrice: pricePerBase,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                }),
+            ).not.to.be.reverted;
 
             // market creator and protocol should receive fee
             expect((await core.feeBalanceOf(marketCreator2.address, baseAddr)).eq(marketCreatorFee)).to.be.true;
@@ -443,7 +529,19 @@ describe("Core", function () {
             await quoteAsset.connect(swapper).approve(cAddr, swapCost);
 
             // Swap
-            await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+            await expect(
+                core.connect(swapper).swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: swapAmt,
+                    maxPrice: pricePerBase,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                }),
+            ).not.to.be.reverted;
 
             // Withdraw market creator fee.
             await expect(core.withdrawInventorBalance(baseAddr)).to.be.revertedWith("NOT_INVENTOR");
@@ -465,7 +563,19 @@ describe("Core", function () {
             const marketCreatorFee = swapAmt.mul(marketCom).div(10000);
 
             // Swap
-            await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+            await expect(
+                core.connect(swapper).swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: swapAmt,
+                    maxPrice: pricePerBase,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                }),
+            ).not.to.be.reverted;
 
             // market creator and protocol should receive fee
             expect((await core.feeBalanceOf(marketCreator2.address, baseAddr)).eq(marketCreatorFee)).to.be.true;
@@ -486,7 +596,20 @@ describe("Core", function () {
                 await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.NATIVE, AssetType.ERC20, false, false, marketCom, 0);
                 mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, AssetType.NATIVE, AssetType.ERC20);
 
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0], {value: amountOfBase});
+                const params = {
+                    marketId: mid,
+                    target: AddressZero,
+                    lid: 0,
+                    amount: amountOfBase,
+                    price: pricePerBase,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                };
+                await core.connect(provider).updateFungibleLiquidity(params, {value: amountOfBase});
 
                 // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
                 const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
@@ -501,7 +624,19 @@ describe("Core", function () {
                 const marketCreatorFee = swapAmt.mul(marketCom).div(10000);
 
                 // Swap
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
                 expect((await core.inventorBalanceOf(baseAddr)).eq(protoFee)).to.be.true;
 
                 // Set inventor fee recipient

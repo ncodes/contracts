@@ -168,4 +168,84 @@ library StructsLib {
         uint256 timeToPay;
         address target;
     }
+
+    struct UpdateFungibleLiquidityParams {
+        /// @dev The market ID
+        address marketId;
+        /// @dev The liquidity target.
+        /// When set, only the target can swap the liquidity.
+        address target;
+        /// @dev The liquidity ID
+        uint256 lid;
+        /// @dev The amount of liquidity to add
+        uint256 amount;
+        /// @dev The price of the liquidity
+        uint256 price;
+        /// @dev The time to pay for the liquidity
+        uint256 timeToPay;
+        /// @dev The time when the liquidity will expire
+        uint256 expireAt;
+        /// @dev List of token IDs where at least one token must match.
+        /// Required when quote is non-fungible.
+        uint256[] wantOrIds;
+        /// @dev List of tokens IDs where all tokens must match.
+        /// Required when quote is non-fungible.
+        uint256[] wantAndIds;
+        /// @dev Indicate whether the liquidity should be deducted
+        bool deduct;
+        /// @dev Indicate whether to pause the liquidity
+        bool pause;
+    }
+
+    struct UpdateNonFungibleLiquidityParams {
+        /// @dev The market ID
+        address marketId;
+        /// @dev The liquidity target.
+        /// When set, only the target can swap the liquidity.
+        address target;
+        /// @dev The liquidity ID
+        uint256 lid;
+        /// @dev The price of the liquidity
+        uint256 price;
+        /// @dev The time to pay for the liquidity
+        uint256 timeToPay;
+        /// @dev The time when the liquidity will expire
+        uint256 expireAt;
+        /// @dev List of token IDs to use as liquidity
+        uint256[] ids;
+        /// @dev List of token IDs where at least one token must match.
+        /// Required when quote is non-fungible.
+        uint256[] wantOrIds;
+        /// @dev List of tokens IDs where all tokens must match.
+        /// Required when quote is non-fungible.
+        uint256[] wantAndIds;
+        /// @dev Indicate whether the liquidity should be deducted
+        bool deduct;
+        /// @dev Indicate whether to pause the liquidity
+        bool pause;
+    }
+
+    struct SwapQuoteForBaseParams {
+        address marketId;
+        address provider;
+        address recipient;
+        uint256 lid;
+        uint256 amount;
+        uint256 maxPrice;
+        uint256[] ids;
+        uint256 expireAt;
+        uint256 operator;
+    }
+
+    struct CreateOfferParams {
+        address marketId;
+        address provider;
+        address recipient;
+        uint256 lid;
+        uint256 amount;
+        uint256 price;
+        uint256[] ids;
+        uint256 deadline;
+        uint256 operator;
+    }
 }

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "../../common/Structs.sol";
+import "../../core/StructsLib.sol";
 
 interface ICore {
     function canCreateDispute(uint256 id, address addr) external view returns (bool);
@@ -18,15 +19,5 @@ interface ICore {
 
     function getMarket(address id) external view returns (Structs.Market memory);
 
-    function swapQuoteForBase(
-        address marketId,
-        address provider,
-        address recipient,
-        uint256 lid,
-        uint256 amount,
-        uint256 maxPrice,
-        uint256[] memory ids,
-        uint256 txDeadline,
-        uint256 operator
-    ) external payable;
+    function swapQuoteForBase(StructsLib.SwapQuoteForBaseParams memory params) external payable;
 }

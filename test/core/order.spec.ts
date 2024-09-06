@@ -94,7 +94,19 @@ describe("Core - Order", function () {
     async function provideLiquidity(provider: SignerWithAddress, liquidityAmt: BigNumber, basePrice: BigNumber, timeToPay = 0) {
         await baseAsset.transfer(provider.address, liquidityAmt);
         await baseAsset.connect(provider).approve(cAddr, liquidityAmt);
-        await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [liquidityAmt, basePrice], [], [], [timeToPay, 0, 0]);
+        await core.connect(provider).updateFungibleLiquidity({
+            marketId: mid,
+            target: AddressZero,
+            lid: 0,
+            amount: liquidityAmt,
+            price: basePrice,
+            timeToPay: timeToPay,
+            expireAt: 0,
+            pause: false,
+            wantOrIds: [],
+            wantAndIds: [],
+            deduct: false,
+        });
     }
 
     async function createMarket(creator: SignerWithAddress = deployer, base: string, quote: string, baseType: number, quoteType: number, permPut: boolean, permSwap: boolean, commission: BigNumberish, mediatorPoolId: BigNumberish) {
@@ -110,7 +122,17 @@ describe("Core - Order", function () {
                 const swapAmt = toBN(amount).mul(baseDec);
                 let mkt = await mc.getMarket(mid);
                 expect(mkt.numLiquidity).to.eql(amountOfBase);
-                const tx = await core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, lid, swapAmt, price, ids, 0, 0);
+                const tx = await core.connect(swapper).swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: lid,
+                    amount: swapAmt,
+                    maxPrice: price,
+                    ids: ids,
+                    expireAt: 0,
+                    operator: 0,
+                });
                 const res = await tx.wait();
                 mkt = await mc.getMarket(mid);
                 expect(mkt.numLiquidity).to.eq(amountOfBase.sub(swapAmt));
@@ -138,7 +160,19 @@ describe("Core - Order", function () {
                 const swapAmt = toBN(5).mul(baseDec);
 
                 // create swap order.
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
                 expect(numOrders.toNumber()).to.eql(1);
                 orderID = numOrders.toNumber() - 1;
@@ -184,7 +218,19 @@ describe("Core - Order", function () {
                 await quoteAsset.connect(swapper).approve(cAddr, swapCost);
 
                 // create swap order.
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
                 expect(numOrders.toNumber()).to.eql(1);
                 orderID = numOrders.toNumber() - 1;
@@ -203,7 +249,19 @@ describe("Core - Order", function () {
                 await core.setProtoFee(0, 0, 0, 0, 0, 0);
                 await provideLiquidity(provider, amountOfBase, pricePerBase);
                 const swapAmt = toBN(5).mul(baseDec);
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
                 expect(numOrders.toNumber()).to.eql(1);
                 orderID = numOrders.toNumber() - 1;
@@ -226,8 +284,34 @@ describe("Core - Order", function () {
                 await testERC721.connect(swapper).mint();
                 await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [1, 0], wantIds, [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(provider).updateFungibleLiquidity({
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        amount: 1,
+                        price: 0,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        pause: false,
+                        wantOrIds: wantIds,
+                        wantAndIds: [],
+                        deduct: false,
+                    }),
+                ).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: 0,
+                        maxPrice: 0,
+                        ids: ids,
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
 
                 const numOrders = (await core.state()).numOrders;
                 expect(numOrders.toNumber()).to.eql(1);
@@ -250,8 +334,34 @@ describe("Core - Order", function () {
                 await testERC721.connect(provider).mint();
                 await testERC721.connect(provider).setApprovalForAll(core.address, true);
 
-                await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, 10, [], [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 10, [], 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(provider).updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        price: 10,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        ids: ids,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                        pause: false,
+                    }),
+                ).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: 0,
+                        maxPrice: 10,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
 
                 const numOrders = (await core.state()).numOrders;
                 expect(numOrders.toNumber()).to.eql(1);
@@ -293,7 +403,19 @@ describe("Core - Order", function () {
                 await mc.connect(marketCreator2).setDisputeDelayDuration(mid, disputeDelayDur);
                 await provideLiquidity(provider, amountOfBase, pricePerBase);
                 const swapAmt = toBN(5).mul(baseDec);
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
                 expect(numOrders.toNumber()).to.eql(1);
                 orderID = numOrders.toNumber() - 1;
@@ -318,7 +440,19 @@ describe("Core - Order", function () {
             mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 1, 0);
             await provideLiquidity(provider, amountOfBase, pricePerBase);
             swapAmt = toBN(5).mul(baseDec);
-            await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+            await expect(
+                core.connect(swapper).swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: swapAmt,
+                    maxPrice: pricePerBase,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                }),
+            ).not.to.be.reverted;
             const numOrders = (await core.state()).numOrders;
             expect(numOrders.toNumber()).to.eql(1);
             orderID = numOrders.toNumber() - 1;
@@ -386,7 +520,19 @@ describe("Core - Order", function () {
                     swapAmt = toBN(5).mul(baseDec);
 
                     // create swap order.
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: swapAmt,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 0,
+                        }),
+                    ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
                     expect(numOrders.toNumber()).to.eql(1);
                     orderID = numOrders.toNumber() - 1;
@@ -466,7 +612,19 @@ describe("Core - Order", function () {
                     await provideLiquidity(provider, amountOfBase, pricePerBase);
 
                     swapAmt = toBN(5).mul(baseDec);
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 1)).not.to.be.reverted;
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: swapAmt,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 1,
+                        }),
+                    ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
                     expect(numOrders.toNumber()).to.eql(1);
                     orderID = numOrders.toNumber() - 1;
@@ -493,7 +651,19 @@ describe("Core - Order", function () {
                     await provideLiquidity(provider, amountOfBase, pricePerBase);
 
                     swapAmt = toBN(5).mul(baseDec);
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: swapAmt,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 0,
+                        }),
+                    ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
                     expect(numOrders.toNumber()).to.eql(1);
                     orderID = numOrders.toNumber() - 1;
@@ -524,7 +694,19 @@ describe("Core - Order", function () {
 
                     // create swap order.
                     swapAmt = toBN(5).mul(baseDec);
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, user5.address, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: user5.address,
+                            lid: 0,
+                            amount: swapAmt,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 0,
+                        }),
+                    ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
                     expect(numOrders.toNumber()).to.eql(1);
                     orderID = numOrders.toNumber() - 1;
@@ -560,7 +742,19 @@ describe("Core - Order", function () {
                     await quoteAsset.connect(swapper).approve(cAddr, swapCost);
 
                     // create swap order.
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: swapAmt,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 0,
+                        }),
+                    ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
                     expect(numOrders.toNumber()).to.eql(1);
                     orderID = numOrders.toNumber() - 1;
@@ -621,7 +815,19 @@ describe("Core - Order", function () {
                     await quoteAsset.connect(swapper).approve(cAddr, swapCost);
 
                     // create swap order.
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 1)).not.to.be.reverted;
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: swapAmt,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 1,
+                        }),
+                    ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
                     expect(numOrders.toNumber()).to.eql(1);
                     orderID = numOrders.toNumber() - 1;
@@ -662,9 +868,22 @@ describe("Core - Order", function () {
 
                 // create swap order.
                 await expect(
-                    core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0, {
-                        value: swapCost,
-                    }),
+                    core.connect(swapper).swapQuoteForBase(
+                        {
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: swapAmt,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 0,
+                        },
+                        {
+                            value: swapCost,
+                        },
+                    ),
                 ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
                 expect(numOrders.toNumber()).to.eql(1);
@@ -718,7 +937,20 @@ describe("Core - Order", function () {
                 const swapperBalBefore = await swapper.getBalance();
 
                 // create swap order.
-                const tx = await core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0, {value: swapCost.add(excess)});
+                const tx = await core.connect(swapper).swapQuoteForBase(
+                    {
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    },
+                    {value: swapCost.add(excess)},
+                );
                 await expect(tx.wait()).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
                 expect(numOrders.toNumber()).to.eql(1);
@@ -735,14 +967,43 @@ describe("Core - Order", function () {
         context("base = NATIVE while quote = SYNTH", () => {
             it("should successfully release", async () => {
                 mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, AssetType.SYNTH, false, false, marketCom, 0);
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0], {value: amountOfBase})).not.to.be.reverted;
+                await expect(
+                    core.connect(provider).updateFungibleLiquidity(
+                        {
+                            marketId: mid,
+                            target: AddressZero,
+                            lid: 0,
+                            amount: amountOfBase,
+                            price: pricePerBase,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                        },
+                        {value: amountOfBase},
+                    ),
+                ).not.to.be.reverted;
 
                 // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
                 swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
                 swapCost = swapAmt.mul(pricePerBase).div(baseDec); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
 
                 // create swap order.
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
                 expect(numOrders.toNumber()).to.eql(1);
                 orderID = numOrders.toNumber() - 1;
@@ -802,7 +1063,19 @@ describe("Core - Order", function () {
                 swapCost = swapAmt.mul(pricePerBase).div(baseDec); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
 
                 // create swap order.
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
                 expect(numOrders.toNumber()).to.eql(1);
                 orderID = numOrders.toNumber() - 1;
@@ -858,7 +1131,19 @@ describe("Core - Order", function () {
 
                     swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
                     swapCost = swapAmt.mul(pricePerBase).div(baseDec); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 1)).not.to.be.reverted;
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: swapAmt,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 1,
+                        }),
+                    ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
                     expect(numOrders.toNumber()).to.eql(1);
                     orderID = numOrders.toNumber() - 1;
@@ -904,10 +1189,36 @@ describe("Core - Order", function () {
                 await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
                 const wantOrIds = [1];
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, [], [0, 0, 0])).not.to.be.reverted;
+                await expect(
+                    core.connect(provider).updateFungibleLiquidity({
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        amount: amountOfBase,
+                        price: 0,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        pause: false,
+                        wantOrIds: wantOrIds,
+                        wantAndIds: [],
+                        deduct: false,
+                    }),
+                ).not.to.be.reverted;
 
                 // create swap order.
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: 0,
+                        maxPrice: 0,
+                        ids: ids,
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
                 expect(numOrders.toNumber()).to.eql(1);
                 orderID = numOrders.toNumber() - 1;
@@ -965,10 +1276,36 @@ describe("Core - Order", function () {
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
                     const wantOrIds = [1];
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, [], [0, 0, 0])).not.to.be.reverted;
+                    await expect(
+                        core.connect(provider).updateFungibleLiquidity({
+                            marketId: mid,
+                            target: AddressZero,
+                            lid: 0,
+                            amount: amountOfBase,
+                            price: 0,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: wantOrIds,
+                            wantAndIds: [],
+                            deduct: false,
+                        }),
+                    ).not.to.be.reverted;
 
                     // create swap order.
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 1)).not.to.be.reverted;
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: 0,
+                            maxPrice: 0,
+                            ids: ids,
+                            expireAt: 0,
+                            operator: 1,
+                        }),
+                    ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
                     expect(numOrders.toNumber()).to.eql(1);
                     orderID = numOrders.toNumber() - 1;
@@ -1016,10 +1353,36 @@ describe("Core - Order", function () {
                 await testERC1155.connect(swapper).setApprovalForAll(core.address, true);
 
                 const wantOrIds = [1];
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, [], [0, 0, 0])).not.to.be.reverted;
+                await expect(
+                    core.connect(provider).updateFungibleLiquidity({
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        amount: amountOfBase,
+                        price: 0,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        pause: false,
+                        wantOrIds: wantOrIds,
+                        wantAndIds: [],
+                        deduct: false,
+                    }),
+                ).not.to.be.reverted;
 
                 // create swap order.
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: 0,
+                        maxPrice: 0,
+                        ids: ids,
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
                 expect(numOrders.toNumber()).to.eql(1);
                 orderID = numOrders.toNumber() - 1;
@@ -1078,13 +1441,39 @@ describe("Core - Order", function () {
                 await token.connect(provider).approve(feePurse.address, protoFee.add(mktFee));
                 await feePurse.connect(provider).deposit(protoFee.add(mktFee));
 
-                await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
+                await expect(
+                    core.connect(provider).updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        price: pricePerBase,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        ids: ids,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                        pause: false,
+                    }),
+                ).not.to.be.reverted;
 
                 let mkt = await mc.getMarket(mid);
                 expect(mkt.numLiquidity).to.eq(2);
 
                 // create swap order.
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: 0,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
                 expect(numOrders.toNumber()).to.eql(1);
                 orderID = numOrders.toNumber() - 1;
@@ -1138,13 +1527,39 @@ describe("Core - Order", function () {
                     await token.connect(provider).approve(feePurse.address, protoFee.add(mktFee));
                     await feePurse.connect(provider).deposit(protoFee.add(mktFee));
 
-                    await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
+                    await expect(
+                        core.connect(provider).updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: AddressZero,
+                            lid: 0,
+                            price: pricePerBase,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            ids: ids,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                            pause: false,
+                        }),
+                    ).not.to.be.reverted;
 
                     let mkt = await mc.getMarket(mid);
                     expect(mkt.numLiquidity).to.eq(2);
 
                     // create swap order.
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, pricePerBase, [], 0, 1)).not.to.be.reverted;
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: 0,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 1,
+                        }),
+                    ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
                     expect(numOrders.toNumber()).to.eql(1);
                     orderID = numOrders.toNumber() - 1;
@@ -1173,10 +1588,36 @@ describe("Core - Order", function () {
                     await testERC721.connect(provider).setApprovalForAll(core.address, true);
                     ids = [toBN(1)];
 
-                    await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
+                    await expect(
+                        core.connect(provider).updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: AddressZero,
+                            lid: 0,
+                            price: pricePerBase,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            ids: ids,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                            pause: false,
+                        }),
+                    ).not.to.be.reverted;
 
                     // create swap order.
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, user5.address, 0, 0, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: user5.address,
+                            lid: 0,
+                            amount: 0,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 0,
+                        }),
+                    ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
                     expect(numOrders.toNumber()).to.eql(1);
                     orderID = numOrders.toNumber() - 1;
@@ -1202,7 +1643,19 @@ describe("Core - Order", function () {
 
                 // create swap order.
                 swapAmt = toBN(5).mul(baseDec);
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, user5.address, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: user5.address,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
                 expect(numOrders.toNumber()).to.eql(1);
                 orderID = numOrders.toNumber() - 1;
@@ -1225,7 +1678,19 @@ describe("Core - Order", function () {
             mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 1, 0);
             await provideLiquidity(provider, amountOfBase, pricePerBase);
             swapAmt = toBN(5).mul(baseDec);
-            await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+            await expect(
+                core.connect(swapper).swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: swapAmt,
+                    maxPrice: pricePerBase,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                }),
+            ).not.to.be.reverted;
             const numOrders = (await core.state()).numOrders;
             expect(numOrders.toNumber()).to.eql(1);
             orderID = numOrders.toNumber() - 1;
@@ -1390,7 +1855,19 @@ describe("Core - Order", function () {
                 // Provide BASE liquidity
                 const provLiq = toBN(10).mul(baseDec);
                 const basePrice = toBN(1).mul(quoteDec);
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [provLiq, basePrice], [], [], [0, 0, 0]);
+                await core.connect(provider).updateFungibleLiquidity({
+                    marketId: mid,
+                    target: AddressZero,
+                    lid: 0,
+                    amount: provLiq,
+                    price: basePrice,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                });
 
                 let mkt = await mc.getMarket(mid);
                 expect(mkt.numLiquidity).to.eql(provLiq);
@@ -1402,7 +1879,17 @@ describe("Core - Order", function () {
                 await quoteAsset.connect(swapper).approve(cAddr, swapCost);
 
                 // Create Order
-                await core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, basePrice, [], 0, 0);
+                await core.connect(swapper).swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: swapAmt,
+                    maxPrice: basePrice,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                });
 
                 mkt = await mc.getMarket(mid);
                 expect(mkt.numLiquidity).to.eql(provLiq.sub(swapAmt));
@@ -1439,7 +1926,19 @@ describe("Core - Order", function () {
                 // Provide BASE liquidity
                 const provLiq = toBN(10).mul(baseDec);
                 const basePrice = toBN(1).mul(quoteDec);
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [provLiq, basePrice], [], [], [0, 0, 0]);
+                await core.connect(provider).updateFungibleLiquidity({
+                    marketId: mid,
+                    target: AddressZero,
+                    lid: 0,
+                    amount: provLiq,
+                    price: basePrice,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                });
 
                 let mkt = await mc.getMarket(mid);
                 expect(mkt.numLiquidity).to.eql(provLiq);
@@ -1449,9 +1948,22 @@ describe("Core - Order", function () {
                 const swapCost = basePrice.mul(10);
 
                 // Create Order
-                await core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, basePrice, [], 0, 0, {
-                    value: swapCost,
-                });
+                await core.connect(swapper).swapQuoteForBase(
+                    {
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: basePrice,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    },
+                    {
+                        value: swapCost,
+                    },
+                );
 
                 mkt = await mc.getMarket(mid);
                 expect(mkt.numLiquidity).to.eql(provLiq.sub(swapAmt));
@@ -1505,7 +2017,19 @@ describe("Core - Order", function () {
                 swapCost = swapAmt.mul(pricePerBase).div(baseDec); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
 
                 // create swap order.
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
                 expect(numOrders.toNumber()).to.eql(1);
                 orderID = numOrders.toNumber() - 1;
@@ -1545,13 +2069,39 @@ describe("Core - Order", function () {
                 await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
                 const wantOrIds = [1];
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, [], [0, 0, 0])).not.to.be.reverted;
+                await expect(
+                    core.connect(provider).updateFungibleLiquidity({
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        amount: amountOfBase,
+                        price: 0,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        pause: false,
+                        wantOrIds: wantOrIds,
+                        wantAndIds: [],
+                        deduct: false,
+                    }),
+                ).not.to.be.reverted;
 
                 let mkt = await mc.getMarket(mid);
                 expect(mkt.numLiquidity).to.eql(amountOfBase);
 
                 // create swap order.
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: 0,
+                        maxPrice: 0,
+                        ids: ids,
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
                 expect(numOrders.toNumber()).to.eql(1);
                 orderID = numOrders.toNumber() - 1;
@@ -1597,13 +2147,39 @@ describe("Core - Order", function () {
                 await testERC721.connect(provider).setApprovalForAll(core.address, true);
 
                 ids = [toBN(1), toBN(2)];
-                await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
+                await expect(
+                    core.connect(provider).updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        price: pricePerBase,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        ids: ids,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                        pause: false,
+                    }),
+                ).not.to.be.reverted;
 
                 let mkt = await mc.getMarket(mid);
                 expect(mkt.numLiquidity).to.eq(2);
 
                 // create swap order.
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: 0,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
                 expect(numOrders.toNumber()).to.eql(1);
                 orderID = numOrders.toNumber() - 1;
@@ -1837,7 +2413,19 @@ describe("Core - Order", function () {
 
                 await baseAsset.transfer(provider.address, amountOfBase);
                 await baseAsset.connect(provider).approve(core.address, amountOfBase);
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [], [], [0, 0, 0]);
+                await core.connect(provider).updateFungibleLiquidity({
+                    marketId: mid,
+                    target: AddressZero,
+                    lid: 0,
+                    amount: amountOfBase,
+                    price: 0,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                });
 
                 const res = await core.computeSwapFee(mid, provider.address, 0, swapper.address, 0, 0);
                 expect(res[0]).to.eql(toBN("140000000000000000"));
@@ -1859,7 +2447,19 @@ describe("Core - Order", function () {
                 await token.connect(provider).approve(feePurse.address, fee);
                 await feePurse.connect(provider).deposit(fee);
 
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0]);
+                await core.connect(provider).updateFungibleLiquidity({
+                    marketId: mid,
+                    target: AddressZero,
+                    lid: 0,
+                    amount: amountOfBase,
+                    price: pricePerBase,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                });
 
                 let res = await core.computeSwapFee(mid, provider.address, 0, swapper.address, amountOfBase, 0);
                 expect(res[0]).to.eql(toBN("100000000000000000000"));
@@ -1881,7 +2481,19 @@ describe("Core - Order", function () {
                 await testERC721.connect(provider).setApprovalForAll(core.address, true);
                 const ids = [toBN(1)];
                 const price = pricePerBase;
-                await core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, price, [], [], [0, 0, 0]);
+                await core.connect(provider).updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: AddressZero,
+                    lid: 0,
+                    price: price,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    ids: ids,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                    pause: false,
+                });
 
                 const res = await core.computeSwapFee(mid, provider.address, 0, swapper.address, 0, price);
                 expect(res[0]).to.eql(toBN("14000000000000000"));
@@ -1908,7 +2520,19 @@ describe("Core - Order", function () {
                 await testERC721.connect(provider).mint();
                 await testERC721.connect(provider).setApprovalForAll(core.address, true);
                 const price = pricePerBase;
-                await core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, price, [], [], [0, 0, 0]);
+                await core.connect(provider).updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: AddressZero,
+                    lid: 0,
+                    price: price,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    ids: ids,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                    pause: false,
+                });
 
                 const res = await core.computeSwapFee(mid, provider.address, 0, swapper.address, 0, price);
                 expect(res[0]).to.eql(toBN("2000000000000000000"));
@@ -1934,7 +2558,19 @@ describe("Core - Order", function () {
                 await testERC721.connect(provider).mint();
                 await testERC721.connect(provider).mint();
                 await testERC721.connect(provider).setApprovalForAll(core.address, true);
-                await core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, 0, [], [], [0, 0, 0]);
+                await core.connect(provider).updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: AddressZero,
+                    lid: 0,
+                    price: 0,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    ids: ids,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                    pause: false,
+                });
 
                 const res = await core.computeSwapFee(mid, provider.address, 0, swapper.address, 0, 0);
                 expect(res[0]).to.eql(toBN("2000000000000000000"));

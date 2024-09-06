@@ -106,7 +106,19 @@ describe("Core - Swap", function () {
     async function provideLiquidity(provider: SignerWithAddress, liquidityAmt: BigNumber, basePrice: BigNumber, timeToPay = 0) {
         await baseAsset.transfer(provider.address, liquidityAmt);
         await baseAsset.connect(provider).approve(cAddr, liquidityAmt);
-        await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [liquidityAmt, basePrice], [], [], [timeToPay, 0, 0]);
+        await core.connect(provider).updateFungibleLiquidity({
+            marketId: mid,
+            target: AddressZero,
+            lid: 0,
+            amount: liquidityAmt,
+            price: basePrice,
+            timeToPay: timeToPay,
+            expireAt: 0,
+            pause: false,
+            wantOrIds: [],
+            wantAndIds: [],
+            deduct: false,
+        });
     }
 
     describe(".swapQuoteForBase", () => {
@@ -127,7 +139,19 @@ describe("Core - Swap", function () {
                 const badges: [string, string][] = [["verified", ""]];
                 await mc.connect(marketCreator2).setRequiredBadges(mid, [], badges);
 
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).to.be.revertedWith("OC: MKT_BADGE_REQ");
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).to.be.revertedWith("OC: MKT_BADGE_REQ");
             });
 
             it("should revert with msg=MKT_BADGE_REQ when sender does not have all the required badges", async () => {
@@ -146,7 +170,19 @@ describe("Core - Swap", function () {
                 ];
                 await mc.connect(marketCreator2).setRequiredBadges(mid, [], badges);
 
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).to.be.revertedWith("OC: MKT_BADGE_REQ");
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).to.be.revertedWith("OC: MKT_BADGE_REQ");
             });
 
             it("should succeed when sender has all required badges", async () => {
@@ -168,7 +204,19 @@ describe("Core - Swap", function () {
                 ];
                 await mc.connect(marketCreator2).setRequiredBadges(mid, badges, []);
 
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
             });
         });
 
@@ -184,7 +232,19 @@ describe("Core - Swap", function () {
                 const badges: [string, string][] = [["verified", ""]];
                 await core.connect(provider).setSwapBadgeForLiquidity(mid, 0, badges);
 
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).to.be.revertedWith("OC: LP_BADGE_REQ");
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).to.be.revertedWith("OC: LP_BADGE_REQ");
             });
 
             it("should revert with msg=LP_BADGE_REQ when sender does not have all the required badges", async () => {
@@ -203,7 +263,19 @@ describe("Core - Swap", function () {
                 ];
                 await core.connect(provider).setSwapBadgeForLiquidity(mid, 0, badges);
 
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).to.be.revertedWith("OC: LP_BADGE_REQ");
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).to.be.revertedWith("OC: LP_BADGE_REQ");
             });
 
             it("should succeed when sender has all required badges", async () => {
@@ -225,7 +297,19 @@ describe("Core - Swap", function () {
                 ];
                 await core.connect(provider).setSwapBadgeForLiquidity(mid, 0, badges);
 
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
             });
         });
     });
@@ -237,66 +321,186 @@ describe("Core - Swap", function () {
 
         it("should revert with msg='OC: EXPIRED_TX' when expireAt time was surpassed", async () => {
             const now = await advanceBlockTime(1);
-            await expect(core.swapQuoteForBase(mid, swapper.address, AddressZero, 0, 0, 0, [], now, 0)).to.be.revertedWith("OC: EXPIRED_TX");
+            await expect(
+                core.swapQuoteForBase({
+                    marketId: mid,
+                    provider: swapper.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: 0,
+                    maxPrice: 0,
+                    ids: [],
+                    expireAt: now,
+                    operator: 0,
+                }),
+            ).to.be.revertedWith("OC: EXPIRED_TX");
         });
 
         it("should revert with msg='MC: UNKNOWN_MARKET' when market is unknown", async () => {
-            await expect(core.swapQuoteForBase(AddressZero, swapper.address, AddressZero, 0, 0, 0, [], 0, 0)).to.be.revertedWith("MC: UNKNOWN_MARKET");
+            await expect(
+                core.swapQuoteForBase({
+                    marketId: AddressZero,
+                    provider: swapper.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: 0,
+                    maxPrice: 0,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                }),
+            ).to.be.revertedWith("MC: UNKNOWN_MARKET");
         });
 
         context("market is offer-only", () => {
             it("should revert with msg=OFFER_ONLY", async () => {
                 mid = await createMarket(marketCreator2, baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0, 0);
                 await mc.connect(marketCreator2).markAsOfferOnly(mid);
-                await expect(core.swapQuoteForBase(mid, swapper.address, AddressZero, 0, 0, 0, [], 0, 0)).to.be.revertedWith("OC: OFFER_ONLY");
+                await expect(
+                    core.swapQuoteForBase({
+                        marketId: mid,
+                        provider: swapper.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: 0,
+                        maxPrice: 0,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).to.be.revertedWith("OC: OFFER_ONLY");
             });
         });
 
         it("should revert with msg='ZERO_LIQ' when liquidity is zero", async () => {
-            await expect(core.swapQuoteForBase(mid, swapper.address, AddressZero, 0, 100, 1, [], 0, 0)).to.be.revertedWith("OC: ZERO_LIQ");
+            await expect(
+                core.swapQuoteForBase({
+                    marketId: mid,
+                    provider: swapper.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: 100,
+                    maxPrice: 1,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                }),
+            ).to.be.revertedWith("OC: ZERO_LIQ");
         });
 
         it("should revert with msg='AMOUNT_REQ' when amount was not provided", async () => {
             await baseAsset.transfer(provider.address, "100");
             await baseAsset.connect(provider).approve(cAddr, 100);
-            await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [100, 10], [], [], [0, 0, 0]);
-            await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, [], 0, 0)).to.be.revertedWith("OC: AMOUNT_REQ");
+            await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: 100, price: 10, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false});
+            await expect(
+                core.swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: 0,
+                    maxPrice: 0,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                }),
+            ).to.be.revertedWith("OC: AMOUNT_REQ");
         });
 
         it("should revert with msg='MAX_PRICE_REQ' when maxPrice is unset", async () => {
             await baseAsset.transfer(provider.address, "100");
             await baseAsset.connect(provider).approve(cAddr, 100);
-            await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [100, 10], [], [], [0, 0, 0]);
-            await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 1, 0, [], 0, 0)).to.be.revertedWith("OC: MAX_PRICE_REQ");
+            await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: 100, price: 10, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false});
+            await expect(
+                core.swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: 1,
+                    maxPrice: 0,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                }),
+            ).to.be.revertedWith("OC: MAX_PRICE_REQ");
         });
 
         it("should revert with msg='LIQ_PAUSED' when liquidity is paused", async () => {
             await baseAsset.transfer(provider.address, "100");
             await baseAsset.connect(provider).approve(cAddr, 100);
-            await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [100, 10], [], [], [0, 0, 0]);
+            await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: 100, price: 10, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false});
             await core.connect(provider).togglePause(mid, 0, 0);
-            await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 101, 1, [], 0, 0)).to.be.revertedWith("OC: LIQ_PAUSED");
+            await expect(
+                core.swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: 101,
+                    maxPrice: 1,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                }),
+            ).to.be.revertedWith("OC: LIQ_PAUSED");
         });
 
         it("should revert with msg='LOW_LIQ' when amount=0", async () => {
             await baseAsset.transfer(provider.address, "100");
             await baseAsset.connect(provider).approve(cAddr, 100);
-            await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [100, 10], [], [], [0, 0, 0]);
-            await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 101, 1, [], 0, 0)).to.be.revertedWith("OC: LOW_LIQ");
+            await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: 100, price: 10, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false});
+            await expect(
+                core.swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: 101,
+                    maxPrice: 1,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                }),
+            ).to.be.revertedWith("OC: LOW_LIQ");
         });
 
         it("should revert with msg='MAX_PRICE_TOO_LOW' when amount=0", async () => {
             await baseAsset.transfer(provider.address, "104");
             await baseAsset.connect(provider).approve(cAddr, 100);
-            await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [100, 10], [], [], [0, 0, 0]);
-            await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 100, 9, [], 0, 0)).to.be.revertedWith("MAX_PRICE_TOO_LOW");
+            await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: 100, price: 10, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false});
+            await expect(
+                core.swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: 100,
+                    maxPrice: 9,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                }),
+            ).to.be.revertedWith("MAX_PRICE_TOO_LOW");
         });
 
         it("should revert with msg='NOT_TARGET' when sender is not the liquidity target", async () => {
             await baseAsset.transfer(provider.address, "104");
             await baseAsset.connect(provider).approve(cAddr, 100);
-            await core.connect(provider).updateFungibleLiquidity(mid, 0, false, swapper.address, [100, 10], [], [], [0, 0, 0]);
-            await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 100, 10, [], 0, 0)).to.be.revertedWith("NOT_TARGET");
+            await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: swapper.address, lid: 0, amount: 100, price: 10, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false});
+            await expect(
+                core.swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: 100,
+                    maxPrice: 10,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                }),
+            ).to.be.revertedWith("NOT_TARGET");
         });
 
         context("base is ERC20 and quote is ERC20", () => {
@@ -310,8 +514,20 @@ describe("Core - Swap", function () {
             it("should revert with msg='IDS_NREQ' when ids is set", async () => {
                 await baseAsset.transfer(provider.address, "104");
                 await baseAsset.connect(provider).approve(cAddr, 104);
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [100, 10], [], [], [0, 0, 0]);
-                await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 1, 1, [1], 0, 0)).to.be.revertedWith("OC: IDS_NREQ");
+                await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: 100, price: 10, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false});
+                await expect(
+                    core.swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: 1,
+                        maxPrice: 1,
+                        ids: [1],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).to.be.revertedWith("OC: IDS_NREQ");
             });
 
             it("should revert with msg='LOW_QUOTE_BAL' when sender's quote balance has insufficient balance for swap cost", async () => {
@@ -320,9 +536,21 @@ describe("Core - Swap", function () {
                 await baseAsset.connect(provider).approve(cAddr, providerBal);
                 const pricePerQuote = toBN(1).mul(quoteDec); // wants 1 QUOTE /  BASE
                 const maxPrice = pricePerQuote;
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [providerBal, pricePerQuote], [], [], [0, 0, 0]);
+                await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: providerBal, price: pricePerQuote, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false});
                 const swapAmount = toBN(5).mul(baseDec); // wants 5 BASE
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmount, maxPrice, [], 0, 0)).to.be.revertedWith("LOW_QUOTE_BAL");
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmount,
+                        maxPrice: maxPrice,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).to.be.revertedWith("LOW_QUOTE_BAL");
             });
 
             it("should perform instant swap transfer successfully", async () => {
@@ -340,7 +568,19 @@ describe("Core - Swap", function () {
                 const protoFee = swapAmt.mul((await core.state()).ints.instantSwapFeeBp).div(10000);
                 const marketCreatorFee = swapAmt.mul(marketCommission).div(10000);
                 const totalFees = protoFee.add(marketCreatorFee);
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0))
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                )
                     .to.emit(core, "Swap")
                     .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
 
@@ -380,7 +620,19 @@ describe("Core - Swap", function () {
 
                 // Make base asset shareable
                 await assetReg.setSharable(baseAddr, true);
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).to.emit(core, "Swap");
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).to.emit(core, "Swap");
 
                 // protocol share protocol fee
                 expect((await core.inventorBalanceOf(baseAddr)).eq(protoFee.div(2))).to.be.true;
@@ -402,7 +654,19 @@ describe("Core - Swap", function () {
 
                     const protoFee = swapAmt.mul((await core.state()).ints.instantSwapFeeBp).div(10000);
                     await assetReg.setSharable(baseAddr, true);
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 1)).to.emit(core, "Swap");
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: swapAmt,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 1,
+                        }),
+                    ).to.emit(core, "Swap");
 
                     expect((await core.inventorBalanceOf(baseAddr)).eq(protoFee.div(2))).to.be.true;
                     expect((await core.shareablesBalanceOf(baseAddr)).eq(protoFee.div(4))).to.be.true;
@@ -433,7 +697,19 @@ describe("Core - Swap", function () {
                     const protoFee = swapAmt.mul((await core.state()).ints.stableSwapFeeBp).div(10000);
                     const marketCreatorFee = swapAmt.mul(marketCommission).div(10000);
                     const totalFees = protoFee.add(marketCreatorFee);
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0))
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: swapAmt,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 0,
+                        }),
+                    )
                         .to.emit(core, "Swap")
                         .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
 
@@ -487,7 +763,19 @@ describe("Core - Swap", function () {
                     const protoFee = swapAmt.mul((await core.state()).ints.instantSwapFeeBp).div(10000);
                     const marketCreatorFee = swapAmt.mul(marketCommission).div(10000);
                     const totalFees = protoFee.add(marketCreatorFee);
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0))
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: swapAmt,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 0,
+                        }),
+                    )
                         .to.emit(core, "Swap")
                         .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
 
@@ -540,7 +828,19 @@ describe("Core - Swap", function () {
                     const protoFee = swapAmt.mul((await core.state()).ints.instantSwapFeeBp).div(10000);
                     const marketCreatorFee = swapAmt.mul(marketCommission).div(10000);
                     const totalFees = protoFee.add(marketCreatorFee);
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0))
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: swapAmt,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 0,
+                        }),
+                    )
                         .to.emit(core, "Swap")
                         .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
 
@@ -578,7 +878,19 @@ describe("Core - Swap", function () {
                     await quoteAsset.transfer(swapper.address, swapCost);
                     await quoteAsset.connect(swapper).approve(cAddr, swapCost);
 
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, user5.address, 0, swapAmt, pricePerBase, [], 0, 0)).to.emit(core, "Swap");
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: user5.address,
+                            lid: 0,
+                            amount: swapAmt,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 0,
+                        }),
+                    ).to.emit(core, "Swap");
                     expect(await baseAsset.balanceOf(user5.address)).to.eql(swapAmt);
                 });
             });
@@ -608,7 +920,19 @@ describe("Core - Swap", function () {
                     const protoFee = swapAmt.mul((await core.state()).ints.instantSwapFeeBp).div(10000);
                     const marketCreatorFee = swapAmt.mul(marketCommission).div(10000);
                     const totalFees = protoFee.add(marketCreatorFee);
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0))
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: swapAmt,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 0,
+                        }),
+                    )
                         .to.emit(core, "Swap")
                         .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
 
@@ -645,7 +969,19 @@ describe("Core - Swap", function () {
             it("should revert with reason=LOW_QUOTE_BAL when deposit value is lower than swap cost", async () => {
                 await provideLiquidity(provider, amountOfBase, pricePerBase);
                 const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).to.be.revertedWith("OC: LOW_QUOTE_BAL");
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).to.be.revertedWith("OC: LOW_QUOTE_BAL");
             });
 
             it("should perform instant swap transfer successfully", async () => {
@@ -662,7 +998,20 @@ describe("Core - Swap", function () {
                 const protoFee = swapAmt.mul((await core.state()).ints.instantSwapFeeBp).div(10000);
                 const marketCreatorFee = swapAmt.mul(marketCommission).div(10000);
                 const totalFees = protoFee.add(marketCreatorFee);
-                const tx = await core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0, {value: swapCost});
+                const tx = await core.connect(swapper).swapQuoteForBase(
+                    {
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    },
+                    {value: swapCost},
+                );
                 await expect(tx).to.emit(core, "Swap").withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
 
                 // swapper should get swap amount - swapper total fees
@@ -696,7 +1045,20 @@ describe("Core - Swap", function () {
                 const swapperBalBefore = await ethers.provider.getBalance(swapper.address);
 
                 // Calculate expected swapper fees (for on-chain swap)
-                const tx = await core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0, {value: swapCost.add(excess)});
+                const tx = await core.connect(swapper).swapQuoteForBase(
+                    {
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    },
+                    {value: swapCost.add(excess)},
+                );
                 await expect(tx).to.emit(core, "Swap").withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
 
                 // get gas used
@@ -721,7 +1083,19 @@ describe("Core - Swap", function () {
                 // Swap amount = 5 BASE (amount of BASE the swapper wants)
                 const swapAmt = toBN(5).mul(baseDec);
                 const now = await advanceBlockTime(1);
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0))
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                )
                     .to.emit(core, "SwapOrder")
                     .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, [toBN(0), toBN(0), swapAmt, pricePerBase, 0, 0, minTimeToPay + orderGracePeriod], [], []);
 
@@ -757,7 +1131,19 @@ describe("Core - Swap", function () {
 
                     // Swap amount = 5 BASE (amount of BASE the swapper wants)
                     const swapAmt = toBN(5).mul(baseDec);
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, user5.address, 0, swapAmt, pricePerBase, [], 0, 0))
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: user5.address,
+                            lid: 0,
+                            amount: swapAmt,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 0,
+                        }),
+                    )
                         .to.emit(core, "SwapOrder")
                         .withArgs(getAddress(mid), provider.address, swapper.address, user5.address, [toBN(0), toBN(0), swapAmt, pricePerBase, 0, 0], [], []);
 
@@ -782,32 +1168,32 @@ describe("Core - Swap", function () {
             });
 
             it("should revert with msg='AMOUNT_NREQ' when amount was set", async () => {
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [1], [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 1, 1, [], 0, 0)).to.be.revertedWith("OC: AMOUNT_NREQ");
+                await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 1, maxPrice: 1, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("OC: AMOUNT_NREQ");
             });
 
             it("should revert with msg='MAX_PRICE_NREQ' when maxPrice was set", async () => {
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [1], [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 1, [], 0, 0)).to.be.revertedWith("OC: MAX_PRICE_NREQ");
+                await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 1, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("OC: MAX_PRICE_NREQ");
             });
 
             it("should revert with msg='IDS_REQ' when ids was not set", async () => {
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [1], [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, [], 0, 0)).to.be.revertedWith("OC: IDS_REQ");
+                await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("OC: IDS_REQ");
             });
 
             it("should revert with msg='IDS_HSIZE' when ids surpassed limit of 16", async () => {
                 const ids = Array(17)
                     .fill(0)
                     .map((_, i) => i);
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [1], [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).to.be.revertedWith("OC: IDS_HSIZE");
+                await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).to.be.revertedWith("OC: IDS_HSIZE");
             });
 
             it("should revert with msg='IDS_NUNIQ' when ids has a duplicate entry", async () => {
                 const ids = [1, 1];
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [1], [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).to.be.revertedWith("OC: IDS_NUNIQ");
+                await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).to.be.revertedWith("OC: IDS_NUNIQ");
             });
 
             context("when wantOrIds=[1,2] but swapper has [1,3]", () => {
@@ -817,8 +1203,8 @@ describe("Core - Swap", function () {
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
                     const wantOrIds = [1, 2];
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, [], [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0))
+                    await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0}))
                         .emit(core, "Swap")
                         .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, 0, 0, 0, 0], false, [], [1]);
 
@@ -845,9 +1231,8 @@ describe("Core - Swap", function () {
                     await testERC721.connect(swapper).mint();
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
-                    const wantOrIds = [2, 3];
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, [], [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).to.be.revertedWith("OC: NO_ID_MATCH");
+                    await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [2, 3], wantAndIds: [], deduct: false})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).to.be.revertedWith("OC: NO_ID_MATCH");
                 });
             });
 
@@ -857,10 +1242,8 @@ describe("Core - Swap", function () {
                     await testERC721.connect(swapper).mint();
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
-                    const wantOrIds: BigNumberish[] = [];
-                    const wantAndIds = [1, 2];
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, wantAndIds, [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).to.be.revertedWith("OC: NO_ID_MATCH");
+                    await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [1, 2], deduct: false})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).to.be.revertedWith("OC: NO_ID_MATCH");
                 });
             });
 
@@ -871,10 +1254,8 @@ describe("Core - Swap", function () {
                     await testERC721.connect(swapper).mint();
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
-                    const wantOrIds: BigNumberish[] = [];
-                    const wantAndIds = [1, 2];
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, wantAndIds, [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0))
+                    await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [1, 2], deduct: false})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0}))
                         .emit(core, "Swap")
                         .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, 0, 0, 0, 0], false, [], ids);
 
@@ -891,10 +1272,8 @@ describe("Core - Swap", function () {
                     await testERC721.connect(swapper).mint();
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
-                    const wantOrIds: BigNumberish[] = [];
-                    const wantAndIds = [1, 2];
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, wantAndIds, [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0))
+                    await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [1, 2], deduct: false})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0}))
                         .emit(core, "Swap")
                         .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, 0, 0, 0, 0], false, [], [1, 2]);
 
@@ -910,10 +1289,8 @@ describe("Core - Swap", function () {
                     await testERC721.connect(swapper).mint();
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
-                    const wantOrIds: BigNumberish[] = [];
-                    const wantAndIds = [1, 2];
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, wantAndIds, [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).to.be.revertedWith("OC: NO_ID_MATCH");
+                    await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [3, 4, 5], wantAndIds: [1, 2], deduct: false})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).to.be.revertedWith("OC: NO_ID_MATCH");
                 });
             });
 
@@ -926,10 +1303,8 @@ describe("Core - Swap", function () {
                     await testERC721.connect(swapper).mint();
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
-                    const wantOrIds = [3, 4, 5];
-                    const wantAndIds = [1, 2, 4];
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, wantAndIds, [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).not.to.be.reverted;
+                    await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [3, 4, 5], wantAndIds: [1, 2, 4], deduct: false})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).not.to.be.reverted;
 
                     // LP should own the NFTs
                     expect(await testERC721.ownerOf(1)).to.eq(provider.address);
@@ -941,8 +1316,12 @@ describe("Core - Swap", function () {
             context("when wantOrIds=[3,4,4,5] and wantAndIds=[1,1,2,2] but swapper has [1,2,2,4] (duplicate check)", () => {
                 it("should be successful", async () => {
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [3, 4, 4, 5], [1, 1, 2, 2], [0, 0, 0])).to.be.revertedWith("OC: WANT_IDS_NUNIQ");
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [3, 4, 5], [1, 1, 2, 2], [0, 0, 0])).to.be.revertedWith("OC: WANT_IDS_NUNIQ");
+                    await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [3, 4, 4, 5], wantAndIds: [1, 1, 2, 2], deduct: false})).to.be.revertedWith(
+                        "OC: WANT_IDS_NUNIQ",
+                    );
+                    await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [3, 4, 5], wantAndIds: [1, 1, 2, 2], deduct: false})).to.be.revertedWith(
+                        "OC: WANT_IDS_NUNIQ",
+                    );
                 });
             });
 
@@ -955,8 +1334,8 @@ describe("Core - Swap", function () {
 
                     const wantOrIds: BigNumber[] = [];
                     const wantAndIds: BigNumber[] = [];
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, wantAndIds, [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).not.to.be.reverted;
+                    await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: wantOrIds, wantAndIds: wantAndIds, deduct: false})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).not.to.be.reverted;
 
                     // LP should own the NFTs
                     expect(await testERC721.ownerOf(1)).to.eq(provider.address);
@@ -975,8 +1354,8 @@ describe("Core - Swap", function () {
 
                     const wantOrIds: BigNumber[] = [];
                     const wantAndIds: BigNumber[] = [];
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, wantAndIds, [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, user5.address, 0, 0, 0, ids, 0, 0)).not.to.be.reverted;
+                    await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: wantOrIds, wantAndIds: wantAndIds, deduct: false})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: user5.address, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).not.to.be.reverted;
 
                     expect(await baseAsset.balanceOf(user5.address)).to.eql(amountOfBase);
                 });
@@ -992,8 +1371,8 @@ describe("Core - Swap", function () {
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
                     const wantOrIds = [1, 2];
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, [], [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).not.to.be.reverted;
+                    await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).not.to.be.reverted;
 
                     // LP should own the NFT
                     expect(await testERC721.ownerOf(1)).to.eq(provider.address);
@@ -1021,8 +1400,8 @@ describe("Core - Swap", function () {
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
                     const wantOrIds = [1, 2];
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, [], [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 1)).not.to.be.reverted;
+                    await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 1})).not.to.be.reverted;
 
                     // LP should own the NFT
                     expect(await testERC721.ownerOf(1)).to.eq(provider.address);
@@ -1050,8 +1429,8 @@ describe("Core - Swap", function () {
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
                     const wantOrIds = [1, 2];
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, [], [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).not.to.be.reverted;
+                    await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).not.to.be.reverted;
 
                     // LP should own the NFT
                     expect(await testERC721.ownerOf(1)).to.eq(provider.address);
@@ -1083,8 +1462,8 @@ describe("Core - Swap", function () {
                     await testERC1155.connect(swapper).setApprovalForAll(core.address, true);
 
                     const wantOrIds = [1, 2];
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, [], [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).not.to.be.reverted;
+                    await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).not.to.be.reverted;
 
                     // LP should own the NFT
                     expect(await testERC1155.balanceOf(provider.address, 1)).to.eq(1);
@@ -1111,13 +1490,25 @@ describe("Core - Swap", function () {
             });
 
             it("should revert with reason=LOW_QUOTE_BAL when deposit value is lower than swap cost", async () => {
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0], {value: amountOfBase});
+                await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: pricePerBase, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false}, {value: amountOfBase});
                 const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).to.be.revertedWith("OC: LOW_QUOTE_BAL");
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).to.be.revertedWith("OC: LOW_QUOTE_BAL");
             });
 
             it("should perform instant swap transfer successfully", async () => {
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0], {value: amountOfBase});
+                await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: pricePerBase, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false}, {value: amountOfBase});
 
                 // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
                 const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
@@ -1133,7 +1524,20 @@ describe("Core - Swap", function () {
                 const totalFees = protoFee.add(marketCreatorFee);
 
                 // Swap
-                const tx = await core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0, {value: swapCost});
+                const tx = await core.connect(swapper).swapQuoteForBase(
+                    {
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    },
+                    {value: swapCost},
+                );
                 await expect(tx).to.emit(core, "Swap").withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
 
                 // calculate gas fee usd in eth
@@ -1167,13 +1571,25 @@ describe("Core - Swap", function () {
             });
 
             it("should revert with reason=LOW_QUOTE_BAL when deposit value is lower than swap cost", async () => {
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0], {value: amountOfBase});
+                await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: pricePerBase, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false}, {value: amountOfBase});
                 const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).to.be.revertedWith("OC: LOW_QUOTE_BAL");
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).to.be.revertedWith("OC: LOW_QUOTE_BAL");
             });
 
             it("should perform instant swap transfer successfully", async () => {
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0], {value: amountOfBase});
+                await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: pricePerBase, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false}, {value: amountOfBase});
 
                 // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
                 const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
@@ -1192,7 +1608,17 @@ describe("Core - Swap", function () {
                 const prevSwapperBal = await swapper.getBalance();
 
                 // Swap
-                const tx = await core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0);
+                const tx = await core.connect(swapper).swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: swapAmt,
+                    maxPrice: pricePerBase,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                });
                 await expect(tx).to.emit(core, "Swap").withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
 
                 // calculate gas fee usd in eth
@@ -1233,8 +1659,35 @@ describe("Core - Swap", function () {
                 const prevSwapperBal = await swapper.getBalance();
 
                 const wantOrIds = [1, 2];
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, [], [0, 0, 0], {value: amountOfBase})).not.to.be.reverted;
-                const tx = await core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0);
+                await expect(
+                    core.connect(provider).updateFungibleLiquidity(
+                        {
+                            marketId: mid,
+                            target: AddressZero,
+                            lid: 0,
+                            amount: amountOfBase,
+                            price: 0,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: wantOrIds,
+                            wantAndIds: [],
+                            deduct: false,
+                        },
+                        {value: amountOfBase},
+                    ),
+                ).not.to.be.reverted;
+                const tx = await core.connect(swapper).swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: 0,
+                    maxPrice: 0,
+                    ids: ids,
+                    expireAt: 0,
+                    operator: 0,
+                });
                 await expect(tx).emit(core, "Swap").withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, 0, 0, 0, 0], false, [], [1]);
 
                 const txReceipt = await tx.wait();
@@ -1265,12 +1718,39 @@ describe("Core - Swap", function () {
             });
 
             it("should create a swap order", async () => {
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0], {value: amountOfBase});
+                await core.connect(provider).updateFungibleLiquidity(
+                    {
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        amount: amountOfBase,
+                        price: pricePerBase,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        pause: false,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                    },
+                    {value: amountOfBase},
+                );
 
                 // Swap amount = 5 BASE (amount of BASE the swapper wants)
                 const swapAmt = toBN(5).mul(baseDec);
                 const now = await advanceBlockTime(1);
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0))
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                )
                     .to.emit(core, "SwapOrder")
                     .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, [toBN(0), toBN(0), swapAmt, pricePerBase, 0, 0, minTimeToPay + orderGracePeriod], [], []);
 
@@ -1309,7 +1789,19 @@ describe("Core - Swap", function () {
             });
 
             it("should successfully create swap and transfer swap cost to contract", async () => {
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0]);
+                await core.connect(provider).updateFungibleLiquidity({
+                    marketId: mid,
+                    target: AddressZero,
+                    lid: 0,
+                    amount: amountOfBase,
+                    price: pricePerBase,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                });
 
                 // Swap amount = 5 BASE (amount of BASE the swapper wants)
                 const swapAmt = toBN(5).mul(baseDec);
@@ -1318,7 +1810,19 @@ describe("Core - Swap", function () {
                 // Approve swap cost so the contract can lock it
                 await quoteAsset.transfer(swapper.address, swapCost);
                 await quoteAsset.connect(swapper).approve(cAddr, swapCost);
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0))
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                )
                     .to.emit(core, "SwapOrder")
                     .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, [toBN(0), toBN(0), swapAmt, pricePerBase, 0, 0], [], []);
 
@@ -1360,14 +1864,29 @@ describe("Core - Swap", function () {
             });
 
             it("should successfully create swap and transfer swap cost to contract", async () => {
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0]);
+                await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: pricePerBase, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false});
 
                 // Swap amount = 5 BASE (amount of BASE the swapper wants)
                 const swapAmt = toBN(5).mul(baseDec);
                 const swapCost = swapAmt.div(baseDec).mul(pricePerBase);
 
                 // Swap
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0, {value: swapCost}))
+                await expect(
+                    core.connect(swapper).swapQuoteForBase(
+                        {
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: swapAmt,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 0,
+                        },
+                        {value: swapCost},
+                    ),
+                )
                     .to.emit(core, "SwapOrder")
                     .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, [toBN(0), toBN(0), swapAmt, pricePerBase, 0, 0], [], []);
 
@@ -1404,9 +1923,21 @@ describe("Core - Swap", function () {
             it("should successfully create swap order", async () => {
                 mid = await createMarket(marketCreator2, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.SYNTH, false, false, 0, 0);
 
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0])).not.to.be.reverted;
+                await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: pricePerBase, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false})).not.to.be.reverted;
                 const swapAmt = toBN(5).mul(baseDec);
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).not.to.be.reverted;
                 await expect(core.getOrder(0)).not.be.revertedWith("OC: UNKNOWN_ORDER");
 
                 // liquidity must reduce
@@ -1428,44 +1959,44 @@ describe("Core - Swap", function () {
             });
 
             it("should revert with msg='MAX_PRICE_NREQ' when maxPrice is set", async () => {
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [1], [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 1, [], 0, 0)).to.be.revertedWith("OC: MAX_PRICE_NREQ");
+                await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 1, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("OC: MAX_PRICE_NREQ");
             });
 
             it("should revert with msg='AMOUNT_NREQ' when amount is set", async () => {
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [1], [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 1, 0, [], 0, 0)).to.be.revertedWith("OC: AMOUNT_NREQ");
+                await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 1, maxPrice: 0, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("OC: AMOUNT_NREQ");
             });
 
             it("should revert with msg='IDS_REQ' when token ids was not provided", async () => {
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [1], [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, [], 0, 0)).to.be.revertedWith("OC: IDS_REQ");
+                await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("OC: IDS_REQ");
             });
 
             it("should revert with msg='IDS_HSIZE' when ids length exceed limit", async () => {
                 const ids = Array(17).fill(0).map((_, i) => i); // prettier-ignore
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [1], [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).to.be.revertedWith("OC: IDS_HSIZE");
+                await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).to.be.revertedWith("OC: IDS_HSIZE");
             });
 
             it("should revert with msg='IDS_NUNIQ' when ids length exceed limit", async () => {
                 const ids = [1, 1];
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], [1], [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).to.be.revertedWith("OC: IDS_NUNIQ");
+                await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).to.be.revertedWith("OC: IDS_NUNIQ");
             });
 
             it("should revert with msg='NO_ID_MATCH' when no ids entry match", async () => {
                 const ids = [1];
                 const wantOrIds = [2, 3];
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).to.be.revertedWith("OC: NO_ID_MATCH");
+                await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).to.be.revertedWith("OC: NO_ID_MATCH");
             });
 
             it("should revert with msg='ERC721: invalid token ID' when matched id is not owned by sender", async () => {
                 const ids = [1];
                 const wantOrIds = [1];
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).to.be.revertedWith("ERC721: invalid token ID");
+                await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).to.be.revertedWith("ERC721: invalid token ID");
             });
 
             it("should successfully create order", async () => {
@@ -1474,8 +2005,8 @@ describe("Core - Swap", function () {
 
                 const ids = [toBN(1)];
                 const wantOrIds = [1];
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0))
+                await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0}))
                     .to.emit(core, "SwapOrder")
                     .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, [toBN(0), toBN(0), 0, 0, 0, 0], [], ids);
 
@@ -1492,8 +2023,8 @@ describe("Core - Swap", function () {
 
                 const ids = [toBN(1)];
                 const wantOrIds = [1];
-                await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0))
+                await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0}))
                     .to.emit(core, "SwapOrder")
                     .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, [toBN(0), toBN(0), 0, 0, 0, 0], [], ids);
 
@@ -1510,8 +2041,8 @@ describe("Core - Swap", function () {
 
                     const ids = [toBN(1)];
                     const wantOrIds: BigNumber[] = [];
-                    await expect(core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, 0], wantOrIds, [], [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0))
+                    await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0}))
                         .to.emit(core, "SwapOrder")
                         .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, [toBN(0), toBN(0), 0, 0, 0, 0], [], ids);
 
@@ -1531,7 +2062,7 @@ describe("Core - Swap", function () {
             });
 
             it("should revert with reason=MAX_OPEN_ORDERS", async () => {
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0]);
+                await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: pricePerBase, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false});
 
                 // Swap amount = 5 BASE (amount of BASE the swapper wants)
                 const swapAmt = toBN(5).mul(baseDec);
@@ -1540,10 +2071,10 @@ describe("Core - Swap", function () {
                 // Approve swap cost so the contract can lock it
                 await quoteAsset.transfer(swapper.address, swapCost.mul(2));
                 await quoteAsset.connect(swapper).approve(cAddr, swapCost.mul(2));
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).not.to.be.reverted;
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: swapAmt, maxPrice: pricePerBase, ids: [], expireAt: 0, operator: 0})).not.to.be.reverted;
 
                 // Expect to be reverted
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).to.be.revertedWith("OC: MAX_OPEN_ORDERS");
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: swapAmt, maxPrice: pricePerBase, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("OC: MAX_OPEN_ORDERS");
             });
         });
 
@@ -1556,7 +2087,7 @@ describe("Core - Swap", function () {
             });
 
             it("should revert with reason=MAX_OPEN_DISPUTES", async () => {
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0]);
+                await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: pricePerBase, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false});
 
                 // Swap amount = 5 BASE (amount of BASE the swapper wants)
                 const swapAmt = toBN(5).mul(baseDec);
@@ -1570,7 +2101,7 @@ describe("Core - Swap", function () {
                 await core.connect(deployer).updateOpenDisputesCount(mid, provider.address, 0, true);
 
                 // Expect to be reverted
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).to.be.revertedWith("OC: MAX_OPEN_DISPUTES");
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: swapAmt, maxPrice: pricePerBase, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("OC: MAX_OPEN_DISPUTES");
             });
         });
 
@@ -1583,7 +2114,7 @@ describe("Core - Swap", function () {
 
             it("should revert with msg=NO_PUT_PERM when swap is attempted on the liquidity", async () => {
                 await mc.connect(marketCreator2).permitPut(mid, provider.address);
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, false, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0]);
+                await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: pricePerBase, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false});
                 await mc.connect(marketCreator2).revokePut(mid, provider.address);
 
                 const swapAmt = toBN(5).mul(baseDec);
@@ -1591,10 +2122,10 @@ describe("Core - Swap", function () {
 
                 await quoteAsset.transfer(swapper.address, swapCost.mul(2));
                 await quoteAsset.connect(swapper).approve(cAddr, swapCost.mul(2));
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, swapAmt, pricePerBase, [], 0, 0)).to.be.revertedWith("MC: NO_PUT_PERM");
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: swapAmt, maxPrice: pricePerBase, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("MC: NO_PUT_PERM");
 
                 // Make sure liquidity can still be removed
-                await core.connect(provider).updateFungibleLiquidity(mid, 0, true, AddressZero, [amountOfBase, pricePerBase], [], [], [0, 0, 0]);
+                await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: pricePerBase, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: true});
                 expect((await core.getLiquidity(mid, provider.address, 0)).amount).to.eq(0);
             });
         });
@@ -1618,59 +2149,195 @@ describe("Core - Swap", function () {
         it("should revert with msg='OC: EXPIRED_TX' when expireAt time was surpassed", async () => {
             const now = await advanceBlockTime(1);
             mid = await createMarket(deployer, baseAddr, quoteAddr, AssetType.ERC721, AssetType.SYNTH, false, false, 0, 0);
-            await expect(core.swapQuoteForBase(mid, swapper.address, AddressZero, 0, 0, 0, [], now, 0)).to.be.revertedWith("OC: EXPIRED_TX");
+            await expect(core.swapQuoteForBase({marketId: mid, provider: swapper.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: [], expireAt: now, operator: 0})).to.be.revertedWith("OC: EXPIRED_TX");
         });
 
         it("should revert with msg='MC: UNKNOWN_MARKET' when market is unknown", async () => {
-            await expect(core.swapQuoteForBase(AddressZero, swapper.address, AddressZero, 0, 0, 0, [], 0, 0)).to.be.revertedWith("MC: UNKNOWN_MARKET");
+            await expect(core.swapQuoteForBase({marketId: AddressZero, provider: swapper.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("MC: UNKNOWN_MARKET");
         });
 
         it("should revert with msg='ZERO_LIQ' when the liquidity was not found", async () => {
-            await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, pricePerBase.sub(1), [toBN(1)], 0, 0)).to.be.revertedWith("OC: ZERO_LIQ");
+            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: pricePerBase.sub(1), ids: [toBN(1)], expireAt: 0, operator: 0})).to.be.revertedWith("OC: ZERO_LIQ");
         });
 
         it("should revert with msg='AMOUNT_NREQ' when amount was provided", async () => {
-            await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
-            await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 1, pricePerBase, [], 0, 0)).to.be.revertedWith("OC: AMOUNT_NREQ");
+            await expect(
+                core.connect(provider).updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: AddressZero,
+                    lid: 0,
+                    price: pricePerBase,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    ids: ids,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                    pause: false,
+                }),
+            ).not.to.be.reverted;
+            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 1, maxPrice: pricePerBase, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("OC: AMOUNT_NREQ");
         });
 
         it("should revert with msg='LIQ_PAUSED' liquidity is paused", async () => {
-            await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
+            await expect(
+                core.connect(provider).updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: AddressZero,
+                    lid: 0,
+                    price: pricePerBase,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    ids: ids,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                    pause: false,
+                }),
+            ).not.to.be.reverted;
             await core.connect(provider).togglePause(mid, 0, 0);
-            await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, pricePerBase.sub(1), [toBN(1)], 0, 0)).to.be.revertedWith("OC: LIQ_PAUSED");
+            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: pricePerBase.sub(1), ids: [toBN(1)], expireAt: 0, operator: 0})).to.be.revertedWith("OC: LIQ_PAUSED");
         });
 
         it("should revert with msg='MAX_PRICE_REQ' when quote=ERC20,SYNTH and maxPrice was unset", async () => {
-            await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
-            await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, [toBN(1)], 0, 0)).to.be.revertedWith("OC: MAX_PRICE_REQ");
+            await expect(
+                core.connect(provider).updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: AddressZero,
+                    lid: 0,
+                    price: pricePerBase,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    ids: ids,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                    pause: false,
+                }),
+            ).not.to.be.reverted;
+            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: [toBN(1)], expireAt: 0, operator: 0})).to.be.revertedWith("OC: MAX_PRICE_REQ");
         });
 
         it("should revert with msg='MAX_PRICE_NREQ' when quote=NFT and maxPrice was set", async () => {
             mid = await createMarket(deployer, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, marketCom, 0);
-            await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, 0, [1], [], [0, 0, 0])).not.to.be.reverted;
-            await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 1, [toBN(1)], 0, 0)).to.be.revertedWith("OC: MAX_PRICE_NREQ");
+            await expect(
+                core.connect(provider).updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: AddressZero,
+                    lid: 0,
+                    price: 0,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    ids: ids,
+                    wantOrIds: [1],
+                    wantAndIds: [],
+                    deduct: false,
+                    pause: false,
+                }),
+            ).not.to.be.reverted;
+            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 1, ids: [toBN(1)], expireAt: 0, operator: 0})).to.be.revertedWith("OC: MAX_PRICE_NREQ");
         });
 
         it("should revert with msg='MAX_PRICE_TOO_LOW' when quote=ERC20 and max price is lower than liquidity price", async () => {
-            await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
-            await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, pricePerBase.sub(1), [toBN(1)], 0, 0)).to.be.revertedWith("OC: MAX_PRICE_TOO_LOW");
+            await expect(
+                core.connect(provider).updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: AddressZero,
+                    lid: 0,
+                    price: pricePerBase,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    ids: ids,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                    pause: false,
+                }),
+            ).not.to.be.reverted;
+            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: pricePerBase.sub(1), ids: [toBN(1)], expireAt: 0, operator: 0})).to.be.revertedWith("OC: MAX_PRICE_TOO_LOW");
         });
 
         it("should revert with msg='IDS_NREQ' when quote=ERC20 and ids was provided", async () => {
-            await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
-            await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, pricePerBase, [toBN(1)], 0, 0)).to.be.revertedWith("OC: IDS_NREQ");
+            await expect(
+                core.connect(provider).updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: AddressZero,
+                    lid: 0,
+                    price: pricePerBase,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    ids: ids,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                    pause: false,
+                }),
+            ).not.to.be.reverted;
+            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: pricePerBase, ids: [toBN(1)], expireAt: 0, operator: 0})).to.be.revertedWith("OC: IDS_NREQ");
         });
 
         it("should revert with msg='IDS_REQ' when quote=NFT and ids was not provided", async () => {
             mid = await createMarket(deployer, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, marketCom, 0);
-            await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, 0, [1], [], [0, 0, 0])).not.to.be.reverted;
-            await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, [], 0, 0)).to.be.revertedWith("OC: IDS_REQ");
+            await expect(
+                core.connect(provider).updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: AddressZero,
+                    lid: 0,
+                    price: 0,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    ids: ids,
+                    wantOrIds: [1],
+                    wantAndIds: [],
+                    deduct: false,
+                    pause: false,
+                }),
+            ).not.to.be.reverted;
+            await expect(
+                core.swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: 0,
+                    maxPrice: 0,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                }),
+            ).to.be.revertedWith("OC: IDS_REQ");
         });
 
         it("should revert with msg='NOT_TARGET' when sender is not the liquidity target", async () => {
             mid = await createMarket(deployer, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, marketCom, 0);
-            await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, swapper.address, ids, 0, [1], [], [0, 0, 0])).not.to.be.reverted;
-            await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, [1], 0, 0)).to.be.revertedWith("OC: NOT_TARGET");
+            await expect(
+                core.connect(provider).updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: swapper.address,
+                    lid: 0,
+                    price: 0,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    ids: ids,
+                    wantOrIds: [1],
+                    wantAndIds: [],
+                    deduct: false,
+                    pause: false,
+                }),
+            ).not.to.be.reverted;
+            await expect(
+                core.swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: 0,
+                    maxPrice: 0,
+                    ids: [1],
+                    expireAt: 0,
+                    operator: 0,
+                }),
+            ).to.be.revertedWith("OC: NOT_TARGET");
         });
 
         context("base is NFT and quote is ERC20", () => {
@@ -1680,16 +2347,68 @@ describe("Core - Swap", function () {
             });
 
             it("should revert with msg='ERC20: insufficient allowance' when sender has insufficient ERC20 balance", async () => {
-                await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, pricePerBase, [], 0, 0)).to.be.revertedWith("ERC20: insufficient allowance");
+                await expect(
+                    core.connect(provider).updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        price: pricePerBase,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        ids: ids,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                        pause: false,
+                    }),
+                ).not.to.be.reverted;
+                await expect(
+                    core.swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: 0,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).to.be.revertedWith("ERC20: insufficient allowance");
             });
 
             it("should successfully transfer quote asset to provider and base assets to sender and share fees correctly", async () => {
                 marketCom = toBN(10);
                 await mc.setCommission(mid, marketCom);
 
-                await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, pricePerBase, [], 0, 0))
+                await expect(
+                    core.connect(provider).updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        price: pricePerBase,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        ids: ids,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                        pause: false,
+                    }),
+                ).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: 0,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                )
                     .emit(core, "Swap")
                     .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, 0, pricePerBase, 0, 0], false, ids, []);
 
@@ -1710,8 +2429,34 @@ describe("Core - Swap", function () {
                     await assetReg.setSharable(quoteAddr, true);
                     await core.setProtoFeeSplit(5000, 5000, 0);
 
-                    await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, pricePerBase, [], 0, 0))
+                    await expect(
+                        core.connect(provider).updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: AddressZero,
+                            lid: 0,
+                            price: pricePerBase,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            ids: ids,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                            pause: false,
+                        }),
+                    ).not.to.be.reverted;
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: 0,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 0,
+                        }),
+                    )
                         .emit(core, "Swap")
                         .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, 0, pricePerBase, 0, 0], false, ids, []);
 
@@ -1730,8 +2475,34 @@ describe("Core - Swap", function () {
                     await core.setProtoFeeSplit(5000, 0, 5000);
                     await assetReg.setSharable(quoteAddr, true);
 
-                    await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, pricePerBase, [], 0, 1))
+                    await expect(
+                        core.connect(provider).updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: AddressZero,
+                            lid: 0,
+                            price: pricePerBase,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            ids: ids,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                            pause: false,
+                        }),
+                    ).not.to.be.reverted;
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: 0,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 1,
+                        }),
+                    )
                         .emit(core, "Swap")
                         .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, 0, pricePerBase, 0, 1], false, ids, []);
 
@@ -1750,8 +2521,34 @@ describe("Core - Swap", function () {
 
             context("sender provided a recipient address", () => {
                 it("should swap to recipient", async () => {
-                    await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, user5.address, 0, 0, pricePerBase, [], 0, 0)).emit(core, "Swap");
+                    await expect(
+                        core.connect(provider).updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: AddressZero,
+                            lid: 0,
+                            price: pricePerBase,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            ids: ids,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                            pause: false,
+                        }),
+                    ).not.to.be.reverted;
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: user5.address,
+                            lid: 0,
+                            amount: 0,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 0,
+                        }),
+                    ).emit(core, "Swap");
                     expect(await testERC721.ownerOf(1)).to.eql(user5.address);
                     expect(await testERC721.ownerOf(2)).to.eql(user5.address);
                 });
@@ -1764,19 +2561,74 @@ describe("Core - Swap", function () {
             });
 
             it("should revert with msg='LOW_DEPOSIT' when sender did not deposit sufficient native value", async () => {
-                await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, pricePerBase, [], 0, 0)).to.be.revertedWith("OC: LOW_DEPOSIT");
+                await expect(
+                    core.connect(provider).updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        price: pricePerBase,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        ids: ids,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                        pause: false,
+                    }),
+                ).not.to.be.reverted;
+                await expect(
+                    core.swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: 0,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).to.be.revertedWith("OC: LOW_DEPOSIT");
             });
 
             it("should successfully transfer quote asset to provider and base assets to sender and share fees correctly", async () => {
                 marketCom = toBN(10);
                 await mc.setCommission(mid, marketCom);
 
-                await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
+                await expect(
+                    core.connect(provider).updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        price: pricePerBase,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        ids: ids,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                        pause: false,
+                    }),
+                ).not.to.be.reverted;
 
                 const prevProviderBal = await provider.getBalance();
 
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, pricePerBase, [], 0, 0, {value: pricePerBase}))
+                await expect(
+                    core.connect(swapper).swapQuoteForBase(
+                        {
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: 0,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 0,
+                        },
+                        {value: pricePerBase},
+                    ),
+                )
                     .emit(core, "Swap")
                     .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, 0, pricePerBase, 0, 0], false, ids, []);
 
@@ -1797,12 +2649,39 @@ describe("Core - Swap", function () {
                 marketCom = toBN(10);
                 await mc.setCommission(mid, marketCom);
 
-                await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
+                await expect(
+                    core.connect(provider).updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        price: pricePerBase,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        ids: ids,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                        pause: false,
+                    }),
+                ).not.to.be.reverted;
 
                 const excess = toBN(100).mul(quoteDec);
                 const swapperBalBefore = await swapper.getBalance();
 
-                const tx = await core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, pricePerBase, [], 0, 0, {value: pricePerBase.add(excess)});
+                const tx = await core.connect(swapper).swapQuoteForBase(
+                    {
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: 0,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    },
+                    {value: pricePerBase.add(excess)},
+                );
                 await expect(tx).emit(core, "Swap").withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, 0, pricePerBase, 0, 0], false, ids, []);
 
                 const txReceipt = await tx.wait();
@@ -1823,9 +2702,35 @@ describe("Core - Swap", function () {
             });
 
             it("should create a swap order", async () => {
-                await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, pricePerBase, [], [], [0, 0, 0])).not.to.be.reverted;
+                await expect(
+                    core.connect(provider).updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        price: pricePerBase,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        ids: ids,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                        pause: false,
+                    }),
+                ).not.to.be.reverted;
                 const now = await advanceBlockTime(1);
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, pricePerBase, [], 0, 0))
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: 0,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                )
                     .emit(core, "SwapOrder")
                     .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, [toBN(0), toBN(0), 0, pricePerBase, 0, 0], ids, []);
 
@@ -1863,8 +2768,34 @@ describe("Core - Swap", function () {
 
                 const wantOrIds = [1];
                 const ids = [2];
-                await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, 0, wantOrIds, [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, ids, 0, 0)).to.be.revertedWith("OC: NO_ID_MATCH");
+                await expect(
+                    core.connect(provider).updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        price: 0,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        ids: ids,
+                        wantOrIds: wantOrIds,
+                        wantAndIds: [],
+                        deduct: false,
+                        pause: false,
+                    }),
+                ).not.to.be.reverted;
+                await expect(
+                    core.swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: 0,
+                        maxPrice: 0,
+                        ids: ids,
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).to.be.revertedWith("OC: NO_ID_MATCH");
             });
 
             it("should revert with msg='ERC721: transfer from incorrect owner' when swapper does not own a matching want ID", async () => {
@@ -1873,8 +2804,34 @@ describe("Core - Swap", function () {
 
                 const wantOrIds = [3];
                 const ids = [1];
-                await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, 0, wantOrIds, [], [0, 0, 0])).not.to.be.reverted;
-                await expect(core.swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, wantOrIds, 0, 0)).to.be.revertedWith("ERC721: transfer from incorrect owner");
+                await expect(
+                    core.connect(provider).updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        price: 0,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        ids: ids,
+                        wantOrIds: wantOrIds,
+                        wantAndIds: [],
+                        deduct: false,
+                        pause: false,
+                    }),
+                ).not.to.be.reverted;
+                await expect(
+                    core.swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: 0,
+                        maxPrice: 0,
+                        ids: wantOrIds,
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                ).to.be.revertedWith("ERC721: transfer from incorrect owner");
             });
 
             it("should successfully transfer quote asset to provider and base assets to sender", async () => {
@@ -1889,8 +2846,34 @@ describe("Core - Swap", function () {
                 await token.connect(provider).approve(feePurse.address, protoFee.add(mktFee));
                 await feePurse.connect(provider).deposit(protoFee.add(mktFee));
 
-                await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, 0, [], wantAndIds, [0, 0, 0])).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, wantAndIds, 0, 0))
+                await expect(
+                    core.connect(provider).updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        price: 0,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        ids: ids,
+                        wantOrIds: [],
+                        wantAndIds: wantAndIds,
+                        deduct: false,
+                        pause: false,
+                    }),
+                ).not.to.be.reverted;
+                await expect(
+                    core.connect(swapper).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: 0,
+                        maxPrice: 0,
+                        ids: wantAndIds,
+                        expireAt: 0,
+                        operator: 0,
+                    }),
+                )
                     .to.emit(core, "Swap")
                     .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, 0, 0, 0, 0], false, ids, wantAndIds);
 
@@ -1927,8 +2910,34 @@ describe("Core - Swap", function () {
                     await token.connect(provider).approve(feePurse.address, protoFee.add(mktFee));
                     await feePurse.connect(provider).deposit(protoFee.add(mktFee));
 
-                    await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, 0, [], wantAndIds, [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, swapperIds, 0, 0))
+                    await expect(
+                        core.connect(provider).updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: AddressZero,
+                            lid: 0,
+                            price: 0,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            ids: ids,
+                            wantOrIds: [],
+                            wantAndIds: wantAndIds,
+                            deduct: false,
+                            pause: false,
+                        }),
+                    ).not.to.be.reverted;
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: 0,
+                            maxPrice: 0,
+                            ids: swapperIds,
+                            expireAt: 0,
+                            operator: 0,
+                        }),
+                    )
                         .to.emit(core, "Swap")
                         .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, 0, 0, 0, 0], false, ids, swapperIds);
 
@@ -1967,8 +2976,34 @@ describe("Core - Swap", function () {
                     await token.connect(provider).approve(feePurse.address, protoFee.add(mktFee));
                     await feePurse.connect(provider).deposit(protoFee.add(mktFee));
 
-                    await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, 0, [], wantAndIds, [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, wantAndIds, 0, 0))
+                    await expect(
+                        core.connect(provider).updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: AddressZero,
+                            lid: 0,
+                            price: 0,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            ids: ids,
+                            wantOrIds: [],
+                            wantAndIds: wantAndIds,
+                            deduct: false,
+                            pause: false,
+                        }),
+                    ).not.to.be.reverted;
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: 0,
+                            maxPrice: 0,
+                            ids: wantAndIds,
+                            expireAt: 0,
+                            operator: 0,
+                        }),
+                    )
                         .to.emit(core, "Swap")
                         .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, 0, 0, 0, 0], false, ids, wantAndIds);
 
@@ -2008,8 +3043,34 @@ describe("Core - Swap", function () {
                     await token.connect(provider).approve(feePurse.address, protoFee.add(mktFee));
                     await feePurse.connect(provider).deposit(protoFee.add(mktFee));
 
-                    await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, 0, [], wantAndIds, [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, AddressZero, 0, 0, 0, wantAndIds, 0, 1)).to.emit(core, "Swap");
+                    await expect(
+                        core.connect(provider).updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: AddressZero,
+                            lid: 0,
+                            price: 0,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            ids: ids,
+                            wantOrIds: [],
+                            wantAndIds: wantAndIds,
+                            deduct: false,
+                            pause: false,
+                        }),
+                    ).not.to.be.reverted;
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: AddressZero,
+                            lid: 0,
+                            amount: 0,
+                            maxPrice: 0,
+                            ids: wantAndIds,
+                            expireAt: 0,
+                            operator: 1,
+                        }),
+                    ).to.emit(core, "Swap");
 
                     expect(await feePurse.balanceOf(deployer.address)).to.eql(toBN(mktFee));
                     expect(await feePurse.balanceOf(inventor.address)).to.eql(toBN(protoFee.div(2)));
@@ -2032,8 +3093,35 @@ describe("Core - Swap", function () {
 
                     const wantAndIds = [3, 4];
                     const ids = [1, 2];
-                    await expect(core.connect(provider).updateNonFungibleLiquidity(mid, 0, false, AddressZero, ids, 0, [], wantAndIds, [0, 0, 0])).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase(mid, provider.address, user5.address, 0, 0, 0, wantAndIds, 0, 0)).to.emit(core, "Swap");
+                    await expect(
+                        core.connect(provider).updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: AddressZero,
+                            lid: 0,
+                            price: 0,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            ids: ids,
+                            wantOrIds: [],
+                            wantAndIds: wantAndIds,
+                            deduct: false,
+                            pause: false,
+                        }),
+                    ).not.to.be.reverted;
+
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: user5.address,
+                            lid: 0,
+                            amount: 0,
+                            maxPrice: 0,
+                            ids: wantAndIds,
+                            expireAt: 0,
+                            operator: 0,
+                        }),
+                    ).to.emit(core, "Swap");
 
                     expect(await testERC721.ownerOf(1)).to.eql(user5.address);
                     expect(await testERC721.ownerOf(2)).to.eql(user5.address);
