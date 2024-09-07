@@ -2130,7 +2130,7 @@ describe("Core - Swap", function () {
             });
         });
 
-        context.only("when market has a market manager", () => {
+        context("when market has a market manager", () => {
             let testMarketManager: MarketManager;
             let testMarketManagerDidNotImplMktMgrIface: MarketManagerDidNotImplMktMgrIface;
             let testMarketManagerRevertsFromBeforeSwap: MarketManagerRevertsFromBeforeSwap;

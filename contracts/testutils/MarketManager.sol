@@ -7,26 +7,43 @@ import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 // base market manager that does nothing
 contract MarketManagerBase is IMarketManager, ERC165 {
+    bool public beforeSwapCalled;
+    bool public afterSwapCalled;
+    bool public onCancelCalled;
+    bool public onPaidCalled;
+    bool public onReleaseCalled;
+    bool public onDisputeCalled;
+
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return interfaceId == type(IMarketManager).interfaceId || super.supportsInterface(interfaceId);
     }
 
-    function beforeSwap(StructsLib.SwapQuoteForBaseParams memory) external virtual {}
+    function beforeSwap(StructsLib.SwapQuoteForBaseParams memory) external virtual {
+        beforeSwapCalled = true;
+    }
 
-    function afterSwap(StructsLib.SwapQuoteForBaseParams memory, uint256) external virtual {}
+    function afterSwap(StructsLib.SwapQuoteForBaseParams memory, uint256) external virtual {
+        afterSwapCalled = true;
+    }
 
-    function onCancel(uint256) external virtual {}
+    function onCancel(uint256) external virtual {
+        onCancelCalled = true;
+    }
 
-    function onPaid(uint256) external virtual {}
+    function onPaid(uint256) external virtual {
+        onPaidCalled = true;
+    }
 
-    function onRelease(uint256) external virtual {}
+    function onRelease(uint256) external virtual {
+        onReleaseCalled = true;
+    }
 
-    function onDispute(uint256) external virtual {}
+    function onDispute(uint256) external virtual {
+        onDisputeCalled = true;
+    }
 }
 
 contract MarketManager is IMarketManager, ERC165, MarketManagerBase {
-    bool public beforeSwapCalled;
-    bool public afterSwapCalled;
     uint256 public orderId;
     StructsLib.SwapQuoteForBaseParams public params;
 

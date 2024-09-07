@@ -88,11 +88,6 @@ library SwapLib {
         bytes calldata signature
     ) public {
         OrderReleaseLib.releaseOrderByManagerSig(state, state2, owner, id, expireAt, signature);
-
-        Structs.Market memory mkt = state2.marketCore.getMarket(state.orders[id].marketId);
-        if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
-            IMarketManager(mkt.manager).onRelease(id);
-        }
     }
 
     /// @dev Cancel an inactive order. An inactive order is one where:
@@ -134,11 +129,6 @@ library SwapLib {
         bytes calldata signature
     ) external {
         OrderLib.cancelOrderByManagerSig(state, state2, owner, id, expireAt, signature);
-
-        Structs.Market memory mkt = state2.marketCore.getMarket(state.orders[id].marketId);
-        if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
-            IMarketManager(mkt.manager).onCancel(id);
-        }
     }
 
     /// @dev Mark a swap order as paid.
@@ -171,11 +161,6 @@ library SwapLib {
         bytes calldata signature
     ) external {
         OrderLib.markOrderAsPaidByManagerSig(state, state2, id, expireAt, signature);
-
-        Structs.Market memory mkt = state2.marketCore.getMarket(state.orders[id].marketId);
-        if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
-            IMarketManager(mkt.manager).onPaid(id);
-        }
     }
 
     /// @dev Marks an order as `disputed`

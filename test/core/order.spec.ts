@@ -4,7 +4,7 @@ import {expect} from "chai";
 import {BigNumber, BigNumberish} from "ethers";
 import {getAddress} from "ethers/lib/utils";
 import {ethers} from "hardhat";
-import {AssetRegistry, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MediatorManager, MinerRegistry, NFT, Operator, TOKEN} from "../../typechain-types";
+import {AssetRegistry, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MarketManager, MediatorManager, MinerRegistry, NFT, Operator, TOKEN} from "../../typechain-types";
 import {AddressZero, AssetType, advanceBlockTime, makeMarketID, pow10str, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
 
@@ -1665,6 +1665,50 @@ describe("Core - Order", function () {
                 await expect(core.connect(deployer).releaseOrder(orderID)).to.emit(core, "Swap");
 
                 expect(await baseAsset.balanceOf(user5.address)).to.eql(swapAmt);
+            });
+
+            context("market has a market manager", () => {
+                it("should successfully call release function in market manager", async () => {
+                    let factory = await ethers.getContractFactory("MarketManager");
+                    const testMarketManager = (await factory.deploy()) as MarketManager;
+
+                    await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0, 0);
+                    mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 1, 0);
+                    await mc.connect(marketCreator2).setManager(mid, testMarketManager.address);
+
+                    await core.setProtoFee(0, 0, 0, 0, 0, 0);
+                    await mc.connect(marketCreator2).setCommission(mid, 0);
+
+                    // provide liquidity
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+
+                    // create swap order.
+                    swapAmt = toBN(5).mul(baseDec);
+                    await expect(
+                        core.connect(swapper).swapQuoteForBase({
+                            marketId: mid,
+                            provider: provider.address,
+                            recipient: user5.address,
+                            lid: 0,
+                            amount: swapAmt,
+                            maxPrice: pricePerBase,
+                            ids: [],
+                            expireAt: 0,
+                            operator: 0,
+                        }),
+                    ).not.to.be.reverted;
+                    const numOrders = (await core.state()).numOrders;
+                    expect(numOrders.toNumber()).to.eql(1);
+                    orderID = numOrders.toNumber() - 1;
+
+                    // release order
+                    await expect(core.connect(swapper).markOrderAsPaid(orderID)).not.to.be.reverted;
+                    await expect(core.connect(deployer).releaseOrder(orderID)).to.emit(core, "Swap");
+
+                    expect(await baseAsset.balanceOf(user5.address)).to.eql(swapAmt);
+
+                    expect(await testMarketManager.onReleaseCalled()).to.be.true;
+                });
             });
         });
     });
