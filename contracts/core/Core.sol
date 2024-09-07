@@ -17,6 +17,9 @@ import "../assetregistry/interfaces/IAssetRegistry.sol";
 import "../token/interfaces/IERC20.sol";
 import "./FungibleLiquidityLib.sol";
 import "./NonFungibleLiquidityLib.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import "../market/interfaces/IMarketManager.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 
 /// Core manages market orders
 contract Core is Ownable, ERC1155Holder {
@@ -399,26 +402,38 @@ contract Core is Ownable, ERC1155Holder {
     }
 
     /// @notice Swap quote asset for base asset.
-    /// param marketId The unique ID of the market.
-    /// param provider The address of the base asset liquidity provider.
-    /// param provider The address of the recipient (optional)
-    /// param lid The liquidity ID
-    /// param amount The quantity of base asset to be swapped.
-    /// param maxPrice The maximum price to pay for amount.
-    ///         maxPrice protects the swapper from paying an unexpected cost
-    ///         for amount in case the price was updated before the order was placed.
-    /// param ids The ids of non-fungible quote assets (optional if quote is fungible)
-    /// param txDeadline The transaction is reverted if current time >= expireAt
-    /// param operator The ID of the interface operator
+    /// @param params The swap parameters
     function swapQuoteForBase(
         StructsLib.SwapQuoteForBaseParams memory params
     ) external payable notExpired(params.expireAt) marketMustExist(params.marketId) {
         StructsLib.SwapSlotAddresses memory addrs = StructsLib.SwapSlotAddresses(params.marketId, params.provider, params.recipient);
-        SwapLib.swapQuoteForBase(
-            state,
-            state2,
-            StructsLib.SwapSlot(params.lid, params.amount, params.maxPrice, params.ids, 0, params.operator, addrs)
+        StructsLib.SwapSlot memory slot = StructsLib.SwapSlot(
+            params.lid,
+            params.amount,
+            params.maxPrice,
+            params.ids,
+            0,
+            params.operator,
+            addrs
         );
+
+        Structs.Market memory mkt = state2.marketCore.getMarket(params.marketId);
+        if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
+            IMarketManager(mkt.manager).beforeSwap(params);
+        }
+
+        uint256 numOrders = state.numOrders;
+
+        SwapLib.swapQuoteForBase(state, state2, slot);
+
+        uint256 orderId;
+        if (state.numOrders > numOrders) {
+            orderId = state.numOrders;
+        }
+
+        if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
+            IMarketManager(mkt.manager).afterSwap(params, orderId);
+        }
     }
 
     /// @notice Compute swap fee
@@ -479,6 +494,7 @@ contract Core is Ownable, ERC1155Holder {
         require(id <= state.orders.length - 1, "OC: UNKNOWN_ORDER");
         SwapLib.releaseOrderByManagerSig(state, state2, owner(), id, expireAt, signature);
     }
+
     /// @notice Allow the dispute manager to release an order.
     /// @param id The order ID.
     function releaseOrderByDispute(uint256 id) external onlyDisputeManager {

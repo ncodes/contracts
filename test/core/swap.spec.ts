@@ -3,7 +3,8 @@ import {expect} from "chai";
 import {BigNumber, BigNumberish} from "ethers";
 import {getAddress} from "ethers/lib/utils";
 import {ethers} from "hardhat";
-import {AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MediatorManager, NFT, Operator, TOKEN, WETH9} from "../../typechain-types";
+import {AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MarketManager, MarketManagerDidNotImplMktMgrIface, MarketManagerRevertsFromAfterSwap, MarketManagerRevertsFromBeforeSwap, MediatorManager, NFT, Operator, TOKEN, WETH9} from "../../typechain-types";
+import {StructsLib} from "../../typechain-types/Core";
 import {AddressZero, AssetType, advanceBlockTime, bnToN, makeMarketID, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
 const {getContractFactory} = ethers;
@@ -754,7 +755,6 @@ describe("Core - Swap", function () {
                     const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
                     const swapCost = toDec(5.65).mul(pricePerBase.toString()).toFixed(); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
 
-                    // console.log(amountOfBase, pricePerBase, swapCost);
                     // Give swapper enough QUOTE to pay swap cost and swapper must approve contract to spend it
                     await quoteAsset.transfer(swapper.address, swapCost);
                     await quoteAsset.connect(swapper).approve(cAddr, swapCost);
@@ -2127,6 +2127,165 @@ describe("Core - Swap", function () {
                 // Make sure liquidity can still be removed
                 await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: pricePerBase, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: true});
                 expect((await core.getLiquidity(mid, provider.address, 0)).amount).to.eq(0);
+            });
+        });
+
+        context.only("when market has a market manager", () => {
+            let testMarketManager: MarketManager;
+            let testMarketManagerDidNotImplMktMgrIface: MarketManagerDidNotImplMktMgrIface;
+            let testMarketManagerRevertsFromBeforeSwap: MarketManagerRevertsFromBeforeSwap;
+            let testMarketManagerRevertsFromAfterSwap: MarketManagerRevertsFromAfterSwap;
+            let swapAmt: BigNumber;
+            let swapParams: StructsLib.SwapQuoteForBaseParamsStruct;
+
+            context("market is instant", () => {
+                beforeEach(async () => {
+                    await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
+                    mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20);
+
+                    swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                    swapParams = {
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    };
+
+                    let factory = await ethers.getContractFactory("MarketManager");
+                    testMarketManager = (await factory.deploy()) as MarketManager;
+
+                    factory = await ethers.getContractFactory("MarketManagerDidNotImplMktMgrIface");
+                    testMarketManagerDidNotImplMktMgrIface = (await factory.deploy()) as MarketManagerDidNotImplMktMgrIface;
+
+                    factory = await ethers.getContractFactory("MarketManagerRevertsFromBeforeSwap");
+                    testMarketManagerRevertsFromBeforeSwap = (await factory.deploy()) as MarketManagerRevertsFromBeforeSwap;
+
+                    factory = await ethers.getContractFactory("MarketManagerRevertsFromAfterSwap");
+                    testMarketManagerRevertsFromAfterSwap = (await factory.deploy()) as MarketManagerRevertsFromAfterSwap;
+                });
+
+                it("should call beforeSwap and afterSwap hooks when market manager is a contract that implements the IMarketManager interface", async () => {
+                    await mc.connect(marketCreator2).setManager(mid, testMarketManager.address);
+
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+
+                    const swapCost = swapAmt.mul(pricePerBase).div(baseDec);
+                    await quoteAsset.transfer(swapper.address, swapCost);
+                    await quoteAsset.connect(swapper).approve(cAddr, swapCost);
+
+                    await expect(core.connect(swapper).swapQuoteForBase(swapParams)).not.to.be.reverted;
+
+                    expect(await testMarketManager.beforeSwapCalled()).to.be.true;
+                    expect(await testMarketManager.afterSwapCalled()).to.be.true;
+                    expect(await testMarketManager.orderId()).to.be.eq(0);
+                });
+
+                it("should not call beforeSwap or afterSwap hooks when market manager did not implement the IMarketManager interface", async () => {
+                    await mc.connect(marketCreator2).setManager(mid, testMarketManagerDidNotImplMktMgrIface.address);
+
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+
+                    const swapCost = swapAmt.mul(pricePerBase).div(baseDec);
+                    await quoteAsset.transfer(swapper.address, swapCost);
+                    await quoteAsset.connect(swapper).approve(cAddr, swapCost);
+
+                    await expect(core.connect(swapper).swapQuoteForBase(swapParams)).not.to.be.reverted;
+
+                    expect(await testMarketManagerDidNotImplMktMgrIface.beforeSwapCalled()).to.be.false;
+                    expect(await testMarketManagerDidNotImplMktMgrIface.afterSwapCalled()).to.be.false;
+                });
+
+                it("should succeed when market manager is not a contract", async () => {
+                    await mc.connect(marketCreator2).setManager(mid, accts[1].address);
+
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+
+                    const swapCost = swapAmt.mul(pricePerBase).div(baseDec);
+                    await quoteAsset.transfer(swapper.address, swapCost);
+                    await quoteAsset.connect(swapper).approve(cAddr, swapCost);
+
+                    await expect(core.connect(swapper).swapQuoteForBase(swapParams)).not.to.be.reverted;
+                });
+
+                it("should revert when market manager reverts from beforeSwap", async () => {
+                    await mc.connect(marketCreator2).setManager(mid, testMarketManagerRevertsFromBeforeSwap.address);
+
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+
+                    const swapCost = swapAmt.mul(pricePerBase).div(baseDec);
+                    await quoteAsset.transfer(swapper.address, swapCost);
+                    await quoteAsset.connect(swapper).approve(cAddr, swapCost);
+
+                    await expect(core.connect(swapper).swapQuoteForBase(swapParams)).to.be.revertedWith("MKT: BEFORE_REVERTED");
+                });
+
+                it("should revert when market manager reverts from afterSwap", async () => {
+                    await mc.connect(marketCreator2).setManager(mid, testMarketManagerRevertsFromAfterSwap.address);
+
+                    await provideLiquidity(provider, amountOfBase, pricePerBase);
+
+                    const swapCost = swapAmt.mul(pricePerBase).div(baseDec);
+                    await quoteAsset.transfer(swapper.address, swapCost);
+                    await quoteAsset.connect(swapper).approve(cAddr, swapCost);
+
+                    await expect(core.connect(swapper).swapQuoteForBase(swapParams)).to.be.revertedWith("MKT: AFTER_REVERTED");
+                });
+            });
+
+            context("market is interactive", () => {
+                beforeEach(async () => {
+                    await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.SYNTH, AssetType.ERC20, false, false, 0, 0);
+                    mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.ERC20);
+
+                    swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                    swapParams = {
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                    };
+
+                    let factory = await ethers.getContractFactory("MarketManager");
+                    testMarketManager = (await factory.deploy()) as MarketManager;
+
+                    factory = await ethers.getContractFactory("MarketManagerDidNotImplMktMgrIface");
+                    testMarketManagerDidNotImplMktMgrIface = (await factory.deploy()) as MarketManagerDidNotImplMktMgrIface;
+
+                    factory = await ethers.getContractFactory("MarketManagerRevertsFromBeforeSwap");
+                    testMarketManagerRevertsFromBeforeSwap = (await factory.deploy()) as MarketManagerRevertsFromBeforeSwap;
+
+                    factory = await ethers.getContractFactory("MarketManagerRevertsFromAfterSwap");
+                    testMarketManagerRevertsFromAfterSwap = (await factory.deploy()) as MarketManagerRevertsFromAfterSwap;
+                });
+
+                it("should call before and after swap hook and pass the correct orderId the after hook", async () => {
+                    await mc.connect(marketCreator2).setManager(mid, testMarketManager.address);
+
+                    await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: pricePerBase, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false});
+
+                    const swapAmt = toBN(5).mul(baseDec);
+                    const swapCost = swapAmt.div(baseDec).mul(pricePerBase); // amount the swapper will pay in QUOTE (=50 QUOTE)
+                    await quoteAsset.transfer(swapper.address, swapCost.mul(2));
+                    await quoteAsset.connect(swapper).approve(cAddr, swapCost.mul(2));
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: swapAmt, maxPrice: pricePerBase, ids: [], expireAt: 0, operator: 0})).not.to.be.reverted;
+
+                    const order = await core.getOrder(0);
+                    expect(order.amount).to.eq(swapAmt);
+
+                    expect(await testMarketManager.beforeSwapCalled()).to.be.true;
+                    expect(await testMarketManager.afterSwapCalled()).to.be.true;
+                    expect(await testMarketManager.orderId()).to.be.eq(1);
+                });
             });
         });
     });

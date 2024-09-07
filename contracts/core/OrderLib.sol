@@ -122,7 +122,7 @@ library OrderLib {
         );
     }
 
-    /// @notice Release an order by a market manager's signature
+    /// @notice Cancel an order by a market manager's signature
     /// @param s1 The State object
     /// @param s2 The State2 object
     /// @param owner The contract owner

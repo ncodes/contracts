@@ -12,6 +12,8 @@ import "./OrderLib.sol";
 import "./OrderReleaseLib.sol";
 import "./SwapFungibleLib.sol";
 import "./SwapNonFungibleLib.sol";
+import "../market/interfaces/IMarketManager.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
 library SwapLib {
     using MarketAuxLib for Structs.Asset;
@@ -28,6 +30,7 @@ library SwapLib {
 
         checkMarketSwapBadges(state2, sp.addrs.marketId);
         checkProviderSwapBadges(state2, sp.addrs.marketId, sp.lid, sp.addrs.provider);
+
         if (market.base.isFungible()) SwapFungibleLib.swap(state, state2, sp, market);
         else SwapNonFungibleLib.swap(state, state2, sp, market);
     }
@@ -52,34 +55,44 @@ library SwapLib {
     /// @param state The State object
     /// @param state2 The State2 object
     /// @param owner The contract owner
-    /// @param oid The order ID.
+    /// @param id The order ID.
     /// @param byDispute Indicates that the method is called by the dispute manager.
     function releaseOrder(
         StructsLib.State storage state,
         StructsLib.State2 storage state2,
         address owner,
-        uint256 oid,
+        uint256 id,
         bool byDispute
     ) public {
-        OrderReleaseLib.releaseOrder(state, state2, owner, oid, byDispute, false);
+        OrderReleaseLib.releaseOrder(state, state2, owner, id, byDispute, false);
+
+        Structs.Market memory mkt = state2.marketCore.getMarket(state.orders[id].marketId);
+        if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
+            IMarketManager(mkt.manager).onRelease(id);
+        }
     }
 
     /// @notice Release an order using a market manager's signature
     /// @param state The State object
     /// @param state2 The State2 object
     /// @param owner The contract owner
-    /// @param oid The order ID
+    /// @param id The order ID
     /// @param expireAt The expire time of the signature
     /// @param signature The signature created by the manager
     function releaseOrderByManagerSig(
         StructsLib.State storage state,
         StructsLib.State2 storage state2,
         address owner,
-        uint256 oid,
+        uint256 id,
         uint256 expireAt,
         bytes calldata signature
     ) public {
-        OrderReleaseLib.releaseOrderByManagerSig(state, state2, owner, oid, expireAt, signature);
+        OrderReleaseLib.releaseOrderByManagerSig(state, state2, owner, id, expireAt, signature);
+
+        Structs.Market memory mkt = state2.marketCore.getMarket(state.orders[id].marketId);
+        if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
+            IMarketManager(mkt.manager).onRelease(id);
+        }
     }
 
     /// @dev Cancel an inactive order. An inactive order is one where:
@@ -98,24 +111,34 @@ library SwapLib {
         bool byDispute
     ) public {
         OrderLib.cancelOrder(state, state2, owner, id, byDispute, false);
+
+        Structs.Market memory mkt = state2.marketCore.getMarket(state.orders[id].marketId);
+        if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
+            IMarketManager(mkt.manager).onCancel(id);
+        }
     }
 
     /// @notice Cancel an order using a market manager's signature
     /// @param state The State object
     /// @param state2 The State2 object
     /// @param owner The contract owner
-    /// @param oid The order ID
+    /// @param id The order ID
     /// @param expireAt The expire time of the signature
     /// @param signature The signature created by the manager
     function cancelOrderByManagerSig(
         StructsLib.State storage state,
         StructsLib.State2 storage state2,
         address owner,
-        uint256 oid,
+        uint256 id,
         uint256 expireAt,
         bytes calldata signature
     ) external {
-        OrderLib.cancelOrderByManagerSig(state, state2, owner, oid, expireAt, signature);
+        OrderLib.cancelOrderByManagerSig(state, state2, owner, id, expireAt, signature);
+
+        Structs.Market memory mkt = state2.marketCore.getMarket(state.orders[id].marketId);
+        if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
+            IMarketManager(mkt.manager).onCancel(id);
+        }
     }
 
     /// @dev Mark a swap order as paid.
@@ -127,22 +150,32 @@ library SwapLib {
     /// @param id The order ID.
     function markOrderAsPaid(StructsLib.State storage state, IMarketCore marketCore, uint256 id, bool byManager) public {
         OrderLib.markOrderAsPaid(state, marketCore, id, byManager);
+
+        Structs.Market memory mkt = marketCore.getMarket(state.orders[id].marketId);
+        if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
+            IMarketManager(mkt.manager).onPaid(id);
+        }
     }
 
     /// @notice Mark an order as paid using a market manager's signature
     /// @param state The State object
     /// @param state2 The State2 object
-    /// @param oid The order ID
+    /// @param id The order ID
     /// @param expireAt The expire time of the signature
     /// @param signature The signature created by the manager
     function markOrderAsPaidByManagerSig(
         StructsLib.State storage state,
         StructsLib.State2 storage state2,
-        uint256 oid,
+        uint256 id,
         uint256 expireAt,
         bytes calldata signature
     ) external {
-        OrderLib.markOrderAsPaidByManagerSig(state, state2, oid, expireAt, signature);
+        OrderLib.markOrderAsPaidByManagerSig(state, state2, id, expireAt, signature);
+
+        Structs.Market memory mkt = state2.marketCore.getMarket(state.orders[id].marketId);
+        if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
+            IMarketManager(mkt.manager).onPaid(id);
+        }
     }
 
     /// @dev Marks an order as `disputed`
@@ -151,6 +184,11 @@ library SwapLib {
     /// @param id The order ID or index.
     function markAsDisputed(StructsLib.State storage state, IMarketCore marketCore, uint256 id) public {
         OrderLib.markAsDisputed(state, marketCore, id);
+
+        Structs.Market memory mkt = marketCore.getMarket(state.orders[id].marketId);
+        if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
+            IMarketManager(mkt.manager).onDispute(id);
+        }
     }
 
     /// @dev Check if sender has the required swap badges set by the market creator
