@@ -18,6 +18,7 @@ export enum ContractNames {
     Core = "Core",
     AssetRegistry = "AssetRegistry",
     MinerRegistry = "MinerRegistry",
+    PayRouter = "PayRouter",
     Operator = "Operator",
     FeePurse = "FeePurse",
     DummyRandomness = "DummyRandomness",

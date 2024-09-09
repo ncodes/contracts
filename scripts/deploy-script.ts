@@ -11,11 +11,11 @@ import {
     ENERGON,
     FeePool,
     FeePurse,
-    LPPool,
     MarketCore,
     MediatorManager,
     MinerRegistry,
     NFT,
+    PayRouter,
     ProviderRegistry,
     Randomness,
     Router,
@@ -60,12 +60,12 @@ let randomness: Randomness;
 let assetReg: AssetRegistry;
 let provReg: ProviderRegistry;
 let router: Router;
+let payRouter: PayRouter;
 let feePurse: FeePurse;
 let deployer: SignerWithAddress;
 let accts: SignerWithAddress[];
 let joinToken: TOKEN;
 let tokenPool: TokenPool;
-let lpPool: LPPool;
 let feePool: FeePool;
 let nft: NFT;
 let inventor: SignerWithAddress;
@@ -129,6 +129,7 @@ async function deployLocal() {
     await deployMinerRegistry();
     await deployProviderRegistry();
     await deployRouter();
+    await deployPayRouter();
 }
 
 async function main() {
@@ -349,6 +350,13 @@ async function deployProviderRegistry() {
 async function deployRouter() {
     await deployOrAttach<Router>("Router", undefined, [core.address, provReg.address], async (contract, attached) => {
         router = contract;
+        if (attached) return;
+    });
+}
+
+async function deployPayRouter() {
+    await deployOrAttach<PayRouter>("PayRouter", undefined, [joinToken.address], async (contract, attached) => {
+        payRouter = contract;
         if (attached) return;
     });
 }
