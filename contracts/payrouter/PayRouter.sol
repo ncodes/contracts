@@ -28,9 +28,9 @@ struct Org {
 
 struct Request {
     address creator;
+    address sourceToken;
     uint256[] routeIds;
     uint256[] bonds;
-    uint256 srcTokenAmt;
     uint256 sourceAmt;
     uint256 sourceAmtLeft;
     uint256 requesterFeeBp;
@@ -88,12 +88,12 @@ contract PayRouter is Ownable {
     event UpdatedProtocolFeeBp(uint256 protocolFeeBp);
     event RequesterFeeWithdrawn(address requester, address beneficiary, uint256 amount);
     event ProtocolFeeWithdrawn(address beneficiary, uint256 amount);
-    event UpdatedRequesterValueLockDuration(address requester, uint256 duration);
+    event UpdatedValueLockDuration(address requester, uint256 duration);
     event OrgSourcePaid(uint256 requestId);
     event RequestCancelled(uint256 requestId);
     event RequestClosed(uint256 requestId);
     event BondTransferred(uint256 requestId, uint256 routeId, uint256 amount, address to);
-    event SourceTransferred(uint256 requestId, uint256 routeId, uint256 amount, address to);
+    event SourceTransferred(uint256 requestId, uint256 amount, address to);
 
     modifier onlyRouteOwner(uint256 routeId) {
         require(routes[routeId].owner != address(0), "PR: UNKNOWN_ROUTE");
@@ -128,7 +128,7 @@ contract PayRouter is Ownable {
     /// @param duration The duration in seconds
     function setRequesterValueLockDuration(uint256 duration) external {
         requesterValueLockDuration[msg.sender] = duration;
-        emit UpdatedRequesterValueLockDuration(msg.sender, duration);
+        emit UpdatedValueLockDuration(msg.sender, duration);
     }
 
     /// @notice Set the bond token address
@@ -244,10 +244,8 @@ contract PayRouter is Ownable {
 
             // Transfer source token into router
             if (i == 0 && route.source == SourceType.Token) {
-                requests[numRequests].srcTokenAmt = _sourceAmt;
                 IERC20(route.sourceToken).transferFrom(msg.sender, address(this), _sourceAmt);
             } else if (i == 0 && route.source == SourceType.Native) {
-                requests[numRequests].srcTokenAmt = _sourceAmt;
                 require(msg.value == _sourceAmt, "PR: INSUFFICIENT_MSG_VALUE");
             }
         }
@@ -256,6 +254,7 @@ contract PayRouter is Ownable {
         requests[numRequests].sourceAmt = _sourceAmt;
         requests[numRequests].sourceAmtLeft = _sourceAmt;
         requests[numRequests].routeIds = _routeIds;
+        requests[numRequests].sourceToken = routes[_routeIds[0]].sourceToken;
         requests[numRequests].bonds = _bonds;
         requests[numRequests].paid = new bool[](_routeIds.length);
         requests[numRequests].requesterFeeBp = requestersFeeBp[msg.sender];
@@ -397,22 +396,18 @@ contract PayRouter is Ownable {
 
     /// @notice Transfer source token from a request to a specific address
     /// @param requestId The request ID
-    /// @param routeId The route ID
     /// @param amount The amount of source token to transfer
     /// @param to The address to transfer the source token to
     /// @dev Only the request creator can call this function
-    function transferSourceToken(uint256 requestId, uint256 routeId, uint256 amount, address to) external onlyRequestCreator(requestId) {
+    function transferSourceToken(uint256 requestId, uint256 amount, address to) external onlyRequestCreator(requestId) {
         Request storage req = requests[requestId];
-        require(req.routeIds.length > routeId, "PR: UNKNOWN_ROUTE");
         require(req.sourceAmtLeft >= amount, "PR: INSUF_BALANCE");
-
-        Route storage route = routes[req.routeIds[routeId]];
 
         uint256 sourceAmtLeft = req.sourceAmtLeft;
         req.sourceAmtLeft = sourceAmtLeft - amount;
-        IERC20(route.sourceToken).transfer(to, amount);
+        IERC20(req.sourceToken).transfer(to, amount);
 
-        emit SourceTransferred(requestId, routeId, amount, to);
+        emit SourceTransferred(requestId, amount, to);
     }
 
     /// @notice Get the fee balance of a requester

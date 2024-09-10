@@ -5,7 +5,7 @@ import {ethers} from "hardhat";
 import {PayRouter, TOKEN} from "../typechain-types";
 import {AddressZero, advanceBlockTime, powOf, SourceType, toBN} from "../utils/utils";
 
-describe("PayRouter", function () {
+describe.only("PayRouter", function () {
     let deployer: SignerWithAddress;
     let user2: SignerWithAddress;
     let user3: SignerWithAddress;
@@ -539,7 +539,8 @@ describe("PayRouter", function () {
                 expect(req.routeIds[0]).to.eq(0);
                 expect(req.bonds).to.have.length(1);
                 expect(req.bonds[0]).to.eq(1);
-                expect(req.srcTokenAmt).to.eq(1);
+                expect(req.sourceAmt).to.eq(1);
+                expect(req.sourceAmtLeft).to.eq(1);
             });
         });
 
@@ -595,7 +596,8 @@ describe("PayRouter", function () {
                 expect(req.routeIds[0]).to.eq(0);
                 expect(req.bonds).to.have.length(1);
                 expect(req.bonds[0]).to.eq(1);
-                expect(req.srcTokenAmt).to.eq(1);
+                expect(req.sourceAmt).to.eq(1);
+                expect(req.sourceAmtLeft).to.eq(1);
             });
         });
     });
@@ -1585,7 +1587,7 @@ describe("PayRouter", function () {
         });
     });
 
-    describe("transferRequestBond", () => {
+    describe("transferSourceToken", () => {
         beforeEach(async () => {
             await payRouter.connect(user2).setRequesterFeeBp(100);
             await payRouter.setProtocolFeeBp(100);
@@ -1623,35 +1625,30 @@ describe("PayRouter", function () {
         });
 
         it("should revert if request is unknown", async () => {
-            await expect(payRouter.connect(user2).transferSourceToken(1, 0, 0, user2.address)).to.be.revertedWith("PR: UNKNOWN_REQUEST");
+            await expect(payRouter.connect(user2).transferSourceToken(1, 0, user2.address)).to.be.revertedWith("PR: UNKNOWN_REQUEST");
         });
 
         it("should revert if request is not created by sender", async () => {
-            await expect(payRouter.transferSourceToken(0, 0, 0, user2.address)).to.be.revertedWith("PR: NOT_CREATOR");
-        });
-
-        it("should revert if route is unknown", async () => {
-            await expect(payRouter.connect(user2).transferSourceToken(0, 2, 0, user2.address)).to.be.revertedWith("PR: UNKNOWN_ROUTE");
+            await expect(payRouter.transferSourceToken(0, 0, user2.address)).to.be.revertedWith("PR: NOT_CREATOR");
         });
 
         it("should revert if amount is greater than source token balance", async () => {
-            await expect(payRouter.connect(user2).transferSourceToken(0, 0, powOf(2, 18), user2.address)).to.be.revertedWith("PR: INSUF_BALANCE");
-            await expect(payRouter.connect(user2).transferSourceToken(0, 1, powOf(2, 18), user2.address)).to.be.revertedWith("PR: INSUF_BALANCE");
+            await expect(payRouter.connect(user2).transferSourceToken(0, powOf(2, 18), user2.address)).to.be.revertedWith("PR: INSUF_BALANCE");
         });
 
         it("should transfer all source token to specific address", async () => {
-            await expect(payRouter.connect(user2).transferSourceToken(0, 0, powOf(1, 18), user3.address))
+            await expect(payRouter.connect(user2).transferSourceToken(0, powOf(1, 18), user3.address))
                 .to.emit(payRouter, "SourceTransferred")
-                .withArgs(0, 0, powOf(1, 18), user3.address);
+                .withArgs(0, powOf(1, 18), user3.address);
             const req = await payRouter.getRequest(0);
             expect(req.sourceAmtLeft).to.eq(0);
             expect(await bondToken.balanceOf(user3.address)).to.eq(powOf(1, 18));
         });
 
         it("should transfer some source token to specific address", async () => {
-            await expect(payRouter.connect(user2).transferSourceToken(0, 0, powOf(0.5, 18), user3.address))
+            await expect(payRouter.connect(user2).transferSourceToken(0, powOf(0.5, 18), user3.address))
                 .to.emit(payRouter, "SourceTransferred")
-                .withArgs(0, 0, powOf(0.5, 18), user3.address);
+                .withArgs(0, powOf(0.5, 18), user3.address);
             const req = await payRouter.getRequest(0);
             expect(req.sourceAmtLeft).to.eq(powOf(0.5, 18));
             expect(await bondToken.balanceOf(user3.address)).to.eq(powOf(0.5, 18));

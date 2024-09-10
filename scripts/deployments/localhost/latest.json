@@ -1,6 +1,6 @@
 {
   "meta": {
-    "created": 1725899264004
+    "created": 1726008871208
   },
   "contracts": {
     "BadgeManager": {
@@ -142,7 +142,7 @@
     },
     "PayRouter": {
       "address": "0xCD8a1C3ba11CF5ECfa6267617243239504a98d90",
-      "gasUsed": 3276278
+      "gasUsed": 3280850
     }
   }
 }
