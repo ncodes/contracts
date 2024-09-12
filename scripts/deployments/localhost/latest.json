@@ -1,6 +1,6 @@
 {
   "meta": {
-    "created": 1726008871208
+    "created": 1726161615313
   },
   "contracts": {
     "BadgeManager": {
@@ -24,7 +24,7 @@
     "LiquidityLib": {
       "address": "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
       "isLib": true,
-      "gasUsed": 1295782
+      "gasUsed": 1295794
     },
     "OrderLib": {
       "address": "0x0165878A594ca255338adfa4d48449f69242Eb8F",
@@ -34,12 +34,12 @@
     "FeeLib": {
       "address": "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853",
       "isLib": true,
-      "gasUsed": 1792688
+      "gasUsed": 1792700
     },
     "OrderReleaseLib": {
       "address": "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6",
       "isLib": true,
-      "gasUsed": 3425229
+      "gasUsed": 3425217
     },
     "SwapNonFungibleLib": {
       "address": "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318",
@@ -54,7 +54,7 @@
     "SwapLib": {
       "address": "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e",
       "isLib": true,
-      "gasUsed": 1904548
+      "gasUsed": 1836177
     },
     "WithdrawLib": {
       "address": "0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0",
@@ -64,7 +64,7 @@
     "OfferLib": {
       "address": "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82",
       "isLib": true,
-      "gasUsed": 2271755
+      "gasUsed": 2271779
     },
     "FungibleLiquidityLib": {
       "address": "0x9A676e781A523b5d0C0e43731313A708CB607508",
@@ -74,15 +74,15 @@
     "NonFungibleLiquidityLib": {
       "address": "0x0B306BF915C4d645ff596e518fAf3F9669b97016",
       "isLib": true,
-      "gasUsed": 3030221
+      "gasUsed": 3030233
     },
     "MarketCore": {
       "address": "0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1",
-      "gasUsed": 3410654
+      "gasUsed": 3430034
     },
     "Core": {
       "address": "0x68B1D87F95878fE05B998F19b66F4baba5De1aed",
-      "gasUsed": 5391472
+      "gasUsed": 5448759
     },
     "AssetRegistry": {
       "address": "0xa85233C63b9Ee964Add6F2cffe00Fd84eb32338f",
@@ -138,11 +138,15 @@
     },
     "Router": {
       "address": "0xb7278A61aa25c888815aFC32Ad3cC52fF24fE575",
-      "gasUsed": 1760967
+      "gasUsed": 1793774
     },
     "PayRouter": {
       "address": "0xCD8a1C3ba11CF5ECfa6267617243239504a98d90",
-      "gasUsed": 3280850
+      "gasUsed": 3352048
+    },
+    "MarketManager": {
+      "address": "0x82e01223d51Eb87e16A03E24687EDF0F294da6f1",
+      "gasUsed": 1456950
     }
   }
 }

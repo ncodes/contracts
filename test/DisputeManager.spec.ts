@@ -165,6 +165,7 @@ describe("DisputeManager", function () {
                 ids: [],
                 expireAt: 0,
                 operator: 0,
+                marketMgrData: Buffer.from([]),
             });
             const res = await tx.wait();
             return resolve(res.events?.at(0)?.args?.numTypeInfo[0]);

@@ -12,7 +12,7 @@ import "./OrderLib.sol";
 import "./OrderReleaseLib.sol";
 import "./SwapFungibleLib.sol";
 import "./SwapNonFungibleLib.sol";
-import "../market/interfaces/IMarketManager.sol";
+import "../marketmanagers/interfaces/IMarketManager.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
 library SwapLib {
@@ -169,11 +169,6 @@ library SwapLib {
     /// @param id The order ID or index.
     function markAsDisputed(StructsLib.State storage state, IMarketCore marketCore, uint256 id) public {
         OrderLib.markAsDisputed(state, marketCore, id);
-
-        Structs.Market memory mkt = marketCore.getMarket(state.orders[id].marketId);
-        if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
-            IMarketManager(mkt.manager).onDispute(id);
-        }
     }
 
     /// @dev Check if sender has the required swap badges set by the market creator

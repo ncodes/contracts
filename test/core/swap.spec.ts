@@ -3,9 +3,9 @@ import {expect} from "chai";
 import {BigNumber, BigNumberish} from "ethers";
 import {getAddress} from "ethers/lib/utils";
 import {ethers} from "hardhat";
-import {AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MarketManager, MarketManagerDidNotImplMktMgrIface, MarketManagerRevertsFromAfterSwap, MarketManagerRevertsFromBeforeSwap, MediatorManager, NFT, Operator, TOKEN, WETH9} from "../../typechain-types";
+import {AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MarketManagerDidNotImplMktMgrIface, MarketManagerRevertsFromAfterSwap, MarketManagerRevertsFromBeforeSwap, MediatorManager, NFT, Operator, TestMarketManager, TOKEN, WETH9} from "../../typechain-types";
 import {StructsLib} from "../../typechain-types/Core";
-import {AddressZero, AssetType, advanceBlockTime, bnToN, makeMarketID, toBN, toDec} from "../../utils/utils";
+import {AddressZero, advanceBlockTime, AssetType, bnToN, makeMarketID, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
 const {getContractFactory} = ethers;
 
@@ -151,6 +151,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).to.be.revertedWith("OC: MKT_BADGE_REQ");
             });
@@ -182,6 +183,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).to.be.revertedWith("OC: MKT_BADGE_REQ");
             });
@@ -216,6 +218,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
             });
@@ -244,6 +247,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).to.be.revertedWith("OC: LP_BADGE_REQ");
             });
@@ -275,6 +279,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).to.be.revertedWith("OC: LP_BADGE_REQ");
             });
@@ -309,6 +314,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
             });
@@ -333,6 +339,7 @@ describe("Core - Swap", function () {
                     ids: [],
                     expireAt: now,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 }),
             ).to.be.revertedWith("OC: EXPIRED_TX");
         });
@@ -349,6 +356,7 @@ describe("Core - Swap", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 }),
             ).to.be.revertedWith("MC: UNKNOWN_MARKET");
         });
@@ -368,6 +376,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).to.be.revertedWith("OC: OFFER_ONLY");
             });
@@ -385,6 +394,7 @@ describe("Core - Swap", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 }),
             ).to.be.revertedWith("OC: ZERO_LIQ");
         });
@@ -404,6 +414,7 @@ describe("Core - Swap", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 }),
             ).to.be.revertedWith("OC: AMOUNT_REQ");
         });
@@ -423,6 +434,7 @@ describe("Core - Swap", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 }),
             ).to.be.revertedWith("OC: MAX_PRICE_REQ");
         });
@@ -443,6 +455,7 @@ describe("Core - Swap", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 }),
             ).to.be.revertedWith("OC: LIQ_PAUSED");
         });
@@ -462,6 +475,7 @@ describe("Core - Swap", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 }),
             ).to.be.revertedWith("OC: LOW_LIQ");
         });
@@ -481,6 +495,7 @@ describe("Core - Swap", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 }),
             ).to.be.revertedWith("MAX_PRICE_TOO_LOW");
         });
@@ -500,6 +515,7 @@ describe("Core - Swap", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 }),
             ).to.be.revertedWith("NOT_TARGET");
         });
@@ -527,6 +543,7 @@ describe("Core - Swap", function () {
                         ids: [1],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).to.be.revertedWith("OC: IDS_NREQ");
             });
@@ -550,6 +567,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).to.be.revertedWith("LOW_QUOTE_BAL");
             });
@@ -580,6 +598,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 )
                     .to.emit(core, "Swap")
@@ -632,6 +651,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).to.emit(core, "Swap");
 
@@ -666,6 +686,7 @@ describe("Core - Swap", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 1,
+                            marketMgrData: Buffer.from([]),
                         }),
                     ).to.emit(core, "Swap");
 
@@ -709,6 +730,7 @@ describe("Core - Swap", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         }),
                     )
                         .to.emit(core, "Swap")
@@ -774,6 +796,7 @@ describe("Core - Swap", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         }),
                     )
                         .to.emit(core, "Swap")
@@ -839,6 +862,7 @@ describe("Core - Swap", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         }),
                     )
                         .to.emit(core, "Swap")
@@ -889,6 +913,7 @@ describe("Core - Swap", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         }),
                     ).to.emit(core, "Swap");
                     expect(await baseAsset.balanceOf(user5.address)).to.eql(swapAmt);
@@ -931,6 +956,7 @@ describe("Core - Swap", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         }),
                     )
                         .to.emit(core, "Swap")
@@ -980,6 +1006,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).to.be.revertedWith("OC: LOW_QUOTE_BAL");
             });
@@ -1009,6 +1036,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     },
                     {value: swapCost},
                 );
@@ -1056,6 +1084,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     },
                     {value: swapCost.add(excess)},
                 );
@@ -1094,6 +1123,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 )
                     .to.emit(core, "SwapOrder")
@@ -1142,6 +1172,7 @@ describe("Core - Swap", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         }),
                     )
                         .to.emit(core, "SwapOrder")
@@ -1169,17 +1200,17 @@ describe("Core - Swap", function () {
 
             it("should revert with msg='AMOUNT_NREQ' when amount was set", async () => {
                 await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 1, maxPrice: 1, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("OC: AMOUNT_NREQ");
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 1, maxPrice: 1, ids: [], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: AMOUNT_NREQ");
             });
 
             it("should revert with msg='MAX_PRICE_NREQ' when maxPrice was set", async () => {
                 await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 1, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("OC: MAX_PRICE_NREQ");
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 1, ids: [], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: MAX_PRICE_NREQ");
             });
 
             it("should revert with msg='IDS_REQ' when ids was not set", async () => {
                 await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("OC: IDS_REQ");
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: [], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: IDS_REQ");
             });
 
             it("should revert with msg='IDS_HSIZE' when ids surpassed limit of 16", async () => {
@@ -1187,13 +1218,13 @@ describe("Core - Swap", function () {
                     .fill(0)
                     .map((_, i) => i);
                 await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).to.be.revertedWith("OC: IDS_HSIZE");
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: IDS_HSIZE");
             });
 
             it("should revert with msg='IDS_NUNIQ' when ids has a duplicate entry", async () => {
                 const ids = [1, 1];
                 await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).to.be.revertedWith("OC: IDS_NUNIQ");
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: IDS_NUNIQ");
             });
 
             context("when wantOrIds=[1,2] but swapper has [1,3]", () => {
@@ -1204,7 +1235,7 @@ describe("Core - Swap", function () {
 
                     const wantOrIds = [1, 2];
                     await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0}))
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])}))
                         .emit(core, "Swap")
                         .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, 0, 0, 0, 0], false, [], [1]);
 
@@ -1232,7 +1263,7 @@ describe("Core - Swap", function () {
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
                     await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [2, 3], wantAndIds: [], deduct: false})).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).to.be.revertedWith("OC: NO_ID_MATCH");
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: NO_ID_MATCH");
                 });
             });
 
@@ -1243,7 +1274,7 @@ describe("Core - Swap", function () {
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
                     await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [1, 2], deduct: false})).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).to.be.revertedWith("OC: NO_ID_MATCH");
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: NO_ID_MATCH");
                 });
             });
 
@@ -1255,7 +1286,7 @@ describe("Core - Swap", function () {
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
                     await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [1, 2], deduct: false})).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0}))
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])}))
                         .emit(core, "Swap")
                         .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, 0, 0, 0, 0], false, [], ids);
 
@@ -1273,7 +1304,7 @@ describe("Core - Swap", function () {
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
                     await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [1, 2], deduct: false})).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0}))
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])}))
                         .emit(core, "Swap")
                         .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, 0, 0, 0, 0], false, [], [1, 2]);
 
@@ -1290,7 +1321,7 @@ describe("Core - Swap", function () {
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
                     await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [3, 4, 5], wantAndIds: [1, 2], deduct: false})).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).to.be.revertedWith("OC: NO_ID_MATCH");
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: NO_ID_MATCH");
                 });
             });
 
@@ -1304,7 +1335,7 @@ describe("Core - Swap", function () {
                     await testERC721.connect(swapper).setApprovalForAll(core.address, true);
 
                     await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [3, 4, 5], wantAndIds: [1, 2, 4], deduct: false})).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).not.to.be.reverted;
 
                     // LP should own the NFTs
                     expect(await testERC721.ownerOf(1)).to.eq(provider.address);
@@ -1335,7 +1366,7 @@ describe("Core - Swap", function () {
                     const wantOrIds: BigNumber[] = [];
                     const wantAndIds: BigNumber[] = [];
                     await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: wantOrIds, wantAndIds: wantAndIds, deduct: false})).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).not.to.be.reverted;
 
                     // LP should own the NFTs
                     expect(await testERC721.ownerOf(1)).to.eq(provider.address);
@@ -1355,7 +1386,7 @@ describe("Core - Swap", function () {
                     const wantOrIds: BigNumber[] = [];
                     const wantAndIds: BigNumber[] = [];
                     await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: wantOrIds, wantAndIds: wantAndIds, deduct: false})).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: user5.address, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: user5.address, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).not.to.be.reverted;
 
                     expect(await baseAsset.balanceOf(user5.address)).to.eql(amountOfBase);
                 });
@@ -1372,7 +1403,7 @@ describe("Core - Swap", function () {
 
                     const wantOrIds = [1, 2];
                     await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).not.to.be.reverted;
 
                     // LP should own the NFT
                     expect(await testERC721.ownerOf(1)).to.eq(provider.address);
@@ -1401,7 +1432,7 @@ describe("Core - Swap", function () {
 
                     const wantOrIds = [1, 2];
                     await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 1})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 1, marketMgrData: Buffer.from([])})).not.to.be.reverted;
 
                     // LP should own the NFT
                     expect(await testERC721.ownerOf(1)).to.eq(provider.address);
@@ -1430,7 +1461,7 @@ describe("Core - Swap", function () {
 
                     const wantOrIds = [1, 2];
                     await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).not.to.be.reverted;
 
                     // LP should own the NFT
                     expect(await testERC721.ownerOf(1)).to.eq(provider.address);
@@ -1463,7 +1494,7 @@ describe("Core - Swap", function () {
 
                     const wantOrIds = [1, 2];
                     await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).not.to.be.reverted;
 
                     // LP should own the NFT
                     expect(await testERC1155.balanceOf(provider.address, 1)).to.eq(1);
@@ -1503,6 +1534,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).to.be.revertedWith("OC: LOW_QUOTE_BAL");
             });
@@ -1535,6 +1567,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     },
                     {value: swapCost},
                 );
@@ -1584,6 +1617,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).to.be.revertedWith("OC: LOW_QUOTE_BAL");
             });
@@ -1618,6 +1652,7 @@ describe("Core - Swap", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 });
                 await expect(tx).to.emit(core, "Swap").withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, swapAmt, pricePerBase, 0, 0], false, [], []);
 
@@ -1687,6 +1722,7 @@ describe("Core - Swap", function () {
                     ids: ids,
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 });
                 await expect(tx).emit(core, "Swap").withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, AddressZero, [0, 0, 0, 0, 0, 0], false, [], [1]);
 
@@ -1749,6 +1785,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 )
                     .to.emit(core, "SwapOrder")
@@ -1821,6 +1858,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 )
                     .to.emit(core, "SwapOrder")
@@ -1883,6 +1921,7 @@ describe("Core - Swap", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         },
                         {value: swapCost},
                     ),
@@ -1936,6 +1975,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
                 await expect(core.getOrder(0)).not.be.revertedWith("OC: UNKNOWN_ORDER");
@@ -1960,43 +2000,43 @@ describe("Core - Swap", function () {
 
             it("should revert with msg='MAX_PRICE_NREQ' when maxPrice is set", async () => {
                 await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 1, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("OC: MAX_PRICE_NREQ");
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 1, ids: [], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: MAX_PRICE_NREQ");
             });
 
             it("should revert with msg='AMOUNT_NREQ' when amount is set", async () => {
                 await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 1, maxPrice: 0, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("OC: AMOUNT_NREQ");
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 1, maxPrice: 0, ids: [], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: AMOUNT_NREQ");
             });
 
             it("should revert with msg='IDS_REQ' when token ids was not provided", async () => {
                 await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("OC: IDS_REQ");
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: [], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: IDS_REQ");
             });
 
             it("should revert with msg='IDS_HSIZE' when ids length exceed limit", async () => {
                 const ids = Array(17).fill(0).map((_, i) => i); // prettier-ignore
                 await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).to.be.revertedWith("OC: IDS_HSIZE");
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: IDS_HSIZE");
             });
 
             it("should revert with msg='IDS_NUNIQ' when ids length exceed limit", async () => {
                 const ids = [1, 1];
                 await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false})).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).to.be.revertedWith("OC: IDS_NUNIQ");
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: IDS_NUNIQ");
             });
 
             it("should revert with msg='NO_ID_MATCH' when no ids entry match", async () => {
                 const ids = [1];
                 const wantOrIds = [2, 3];
                 await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).to.be.revertedWith("OC: NO_ID_MATCH");
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: NO_ID_MATCH");
             });
 
             it("should revert with msg='ERC721: invalid token ID' when matched id is not owned by sender", async () => {
                 const ids = [1];
                 const wantOrIds = [1];
                 await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0})).to.be.revertedWith("ERC721: invalid token ID");
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("ERC721: invalid token ID");
             });
 
             it("should successfully create order", async () => {
@@ -2006,7 +2046,7 @@ describe("Core - Swap", function () {
                 const ids = [toBN(1)];
                 const wantOrIds = [1];
                 await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0}))
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])}))
                     .to.emit(core, "SwapOrder")
                     .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, [toBN(0), toBN(0), 0, 0, 0, 0], [], ids);
 
@@ -2024,7 +2064,7 @@ describe("Core - Swap", function () {
                 const ids = [toBN(1)];
                 const wantOrIds = [1];
                 await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
-                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0}))
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])}))
                     .to.emit(core, "SwapOrder")
                     .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, [toBN(0), toBN(0), 0, 0, 0, 0], [], ids);
 
@@ -2042,7 +2082,7 @@ describe("Core - Swap", function () {
                     const ids = [toBN(1)];
                     const wantOrIds: BigNumber[] = [];
                     await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
-                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0}))
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: ids, expireAt: 0, operator: 0, marketMgrData: Buffer.from([])}))
                         .to.emit(core, "SwapOrder")
                         .withArgs(getAddress(mid), provider.address, swapper.address, AddressZero, [toBN(0), toBN(0), 0, 0, 0, 0], [], ids);
 
@@ -2071,10 +2111,10 @@ describe("Core - Swap", function () {
                 // Approve swap cost so the contract can lock it
                 await quoteAsset.transfer(swapper.address, swapCost.mul(2));
                 await quoteAsset.connect(swapper).approve(cAddr, swapCost.mul(2));
-                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: swapAmt, maxPrice: pricePerBase, ids: [], expireAt: 0, operator: 0})).not.to.be.reverted;
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: swapAmt, maxPrice: pricePerBase, ids: [], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).not.to.be.reverted;
 
                 // Expect to be reverted
-                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: swapAmt, maxPrice: pricePerBase, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("OC: MAX_OPEN_ORDERS");
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: swapAmt, maxPrice: pricePerBase, ids: [], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: MAX_OPEN_ORDERS");
             });
         });
 
@@ -2101,7 +2141,7 @@ describe("Core - Swap", function () {
                 await core.connect(deployer).updateOpenDisputesCount(mid, provider.address, 0, true);
 
                 // Expect to be reverted
-                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: swapAmt, maxPrice: pricePerBase, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("OC: MAX_OPEN_DISPUTES");
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: swapAmt, maxPrice: pricePerBase, ids: [], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: MAX_OPEN_DISPUTES");
             });
         });
 
@@ -2122,7 +2162,7 @@ describe("Core - Swap", function () {
 
                 await quoteAsset.transfer(swapper.address, swapCost.mul(2));
                 await quoteAsset.connect(swapper).approve(cAddr, swapCost.mul(2));
-                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: swapAmt, maxPrice: pricePerBase, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("MC: NO_PUT_PERM");
+                await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: swapAmt, maxPrice: pricePerBase, ids: [], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("MC: NO_PUT_PERM");
 
                 // Make sure liquidity can still be removed
                 await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: pricePerBase, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: true});
@@ -2131,33 +2171,35 @@ describe("Core - Swap", function () {
         });
 
         context("when market has a market manager", () => {
-            let testMarketManager: MarketManager;
+            let testMarketManager: TestMarketManager;
             let testMarketManagerDidNotImplMktMgrIface: MarketManagerDidNotImplMktMgrIface;
             let testMarketManagerRevertsFromBeforeSwap: MarketManagerRevertsFromBeforeSwap;
             let testMarketManagerRevertsFromAfterSwap: MarketManagerRevertsFromAfterSwap;
             let swapAmt: BigNumber;
             let swapParams: StructsLib.SwapQuoteForBaseParamsStruct;
 
+            async function setup(mktMgr: string) {
+                await mc.connect(marketCreator2).createMarketWithManager(baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0, mktMgr);
+                mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20);
+                swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                swapParams = {
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: swapAmt,
+                    maxPrice: pricePerBase,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                    marketMgrData: Buffer.from([]),
+                };
+            }
+
             context("market is instant", () => {
                 beforeEach(async () => {
-                    await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
-                    mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20);
-
-                    swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
-                    swapParams = {
-                        marketId: mid,
-                        provider: provider.address,
-                        recipient: AddressZero,
-                        lid: 0,
-                        amount: swapAmt,
-                        maxPrice: pricePerBase,
-                        ids: [],
-                        expireAt: 0,
-                        operator: 0,
-                    };
-
-                    let factory = await ethers.getContractFactory("MarketManager");
-                    testMarketManager = (await factory.deploy()) as MarketManager;
+                    let factory = await ethers.getContractFactory("TestMarketManager");
+                    testMarketManager = (await factory.deploy()) as TestMarketManager;
 
                     factory = await ethers.getContractFactory("MarketManagerDidNotImplMktMgrIface");
                     testMarketManagerDidNotImplMktMgrIface = (await factory.deploy()) as MarketManagerDidNotImplMktMgrIface;
@@ -2170,7 +2212,7 @@ describe("Core - Swap", function () {
                 });
 
                 it("should call beforeSwap and afterSwap hooks when market manager is a contract that implements the IMarketManager interface", async () => {
-                    await mc.connect(marketCreator2).setManager(mid, testMarketManager.address);
+                    await setup(testMarketManager.address);
 
                     await provideLiquidity(provider, amountOfBase, pricePerBase);
 
@@ -2186,7 +2228,7 @@ describe("Core - Swap", function () {
                 });
 
                 it("should not call beforeSwap or afterSwap hooks when market manager did not implement the IMarketManager interface", async () => {
-                    await mc.connect(marketCreator2).setManager(mid, testMarketManagerDidNotImplMktMgrIface.address);
+                    await setup(testMarketManagerDidNotImplMktMgrIface.address);
 
                     await provideLiquidity(provider, amountOfBase, pricePerBase);
 
@@ -2201,7 +2243,7 @@ describe("Core - Swap", function () {
                 });
 
                 it("should succeed when market manager is not a contract", async () => {
-                    await mc.connect(marketCreator2).setManager(mid, accts[1].address);
+                    await setup(accts[1].address);
 
                     await provideLiquidity(provider, amountOfBase, pricePerBase);
 
@@ -2213,7 +2255,7 @@ describe("Core - Swap", function () {
                 });
 
                 it("should revert when market manager reverts from beforeSwap", async () => {
-                    await mc.connect(marketCreator2).setManager(mid, testMarketManagerRevertsFromBeforeSwap.address);
+                    await setup(testMarketManagerRevertsFromBeforeSwap.address);
 
                     await provideLiquidity(provider, amountOfBase, pricePerBase);
 
@@ -2225,7 +2267,7 @@ describe("Core - Swap", function () {
                 });
 
                 it("should revert when market manager reverts from afterSwap", async () => {
-                    await mc.connect(marketCreator2).setManager(mid, testMarketManagerRevertsFromAfterSwap.address);
+                    await setup(testMarketManagerRevertsFromAfterSwap.address);
 
                     await provideLiquidity(provider, amountOfBase, pricePerBase);
 
@@ -2238,8 +2280,8 @@ describe("Core - Swap", function () {
             });
 
             context("market is interactive", () => {
-                beforeEach(async () => {
-                    await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.SYNTH, AssetType.ERC20, false, false, 0, 0);
+                async function setup(mktMgr: string) {
+                    await mc.connect(marketCreator2).createMarketWithManager(baseAddr, quoteAddr, AssetType.SYNTH, AssetType.ERC20, false, false, 0, 0, mktMgr);
                     mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.ERC20);
 
                     swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
@@ -2253,10 +2295,13 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     };
+                }
 
-                    let factory = await ethers.getContractFactory("MarketManager");
-                    testMarketManager = (await factory.deploy()) as MarketManager;
+                beforeEach(async () => {
+                    let factory = await ethers.getContractFactory("TestMarketManager");
+                    testMarketManager = (await factory.deploy()) as TestMarketManager;
 
                     factory = await ethers.getContractFactory("MarketManagerDidNotImplMktMgrIface");
                     testMarketManagerDidNotImplMktMgrIface = (await factory.deploy()) as MarketManagerDidNotImplMktMgrIface;
@@ -2269,7 +2314,7 @@ describe("Core - Swap", function () {
                 });
 
                 it("should call before and after swap hook and pass the correct orderId the after hook", async () => {
-                    await mc.connect(marketCreator2).setManager(mid, testMarketManager.address);
+                    await setup(testMarketManager.address);
 
                     await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: pricePerBase, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false});
 
@@ -2277,7 +2322,7 @@ describe("Core - Swap", function () {
                     const swapCost = swapAmt.div(baseDec).mul(pricePerBase); // amount the swapper will pay in QUOTE (=50 QUOTE)
                     await quoteAsset.transfer(swapper.address, swapCost.mul(2));
                     await quoteAsset.connect(swapper).approve(cAddr, swapCost.mul(2));
-                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: swapAmt, maxPrice: pricePerBase, ids: [], expireAt: 0, operator: 0})).not.to.be.reverted;
+                    await expect(core.connect(swapper).swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: swapAmt, maxPrice: pricePerBase, ids: [], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).not.to.be.reverted;
 
                     const order = await core.getOrder(0);
                     expect(order.amount).to.eq(swapAmt);
@@ -2308,15 +2353,15 @@ describe("Core - Swap", function () {
         it("should revert with msg='OC: EXPIRED_TX' when expireAt time was surpassed", async () => {
             const now = await advanceBlockTime(1);
             mid = await createMarket(deployer, baseAddr, quoteAddr, AssetType.ERC721, AssetType.SYNTH, false, false, 0, 0);
-            await expect(core.swapQuoteForBase({marketId: mid, provider: swapper.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: [], expireAt: now, operator: 0})).to.be.revertedWith("OC: EXPIRED_TX");
+            await expect(core.swapQuoteForBase({marketId: mid, provider: swapper.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: [], expireAt: now, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: EXPIRED_TX");
         });
 
         it("should revert with msg='MC: UNKNOWN_MARKET' when market is unknown", async () => {
-            await expect(core.swapQuoteForBase({marketId: AddressZero, provider: swapper.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("MC: UNKNOWN_MARKET");
+            await expect(core.swapQuoteForBase({marketId: AddressZero, provider: swapper.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: [], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("MC: UNKNOWN_MARKET");
         });
 
         it("should revert with msg='ZERO_LIQ' when the liquidity was not found", async () => {
-            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: pricePerBase.sub(1), ids: [toBN(1)], expireAt: 0, operator: 0})).to.be.revertedWith("OC: ZERO_LIQ");
+            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: pricePerBase.sub(1), ids: [toBN(1)], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: ZERO_LIQ");
         });
 
         it("should revert with msg='AMOUNT_NREQ' when amount was provided", async () => {
@@ -2335,7 +2380,7 @@ describe("Core - Swap", function () {
                     pause: false,
                 }),
             ).not.to.be.reverted;
-            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 1, maxPrice: pricePerBase, ids: [], expireAt: 0, operator: 0})).to.be.revertedWith("OC: AMOUNT_NREQ");
+            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 1, maxPrice: pricePerBase, ids: [], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: AMOUNT_NREQ");
         });
 
         it("should revert with msg='LIQ_PAUSED' liquidity is paused", async () => {
@@ -2355,7 +2400,7 @@ describe("Core - Swap", function () {
                 }),
             ).not.to.be.reverted;
             await core.connect(provider).togglePause(mid, 0, 0);
-            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: pricePerBase.sub(1), ids: [toBN(1)], expireAt: 0, operator: 0})).to.be.revertedWith("OC: LIQ_PAUSED");
+            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: pricePerBase.sub(1), ids: [toBN(1)], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: LIQ_PAUSED");
         });
 
         it("should revert with msg='MAX_PRICE_REQ' when quote=ERC20,SYNTH and maxPrice was unset", async () => {
@@ -2374,7 +2419,7 @@ describe("Core - Swap", function () {
                     pause: false,
                 }),
             ).not.to.be.reverted;
-            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: [toBN(1)], expireAt: 0, operator: 0})).to.be.revertedWith("OC: MAX_PRICE_REQ");
+            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 0, ids: [toBN(1)], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: MAX_PRICE_REQ");
         });
 
         it("should revert with msg='MAX_PRICE_NREQ' when quote=NFT and maxPrice was set", async () => {
@@ -2394,7 +2439,7 @@ describe("Core - Swap", function () {
                     pause: false,
                 }),
             ).not.to.be.reverted;
-            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 1, ids: [toBN(1)], expireAt: 0, operator: 0})).to.be.revertedWith("OC: MAX_PRICE_NREQ");
+            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: 1, ids: [toBN(1)], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: MAX_PRICE_NREQ");
         });
 
         it("should revert with msg='MAX_PRICE_TOO_LOW' when quote=ERC20 and max price is lower than liquidity price", async () => {
@@ -2413,7 +2458,7 @@ describe("Core - Swap", function () {
                     pause: false,
                 }),
             ).not.to.be.reverted;
-            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: pricePerBase.sub(1), ids: [toBN(1)], expireAt: 0, operator: 0})).to.be.revertedWith("OC: MAX_PRICE_TOO_LOW");
+            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: pricePerBase.sub(1), ids: [toBN(1)], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: MAX_PRICE_TOO_LOW");
         });
 
         it("should revert with msg='IDS_NREQ' when quote=ERC20 and ids was provided", async () => {
@@ -2432,7 +2477,7 @@ describe("Core - Swap", function () {
                     pause: false,
                 }),
             ).not.to.be.reverted;
-            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: pricePerBase, ids: [toBN(1)], expireAt: 0, operator: 0})).to.be.revertedWith("OC: IDS_NREQ");
+            await expect(core.swapQuoteForBase({marketId: mid, provider: provider.address, recipient: AddressZero, lid: 0, amount: 0, maxPrice: pricePerBase, ids: [toBN(1)], expireAt: 0, operator: 0, marketMgrData: Buffer.from([])})).to.be.revertedWith("OC: IDS_NREQ");
         });
 
         it("should revert with msg='IDS_REQ' when quote=NFT and ids was not provided", async () => {
@@ -2463,6 +2508,7 @@ describe("Core - Swap", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 }),
             ).to.be.revertedWith("OC: IDS_REQ");
         });
@@ -2495,6 +2541,7 @@ describe("Core - Swap", function () {
                     ids: [1],
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 }),
             ).to.be.revertedWith("OC: NOT_TARGET");
         });
@@ -2532,6 +2579,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).to.be.revertedWith("ERC20: insufficient allowance");
             });
@@ -2566,6 +2614,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 )
                     .emit(core, "Swap")
@@ -2614,6 +2663,7 @@ describe("Core - Swap", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         }),
                     )
                         .emit(core, "Swap")
@@ -2660,6 +2710,7 @@ describe("Core - Swap", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 1,
+                            marketMgrData: Buffer.from([]),
                         }),
                     )
                         .emit(core, "Swap")
@@ -2706,6 +2757,7 @@ describe("Core - Swap", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         }),
                     ).emit(core, "Swap");
                     expect(await testERC721.ownerOf(1)).to.eql(user5.address);
@@ -2746,6 +2798,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).to.be.revertedWith("OC: LOW_DEPOSIT");
             });
@@ -2784,6 +2837,7 @@ describe("Core - Swap", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         },
                         {value: pricePerBase},
                     ),
@@ -2838,6 +2892,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     },
                     {value: pricePerBase.add(excess)},
                 );
@@ -2888,6 +2943,7 @@ describe("Core - Swap", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 )
                     .emit(core, "SwapOrder")
@@ -2953,6 +3009,7 @@ describe("Core - Swap", function () {
                         ids: ids,
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).to.be.revertedWith("OC: NO_ID_MATCH");
             });
@@ -2989,6 +3046,7 @@ describe("Core - Swap", function () {
                         ids: wantOrIds,
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).to.be.revertedWith("ERC721: transfer from incorrect owner");
             });
@@ -3031,6 +3089,7 @@ describe("Core - Swap", function () {
                         ids: wantAndIds,
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 )
                     .to.emit(core, "Swap")
@@ -3095,6 +3154,7 @@ describe("Core - Swap", function () {
                             ids: swapperIds,
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         }),
                     )
                         .to.emit(core, "Swap")
@@ -3161,6 +3221,7 @@ describe("Core - Swap", function () {
                             ids: wantAndIds,
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         }),
                     )
                         .to.emit(core, "Swap")
@@ -3228,6 +3289,7 @@ describe("Core - Swap", function () {
                             ids: wantAndIds,
                             expireAt: 0,
                             operator: 1,
+                            marketMgrData: Buffer.from([]),
                         }),
                     ).to.emit(core, "Swap");
 
@@ -3279,6 +3341,7 @@ describe("Core - Swap", function () {
                             ids: wantAndIds,
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         }),
                     ).to.emit(core, "Swap");
 

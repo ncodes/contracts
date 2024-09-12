@@ -25,8 +25,4 @@ interface IMarketManager {
     /// @notice Called when a swap order is released
     /// @param orderId The ID of the order that was released
     function onRelease(uint256 orderId) external;
-
-    /// @notice Called when a swap order is disputed
-    /// @param orderId The ID of the order that was disputed
-    function onDispute(uint256 orderId) external;
 }

@@ -227,29 +227,6 @@ describe("MarketCore", function () {
         });
     });
 
-    describe(".setManager", () => {
-        beforeEach(async () => {
-            mid = await createMarket(deployer, baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0);
-        });
-
-        it("should revert with reason=NOT_CREATOR when sender is not owner of market", async () => {
-            await expect(mc.connect(provider).setManager(mid, user2.address)).to.be.revertedWith("MC: NOT_CREATOR");
-        });
-
-        it("should revert with reason=MARKET_RENOUNCED when market ownership has been renounced", async () => {
-            await mc["renounceOwnership(address)"](mid);
-            await expect(mc.setManager(mid, user2.address)).to.be.revertedWith("MC: MARKET_RENOUNCED");
-        });
-
-        it("should successfully update value", async () => {
-            let market = await mc.markets(mid);
-            expect(market.manager).to.eql(constants.AddressZero);
-            await expect(mc.setManager(mid, user2.address)).not.to.be.reverted;
-            market = await mc.markets(mid);
-            expect(market.manager).to.eql(user2.address);
-        });
-    });
-
     describe(".transferOwnership", () => {
         beforeEach(async () => {
             mid = await createMarket(deployer, baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0);

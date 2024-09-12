@@ -144,7 +144,8 @@ contract Router is Ownable {
                             maxPrice: liq.maxPrice,
                             ids: new uint256[](0),
                             expireAt: 0,
-                            operator: operator
+                            operator: operator,
+                            marketMgrData: ""
                         })
                     );
                 } else {
@@ -159,7 +160,8 @@ contract Router is Ownable {
                             maxPrice: liq.maxPrice,
                             ids: new uint256[](0),
                             expireAt: 0,
-                            operator: operator
+                            operator: operator,
+                            marketMgrData: ""
                         })
                     );
                 }

@@ -167,7 +167,7 @@ contract MarketCore is Writable {
         bool permSwap,
         uint256 commission,
         uint256 mediatePoolId
-    ) external {
+    ) public returns (address) {
         require(base != address(0), "MC: ZERO_BASE");
         require(quote != address(0), "MC: ZERO_QUOTE");
         require(baseType != Structs.AssetType.NATIVE || nativeAssetAddr == address(0) || base == nativeAssetAddr, "MC: BAD_NATIVE_ADDR");
@@ -193,6 +193,35 @@ contract MarketCore is Writable {
         markets[id].poolId = mediatePoolId;
 
         emit NewMarket(id, msg.sender, baseAsset.addr, quoteAsset.addr, baseType, quoteType, permPut, permSwap, commission, mediatePoolId);
+
+        return id;
+    }
+
+    /// @notice Create a new market for swapping two asset types.
+    /// @param base The base asset.
+    /// @param quote The quote asset.
+    /// @param baseType Indicates the type of the base asset.
+    /// @param quoteType Indicates the type of the quote asset.
+    /// @param permPut Indicates whether the market requires permission to provide base liquidity.
+    /// @param permSwap Indicates whether the market requires permission to swap.
+    /// @param commission Commission to deduct from market swaps (basis point)
+    /// @param mediatePoolId The ID of the mediate pool that will mediate any dispute.
+    /// @param manager The address of the market manager.
+    function createMarketWithManager(
+        address base,
+        address quote,
+        Structs.AssetType baseType,
+        Structs.AssetType quoteType,
+        bool permPut,
+        bool permSwap,
+        uint256 commission,
+        uint256 mediatePoolId,
+        address manager
+    ) public {
+        require(manager != address(0), "MC: ZERO_MGR");
+        address id = createMarket(base, quote, baseType, quoteType, permPut, permSwap, commission, mediatePoolId);
+        markets[id].manager = manager;
+        emit UpdatedMarketManager(id, manager);
     }
 
     /// @notice Transfer ownership of market to another address
@@ -223,14 +252,6 @@ contract MarketCore is Writable {
     function setDisputeDelayDuration(address id, uint256 duration) external marketMustExist(id) isMarketCreator(id) isNotRenounced(id) {
         markets[id].dur.disputeDelayDur = duration;
         emit UpdatedDisputeDelayDuration(id, duration);
-    }
-
-    /// @notice Updated market manager
-    /// @param id The market ID
-    /// @param mgr The new market manager address
-    function setManager(address id, address mgr) external marketMustExist(id) isMarketCreator(id) isNotRenounced(id) {
-        markets[id].manager = mgr;
-        emit UpdatedMarketManager(id, mgr);
     }
 
     /// @notice Enable zero price mode market

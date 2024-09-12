@@ -5,7 +5,7 @@ import {ethers} from "hardhat";
 import {PayRouter, TOKEN} from "../typechain-types";
 import {AddressZero, advanceBlockTime, powOf, SourceType, toBN} from "../utils/utils";
 
-describe.only("PayRouter", function () {
+describe("PayRouter", function () {
     let deployer: SignerWithAddress;
     let user2: SignerWithAddress;
     let user3: SignerWithAddress;
@@ -148,20 +148,6 @@ describe.only("PayRouter", function () {
     });
 
     describe(".createRoute", () => {
-        it("should revert when source is not token, native or org", async () => {
-            await expect(
-                payRouter.createRoute({
-                    owner: AddressZero,
-                    source: 4,
-                    sourceToken: AddressZero,
-                    sourceOrgId: 0,
-                    destOrgId: 0,
-                    bond: 0,
-                    requesters: [],
-                }),
-            ).to.be.revertedWith("function was called with incorrect parameters");
-        });
-
         it("should revert when source is token and source token is zero", async () => {
             await expect(
                 payRouter.createRoute({
@@ -472,6 +458,58 @@ describe.only("PayRouter", function () {
             await expect(payRouter.connect(user2).createRequest([0], [1], 1)).to.be.revertedWith("PR: NOT_APPROVED_REQUESTER");
         });
 
+        it("should revert with msg='SRC_NOT_ORG' when source org of routes preceding first route is not ORG", async () => {
+            await payRouter.createOrg("org1");
+            await payRouter.createOrg("org2");
+            await payRouter.createRoute({
+                owner: AddressZero,
+                source: SourceType.Token,
+                sourceToken: bondToken.address,
+                sourceOrgId: 0,
+                destOrgId: 1,
+                bond: 0,
+                requesters: [],
+            });
+            await payRouter.createRoute({
+                owner: AddressZero,
+                source: SourceType.Token,
+                sourceToken: bondToken.address,
+                sourceOrgId: 2,
+                destOrgId: 1,
+                bond: 0,
+                requesters: [],
+            });
+            await payRouter.approveRequester(0, user2.address);
+            await payRouter.approveRequester(1, user2.address);
+            await expect(payRouter.connect(user2).createRequest([0, 1], [0, 0], 0)).to.be.revertedWith("PR: SRC_NOT_ORG");
+        });
+
+        it("should revert with msg='BAD_ORG_LINK' when destination org ID of previous route is not equal to source org ID of next route", async () => {
+            await payRouter.createOrg("org1");
+            await payRouter.createOrg("org2");
+            await payRouter.createRoute({
+                owner: AddressZero,
+                source: SourceType.Token,
+                sourceToken: bondToken.address,
+                sourceOrgId: 0,
+                destOrgId: 1,
+                bond: 0,
+                requesters: [],
+            });
+            await payRouter.createRoute({
+                owner: AddressZero,
+                source: SourceType.Org,
+                sourceToken: AddressZero,
+                sourceOrgId: 2,
+                destOrgId: 1,
+                bond: 0,
+                requesters: [],
+            });
+            await payRouter.approveRequester(0, user2.address);
+            await payRouter.approveRequester(1, user2.address);
+            await expect(payRouter.connect(user2).createRequest([0, 1], [0, 0], 0)).to.be.revertedWith("PR: BAD_ORG_LINK");
+        });
+
         it("should revert with msg='INSUFFICIENT_BOND_BALANCE' when bond balance is insufficient", async () => {
             await payRouter.createOrg("org1");
             await payRouter.createRoute({
@@ -564,8 +602,8 @@ describe.only("PayRouter", function () {
 
                 await payRouter.connect(user2).approveRequester(0, user2.address);
 
-                await expect(payRouter.connect(user2).createRequest([0], [1], 1)).to.be.revertedWith("PR: INSUFFICIENT_MSG_VALUE");
-                await expect(payRouter.connect(user2).createRequest([0], [1], 1, {value: 2})).to.be.revertedWith("PR: INSUFFICIENT_MSG_VALUE");
+                await expect(payRouter.connect(user2).createRequest([0], [1], 1)).to.be.revertedWith("PR: INSUFFICIENT_DEPOSIT");
+                await expect(payRouter.connect(user2).createRequest([0], [1], 1, {value: 2})).to.be.revertedWith("PR: INSUFFICIENT_DEPOSIT");
             });
 
             it("should successfully create request", async () => {
@@ -624,9 +662,9 @@ describe.only("PayRouter", function () {
 
                 await payRouter.connect(user3).createRoute({
                     owner: AddressZero,
-                    source: SourceType.Token,
-                    sourceToken: bondToken.address,
-                    sourceOrgId: 0,
+                    source: SourceType.Org,
+                    sourceToken: AddressZero,
+                    sourceOrgId: 1,
                     destOrgId: 1,
                     bond: 0,
                     requesters: [],
@@ -688,9 +726,9 @@ describe.only("PayRouter", function () {
 
                 await payRouter.connect(user3).createRoute({
                     owner: AddressZero,
-                    source: SourceType.Token,
-                    sourceToken: bondToken.address,
-                    sourceOrgId: 0,
+                    source: SourceType.Org,
+                    sourceToken: AddressZero,
+                    sourceOrgId: 1,
                     destOrgId: 1,
                     bond: 0,
                     requesters: [],
@@ -769,9 +807,9 @@ describe.only("PayRouter", function () {
 
                 await payRouter.connect(user3).createRoute({
                     owner: AddressZero,
-                    source: SourceType.Token,
-                    sourceToken: bondToken.address,
-                    sourceOrgId: 0,
+                    source: SourceType.Org,
+                    sourceToken: AddressZero,
+                    sourceOrgId: 1,
                     destOrgId: 1,
                     bond: 0,
                     requesters: [],
@@ -914,9 +952,9 @@ describe.only("PayRouter", function () {
 
                 await payRouter.connect(user3).createRoute({
                     owner: AddressZero,
-                    source: SourceType.Token,
-                    sourceToken: bondToken.address,
-                    sourceOrgId: 0,
+                    source: SourceType.Org,
+                    sourceToken: AddressZero,
+                    sourceOrgId: 1,
                     destOrgId: 1,
                     bond: 1,
                     requesters: [],
@@ -972,7 +1010,7 @@ describe.only("PayRouter", function () {
                     await payRouter.connect(user3).createRoute({
                         owner: AddressZero,
                         source: SourceType.Org,
-                        sourceToken: bondToken.address,
+                        sourceToken: AddressZero,
                         sourceOrgId: 1,
                         destOrgId: 1,
                         bond: 1,
@@ -1036,9 +1074,9 @@ describe.only("PayRouter", function () {
 
                 await payRouter.connect(user3).createRoute({
                     owner: AddressZero,
-                    source: SourceType.Token,
-                    sourceToken: bondToken.address,
-                    sourceOrgId: 0,
+                    source: SourceType.Org,
+                    sourceToken: AddressZero,
+                    sourceOrgId: 1,
                     destOrgId: 1,
                     bond: 1,
                     requesters: [],
@@ -1093,9 +1131,9 @@ describe.only("PayRouter", function () {
 
                 await payRouter.connect(user3).createRoute({
                     owner: AddressZero,
-                    source: SourceType.Token,
-                    sourceToken: bondToken.address,
-                    sourceOrgId: 0,
+                    source: SourceType.Org,
+                    sourceToken: AddressZero,
+                    sourceOrgId: 1,
                     destOrgId: 1,
                     bond: 1,
                     requesters: [],
@@ -1155,9 +1193,9 @@ describe.only("PayRouter", function () {
 
                 await payRouter.connect(user3).createRoute({
                     owner: AddressZero,
-                    source: SourceType.Token,
-                    sourceToken: bondToken.address,
-                    sourceOrgId: 0,
+                    source: SourceType.Org,
+                    sourceToken: AddressZero,
+                    sourceOrgId: 1,
                     destOrgId: 1,
                     bond: powOf(1, 18),
                     requesters: [],
@@ -1211,9 +1249,9 @@ describe.only("PayRouter", function () {
 
                 await payRouter.connect(user3).createRoute({
                     owner: AddressZero,
-                    source: SourceType.Token,
-                    sourceToken: bondToken.address,
-                    sourceOrgId: 0,
+                    source: SourceType.Org,
+                    sourceToken: AddressZero,
+                    sourceOrgId: 1,
                     destOrgId: 1,
                     bond: powOf(1, 18),
                     requesters: [],
@@ -1271,9 +1309,9 @@ describe.only("PayRouter", function () {
 
             await payRouter.connect(user3).createRoute({
                 owner: AddressZero,
-                source: SourceType.Token,
-                sourceToken: bondToken.address,
-                sourceOrgId: 0,
+                source: SourceType.Org,
+                sourceToken: AddressZero,
+                sourceOrgId: 1,
                 destOrgId: 1,
                 bond: powOf(1, 18),
                 requesters: [],
@@ -1331,9 +1369,9 @@ describe.only("PayRouter", function () {
 
             await payRouter.connect(user3).createRoute({
                 owner: AddressZero,
-                source: SourceType.Token,
-                sourceToken: bondToken.address,
-                sourceOrgId: 0,
+                source: SourceType.Org,
+                sourceToken: AddressZero,
+                sourceOrgId: 1,
                 destOrgId: 1,
                 bond: powOf(1, 18),
                 requesters: [],
@@ -1394,9 +1432,9 @@ describe.only("PayRouter", function () {
             await bondToken.connect(user3).approve(payRouter.address, powOf(1, 18));
             await payRouter.connect(user3).createRoute({
                 owner: AddressZero,
-                source: SourceType.Token,
-                sourceToken: bondToken.address,
-                sourceOrgId: 0,
+                source: SourceType.Org,
+                sourceToken: AddressZero,
+                sourceOrgId: 1,
                 destOrgId: 1,
                 bond: powOf(1, 18),
                 requesters: [],
@@ -1529,9 +1567,9 @@ describe.only("PayRouter", function () {
             await bondToken.connect(user3).approve(payRouter.address, powOf(1, 18));
             await payRouter.connect(user3).createRoute({
                 owner: AddressZero,
-                source: SourceType.Token,
-                sourceToken: bondToken.address,
-                sourceOrgId: 0,
+                source: SourceType.Org,
+                sourceToken: AddressZero,
+                sourceOrgId: 1,
                 destOrgId: 1,
                 bond: powOf(1, 18),
                 requesters: [],
@@ -1587,7 +1625,7 @@ describe.only("PayRouter", function () {
         });
     });
 
-    describe("transferSourceToken", () => {
+    describe("transferRequestSource", () => {
         beforeEach(async () => {
             await payRouter.connect(user2).setRequesterFeeBp(100);
             await payRouter.setProtocolFeeBp(100);
@@ -1610,9 +1648,9 @@ describe.only("PayRouter", function () {
             await bondToken.connect(user3).approve(payRouter.address, powOf(1, 18));
             await payRouter.connect(user3).createRoute({
                 owner: AddressZero,
-                source: SourceType.Token,
-                sourceToken: bondToken.address,
-                sourceOrgId: 0,
+                source: SourceType.Org,
+                sourceToken: AddressZero,
+                sourceOrgId: 1,
                 destOrgId: 1,
                 bond: powOf(1, 18),
                 requesters: [],
@@ -1625,19 +1663,19 @@ describe.only("PayRouter", function () {
         });
 
         it("should revert if request is unknown", async () => {
-            await expect(payRouter.connect(user2).transferSourceToken(1, 0, user2.address)).to.be.revertedWith("PR: UNKNOWN_REQUEST");
+            await expect(payRouter.connect(user2).transferRequestSource(1, 0, user2.address)).to.be.revertedWith("PR: UNKNOWN_REQUEST");
         });
 
         it("should revert if request is not created by sender", async () => {
-            await expect(payRouter.transferSourceToken(0, 0, user2.address)).to.be.revertedWith("PR: NOT_CREATOR");
+            await expect(payRouter.transferRequestSource(0, 0, user2.address)).to.be.revertedWith("PR: NOT_CREATOR");
         });
 
         it("should revert if amount is greater than source token balance", async () => {
-            await expect(payRouter.connect(user2).transferSourceToken(0, powOf(2, 18), user2.address)).to.be.revertedWith("PR: INSUF_BALANCE");
+            await expect(payRouter.connect(user2).transferRequestSource(0, powOf(2, 18), user2.address)).to.be.revertedWith("PR: INSUF_BALANCE");
         });
 
         it("should transfer all source token to specific address", async () => {
-            await expect(payRouter.connect(user2).transferSourceToken(0, powOf(1, 18), user3.address))
+            await expect(payRouter.connect(user2).transferRequestSource(0, powOf(1, 18), user3.address))
                 .to.emit(payRouter, "SourceTransferred")
                 .withArgs(0, powOf(1, 18), user3.address);
             const req = await payRouter.getRequest(0);
@@ -1646,7 +1684,7 @@ describe.only("PayRouter", function () {
         });
 
         it("should transfer some source token to specific address", async () => {
-            await expect(payRouter.connect(user2).transferSourceToken(0, powOf(0.5, 18), user3.address))
+            await expect(payRouter.connect(user2).transferRequestSource(0, powOf(0.5, 18), user3.address))
                 .to.emit(payRouter, "SourceTransferred")
                 .withArgs(0, powOf(0.5, 18), user3.address);
             const req = await payRouter.getRequest(0);

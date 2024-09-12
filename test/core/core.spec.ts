@@ -111,6 +111,7 @@ describe("Core", function () {
                     ids: ids,
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 });
                 const res = await tx.wait();
                 return resolve(res.events?.at(0)?.args?.numTypeInfo[0]);
@@ -254,6 +255,7 @@ describe("Core", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).to.emit(core, "Swap");
 
@@ -338,6 +340,7 @@ describe("Core", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).to.emit(core, "Swap");
 
@@ -437,6 +440,7 @@ describe("Core", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).to.emit(core, "Swap");
 
@@ -496,6 +500,7 @@ describe("Core", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 }),
             ).not.to.be.reverted;
 
@@ -540,6 +545,7 @@ describe("Core", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 }),
             ).not.to.be.reverted;
 
@@ -574,6 +580,7 @@ describe("Core", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 }),
             ).not.to.be.reverted;
 
@@ -635,6 +642,7 @@ describe("Core", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
                 expect((await core.inventorBalanceOf(baseAddr)).eq(protoFee)).to.be.true;
@@ -670,7 +678,8 @@ describe("Core", function () {
 
         it("should return false when market has a manager", async () => {
             const orderID = await createOrder_BaseOn_QuoteOff(mid);
-            await mc.connect(marketCreator2).setManager(mid, user5.address);
+            await mc.createMarketWithManager(baseAddr, quoteAddr, 1, 0, false, false, 0, 0, accts[4].address);
+            mid = makeMarketID(deployer.address, baseAddr, quoteAddr, 1, 0);
             expect(await core.canCreateDispute(orderID, marketCreator.address)).to.be.false;
         });
 

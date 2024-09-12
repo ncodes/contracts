@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-import "../market/interfaces/IMarketManager.sol";
+import "../marketmanagers/interfaces/IMarketManager.sol";
 import "../core/StructsLib.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
@@ -12,7 +12,6 @@ contract MarketManagerBase is IMarketManager, ERC165 {
     bool public onCancelCalled;
     bool public onPaidCalled;
     bool public onReleaseCalled;
-    bool public onDisputeCalled;
 
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return interfaceId == type(IMarketManager).interfaceId || super.supportsInterface(interfaceId);
@@ -37,13 +36,9 @@ contract MarketManagerBase is IMarketManager, ERC165 {
     function onRelease(uint256) external virtual {
         onReleaseCalled = true;
     }
-
-    function onDispute(uint256) external virtual {
-        onDisputeCalled = true;
-    }
 }
 
-contract MarketManager is IMarketManager, ERC165, MarketManagerBase {
+contract TestMarketManager is IMarketManager, ERC165, MarketManagerBase {
     uint256 public orderId;
     StructsLib.SwapQuoteForBaseParams public params;
 

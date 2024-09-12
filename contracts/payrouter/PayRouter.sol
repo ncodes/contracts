@@ -237,6 +237,8 @@ contract PayRouter is Ownable {
             Route storage route = routes[_routeIds[i]];
             require(route.owner != address(0), "PR: UNKNOWN_ROUTE");
             require(isRequesterApproved(i, msg.sender), "PR: NOT_APPROVED_REQUESTER");
+            require(i == 0 || routes[_routeIds[i]].source == SourceType.Org, "PR: SRC_NOT_ORG");
+            require(i == 0 || routes[_routeIds[i - 1]].destOrgId == routes[_routeIds[i]].sourceOrgId, "PR: BAD_ORG_LINK");
 
             // Deduct bond from route owner
             require(route.bond >= _bonds[i], "PR: INSUFFICIENT_BOND_BALANCE");
@@ -246,7 +248,7 @@ contract PayRouter is Ownable {
             if (i == 0 && route.source == SourceType.Token) {
                 IERC20(route.sourceToken).transferFrom(msg.sender, address(this), _sourceAmt);
             } else if (i == 0 && route.source == SourceType.Native) {
-                require(msg.value == _sourceAmt, "PR: INSUFFICIENT_MSG_VALUE");
+                require(msg.value == _sourceAmt, "PR: INSUFFICIENT_DEPOSIT");
             }
         }
 
@@ -399,7 +401,7 @@ contract PayRouter is Ownable {
     /// @param amount The amount of source token to transfer
     /// @param to The address to transfer the source token to
     /// @dev Only the request creator can call this function
-    function transferSourceToken(uint256 requestId, uint256 amount, address to) external onlyRequestCreator(requestId) {
+    function transferRequestSource(uint256 requestId, uint256 amount, address to) external onlyRequestCreator(requestId) {
         Request storage req = requests[requestId];
         require(req.sourceAmtLeft >= amount, "PR: INSUF_BALANCE");
 

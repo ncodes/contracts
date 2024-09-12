@@ -18,7 +18,7 @@ import "../token/interfaces/IERC20.sol";
 import "./FungibleLiquidityLib.sol";
 import "./NonFungibleLiquidityLib.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import "../market/interfaces/IMarketManager.sol";
+import "../marketmanagers/interfaces/IMarketManager.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 /// Core manages market orders

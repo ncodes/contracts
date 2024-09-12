@@ -132,7 +132,9 @@ describe("Core - Order", function () {
                     ids: ids,
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 });
+
                 const res = await tx.wait();
                 mkt = await mc.getMarket(mid);
                 expect(mkt.numLiquidity).to.eq(amountOfBase.sub(swapAmt));
@@ -171,6 +173,7 @@ describe("Core - Order", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
@@ -229,6 +232,7 @@ describe("Core - Order", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
@@ -260,6 +264,7 @@ describe("Core - Order", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
@@ -310,6 +315,7 @@ describe("Core - Order", function () {
                         ids: ids,
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
 
@@ -360,6 +366,7 @@ describe("Core - Order", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
 
@@ -414,6 +421,7 @@ describe("Core - Order", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
@@ -435,8 +443,12 @@ describe("Core - Order", function () {
         let orderID: number;
         let swapAmt: BigNumber;
 
-        beforeEach(async () => {
-            await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0, 0);
+        async function setup(mktMgr?: string) {
+            if (mktMgr) {
+                await mc.connect(marketCreator2).createMarketWithManager(baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0, 0, mktMgr);
+            } else {
+                await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0, 0);
+            }
             mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 1, 0);
             await provideLiquidity(provider, amountOfBase, pricePerBase);
             swapAmt = toBN(5).mul(baseDec);
@@ -451,49 +463,57 @@ describe("Core - Order", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 }),
             ).not.to.be.reverted;
             const numOrders = (await core.state()).numOrders;
             expect(numOrders.toNumber()).to.eql(1);
             orderID = numOrders.toNumber() - 1;
+        }
+
+        context("market manager is set", () => {
+            beforeEach(async () => {
+                await setup(deployer.address);
+            });
+
+            it("should revert with msg='UNKNOWN_ORDER' when order is unknown", async () => {
+                await expect(core.markOrderAsPaidByManagerSig(1, 0, Buffer.alloc(0))).to.be.revertedWith("OC: UNKNOWN_ORDER");
+            });
+
+            it("should revert with msg='EXPIRED_SIG' when signature is expired", async () => {
+                const now = await advanceBlockTime(1);
+                await expect(core.markOrderAsPaidByManagerSig(orderID, now, Buffer.alloc(0))).to.be.revertedWith("OC: EXPIRED_SIG");
+            });
+
+            it("should revert with msg='BAD_SIG' when signature is invalid", async () => {
+                const now = await advanceBlockTime(1);
+                await expect(core.markOrderAsPaidByManagerSig(orderID, now + 10, Buffer.alloc(65))).to.be.revertedWith("OC: BAD_SIG");
+            });
+
+            it("should emit 'SwapOrderPaid' and 'FinalizedByManagerSig' on success", async () => {
+                const expireAt = (await advanceBlockTime(2)) + 4;
+                const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint", "uint256", "uint", "uint256"], [chainId, orderID, 0, expireAt]));
+                const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
+                const signedMsg = await deployer.signMessage(msgHashBytes);
+
+                await expect(core.connect(user2).markOrderAsPaidByManagerSig(orderID, expireAt, signedMsg))
+                    .to.emit(core, "SwapOrderPaid")
+                    .emit(core, "FinalizedByManagerSig")
+                    .withArgs(deployer.address, user2.address, orderID, 0);
+
+                const order = await core.getOrder(orderID);
+                expect(order.paid).to.be.true;
+            });
         });
 
-        it("should revert with msg='UNKNOWN_ORDER' when order is unknown", async () => {
-            await expect(core.markOrderAsPaidByManagerSig(1, 0, Buffer.alloc(0))).to.be.revertedWith("OC: UNKNOWN_ORDER");
-        });
+        context("market manager is not set", () => {
+            beforeEach(async () => {
+                await setup();
+            });
 
-        it("should revert with msg='NO_MGR_SET' when market has no manager set", async () => {
-            await expect(core.markOrderAsPaidByManagerSig(orderID, 0, Buffer.alloc(0))).to.be.revertedWith("OC: NO_MGR_SET");
-        });
-
-        it("should revert with msg='EXPIRED_SIG' when signature is expired", async () => {
-            await mc.connect(marketCreator2).setManager(mid, deployer.address);
-            const now = await advanceBlockTime(1);
-            await expect(core.markOrderAsPaidByManagerSig(orderID, now, Buffer.alloc(0))).to.be.revertedWith("OC: EXPIRED_SIG");
-        });
-
-        it("should revert with msg='BAD_SIG' when signature is invalid", async () => {
-            await mc.connect(marketCreator2).setManager(mid, deployer.address);
-            const now = await advanceBlockTime(1);
-            await expect(core.markOrderAsPaidByManagerSig(orderID, now + 10, Buffer.alloc(65))).to.be.revertedWith("OC: BAD_SIG");
-        });
-
-        it("should emit 'SwapOrderPaid' and 'FinalizedByManagerSig' on success", async () => {
-            const mgr = deployer;
-            await mc.connect(marketCreator2).setManager(mid, mgr.address);
-
-            const expireAt = (await advanceBlockTime(2)) + 4;
-            const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint", "uint256", "uint", "uint256"], [chainId, orderID, 0, expireAt]));
-            const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
-            const signedMsg = await mgr.signMessage(msgHashBytes);
-
-            await expect(core.connect(user2).markOrderAsPaidByManagerSig(orderID, expireAt, signedMsg))
-                .to.emit(core, "SwapOrderPaid")
-                .emit(core, "FinalizedByManagerSig")
-                .withArgs(mgr.address, user2.address, orderID, 0);
-
-            const order = await core.getOrder(orderID);
-            expect(order.paid).to.be.true;
+            it("should revert with msg='NO_MGR_SET' when market has no manager set", async () => {
+                await expect(core.markOrderAsPaidByManagerSig(orderID, 0, Buffer.alloc(0))).to.be.revertedWith("OC: NO_MGR_SET");
+            });
         });
     });
 
@@ -531,6 +551,7 @@ describe("Core - Order", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         }),
                     ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
@@ -623,6 +644,7 @@ describe("Core - Order", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 1,
+                            marketMgrData: Buffer.from([]),
                         }),
                     ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
@@ -662,6 +684,7 @@ describe("Core - Order", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         }),
                     ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
@@ -705,6 +728,7 @@ describe("Core - Order", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         }),
                     ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
@@ -753,6 +777,7 @@ describe("Core - Order", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         }),
                     ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
@@ -826,6 +851,7 @@ describe("Core - Order", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 1,
+                            marketMgrData: Buffer.from([]),
                         }),
                     ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
@@ -879,6 +905,7 @@ describe("Core - Order", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         },
                         {
                             value: swapCost,
@@ -948,6 +975,7 @@ describe("Core - Order", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     },
                     {value: swapCost.add(excess)},
                 );
@@ -1002,6 +1030,7 @@ describe("Core - Order", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
@@ -1074,6 +1103,7 @@ describe("Core - Order", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
@@ -1142,6 +1172,7 @@ describe("Core - Order", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 1,
+                            marketMgrData: Buffer.from([]),
                         }),
                     ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
@@ -1217,6 +1248,7 @@ describe("Core - Order", function () {
                         ids: ids,
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
@@ -1304,6 +1336,7 @@ describe("Core - Order", function () {
                             ids: ids,
                             expireAt: 0,
                             operator: 1,
+                            marketMgrData: Buffer.from([]),
                         }),
                     ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
@@ -1381,6 +1414,7 @@ describe("Core - Order", function () {
                         ids: ids,
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
@@ -1472,6 +1506,7 @@ describe("Core - Order", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
@@ -1558,6 +1593,7 @@ describe("Core - Order", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 1,
+                            marketMgrData: Buffer.from([]),
                         }),
                     ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
@@ -1616,6 +1652,7 @@ describe("Core - Order", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         }),
                     ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
@@ -1654,6 +1691,7 @@ describe("Core - Order", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
@@ -1669,12 +1707,11 @@ describe("Core - Order", function () {
 
             context("market has a market manager", () => {
                 it("should successfully call release function in market manager", async () => {
-                    let factory = await ethers.getContractFactory("MarketManager");
+                    let factory = await ethers.getContractFactory("TestMarketManager");
                     const testMarketManager = (await factory.deploy()) as MarketManager;
 
-                    await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0, 0);
+                    await mc.connect(marketCreator2).createMarketWithManager(baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0, 0, testMarketManager.address);
                     mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 1, 0);
-                    await mc.connect(marketCreator2).setManager(mid, testMarketManager.address);
 
                     await core.setProtoFee(0, 0, 0, 0, 0, 0);
                     await mc.connect(marketCreator2).setCommission(mid, 0);
@@ -1695,6 +1732,7 @@ describe("Core - Order", function () {
                             ids: [],
                             expireAt: 0,
                             operator: 0,
+                            marketMgrData: Buffer.from([]),
                         }),
                     ).not.to.be.reverted;
                     const numOrders = (await core.state()).numOrders;
@@ -1717,8 +1755,13 @@ describe("Core - Order", function () {
         let orderID: number;
         let swapAmt: BigNumber;
 
-        beforeEach(async () => {
-            await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0, 0);
+        async function setup(mktMgr?: string) {
+            if (mktMgr) {
+                await mc.connect(marketCreator2).createMarketWithManager(baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0, 0, mktMgr);
+            } else {
+                await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0, 0);
+            }
+
             mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 1, 0);
             await provideLiquidity(provider, amountOfBase, pricePerBase);
             swapAmt = toBN(5).mul(baseDec);
@@ -1733,48 +1776,58 @@ describe("Core - Order", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 }),
             ).not.to.be.reverted;
             const numOrders = (await core.state()).numOrders;
             expect(numOrders.toNumber()).to.eql(1);
             orderID = numOrders.toNumber() - 1;
+        }
+
+        context("when market manager is set", () => {
+            beforeEach(async () => {
+                await setup(deployer.address);
+            });
+
+            it("should revert with msg='UNKNOWN_ORDER' when order is unknown", async () => {
+                await expect(core.releaseOrderByManagerSig(1, 0, Buffer.alloc(0))).to.be.revertedWith("OC: UNKNOWN_ORDER");
+            });
+
+            it("should revert with msg='EXPIRED_SIG' when signature is expired", async () => {
+                const now = await advanceBlockTime(1);
+                await expect(core.releaseOrderByManagerSig(orderID, now, Buffer.alloc(0))).to.be.revertedWith("OC: EXPIRED_SIG");
+            });
+
+            it("should revert with msg='BAD_SIG' when signature is invalid", async () => {
+                const now = await advanceBlockTime(1);
+                await expect(core.releaseOrderByManagerSig(orderID, now + 10, Buffer.alloc(65))).to.be.revertedWith("OC: BAD_SIG");
+            });
+
+            it("should emit 'Swap' and 'FinalizedByManagerSig' on success", async () => {
+                const mgr = deployer;
+
+                await expect(core.connect(swapper).markOrderAsPaid(orderID)).not.to.be.reverted;
+
+                const expireAt = (await advanceBlockTime(2)) + 4;
+                const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint", "uint256", "uint", "uint256"], [chainId, orderID, 1, expireAt]));
+                const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
+                const signedMsg = await mgr.signMessage(msgHashBytes);
+
+                await expect(core.connect(user2).releaseOrderByManagerSig(orderID, expireAt, signedMsg))
+                    .to.emit(core, "Swap")
+                    .emit(core, "FinalizedByManagerSig")
+                    .withArgs(mgr.address, user2.address, orderID, 1);
+            });
         });
 
-        it("should revert with msg='UNKNOWN_ORDER' when order is unknown", async () => {
-            await expect(core.releaseOrderByManagerSig(1, 0, Buffer.alloc(0))).to.be.revertedWith("OC: UNKNOWN_ORDER");
-        });
+        describe("when market manager is not set", () => {
+            beforeEach(async () => {
+                await setup();
+            });
 
-        it("should revert with msg='NO_MGR_SET' when market has no manager set", async () => {
-            await expect(core.releaseOrderByManagerSig(orderID, 0, Buffer.alloc(0))).to.be.revertedWith("OC: NO_MGR_SET");
-        });
-
-        it("should revert with msg='EXPIRED_SIG' when signature is expired", async () => {
-            await mc.connect(marketCreator2).setManager(mid, deployer.address);
-            const now = await advanceBlockTime(1);
-            await expect(core.releaseOrderByManagerSig(orderID, now, Buffer.alloc(0))).to.be.revertedWith("OC: EXPIRED_SIG");
-        });
-
-        it("should revert with msg='BAD_SIG' when signature is invalid", async () => {
-            await mc.connect(marketCreator2).setManager(mid, deployer.address);
-            const now = await advanceBlockTime(1);
-            await expect(core.releaseOrderByManagerSig(orderID, now + 10, Buffer.alloc(65))).to.be.revertedWith("OC: BAD_SIG");
-        });
-
-        it("should emit 'Swap' and 'FinalizedByManagerSig' on success", async () => {
-            const mgr = deployer;
-            await mc.connect(marketCreator2).setManager(mid, mgr.address);
-
-            await expect(core.connect(swapper).markOrderAsPaid(orderID)).not.to.be.reverted;
-
-            const expireAt = (await advanceBlockTime(2)) + 4;
-            const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint", "uint256", "uint", "uint256"], [chainId, orderID, 1, expireAt]));
-            const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
-            const signedMsg = await mgr.signMessage(msgHashBytes);
-
-            await expect(core.connect(user2).releaseOrderByManagerSig(orderID, expireAt, signedMsg))
-                .to.emit(core, "Swap")
-                .emit(core, "FinalizedByManagerSig")
-                .withArgs(mgr.address, user2.address, orderID, 1);
+            it("should revert with msg='NO_MGR_SET' when market has no manager set", async () => {
+                await expect(core.releaseOrderByManagerSig(orderID, 0, Buffer.alloc(0))).to.be.revertedWith("OC: NO_MGR_SET");
+            });
         });
     });
 
@@ -1816,10 +1869,13 @@ describe("Core - Order", function () {
             await expect(core.connect(marketCreator2).cancelOrder(orderID)).to.be.revertedWith("OC: NOT_AUTHORIZED");
         });
 
-        it("should not revert with reason=NOT_AUTHORIZED when sender is market manager", async () => {
-            await mc.connect(marketCreator2).setManager(mid, user2.address);
-            const orderID = await createOrder_BaseOn_QuoteOff(mid);
-            await expect(core.connect(user2).cancelOrder(orderID)).not.to.be.revertedWith("OC: NOT_AUTHORIZED");
+        context("when market manager is set", () => {
+            it("should not revert with reason=NOT_AUTHORIZED when sender is market manager", async () => {
+                await mc.connect(marketCreator).createMarketWithManager(baseAddr, quoteAddr, 1, 0, false, false, 0, 0, user2.address);
+                mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 1, 0);
+                const orderID = await createOrder_BaseOn_QuoteOff(mid);
+                await expect(core.connect(user2).cancelOrder(orderID)).not.to.be.revertedWith("OC: NOT_AUTHORIZED");
+            });
         });
 
         it("should not revert with reason=NOT_AUTHORIZED when sender is a miner", async () => {
@@ -1933,6 +1989,7 @@ describe("Core - Order", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
+                    marketMgrData: Buffer.from([]),
                 });
 
                 mkt = await mc.getMarket(mid);
@@ -2003,6 +2060,7 @@ describe("Core - Order", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     },
                     {
                         value: swapCost,
@@ -2072,6 +2130,7 @@ describe("Core - Order", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
@@ -2144,6 +2203,7 @@ describe("Core - Order", function () {
                         ids: ids,
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
@@ -2222,6 +2282,7 @@ describe("Core - Order", function () {
                         ids: [],
                         expireAt: 0,
                         operator: 0,
+                        marketMgrData: Buffer.from([]),
                     }),
                 ).not.to.be.reverted;
                 const numOrders = (await core.state()).numOrders;
@@ -2285,7 +2346,7 @@ describe("Core - Order", function () {
         let orderID: BigNumber;
 
         beforeEach(async () => {
-            await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
+            await mc.connect(marketCreator2).createMarketWithManager(baseAddr, quoteAddr, 1, 0, false, false, 0, 0, deployer.address);
             mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 1, 0);
             orderID = await createOrder_BaseOn_QuoteOff(mid);
             await advanceBlockTime(orderLifeTime);
@@ -2295,25 +2356,27 @@ describe("Core - Order", function () {
             await expect(core.cancelOrderByManagerSig(1, 0, Buffer.alloc(0))).to.be.revertedWith("OC: UNKNOWN_ORDER");
         });
 
-        it("should revert with msg='NO_MGR_SET' when market has no manager set", async () => {
-            await expect(core.cancelOrderByManagerSig(orderID, 0, Buffer.alloc(0))).to.be.revertedWith("OC: NO_MGR_SET");
+        context("when market has no manager set", () => {
+            it("should revert with msg='NO_MGR_SET'", async () => {
+                await mc.connect(marketCreator).createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
+                mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 1, 0);
+                orderID = await createOrder_BaseOn_QuoteOff(mid);
+                await expect(core.cancelOrderByManagerSig(orderID, 0, Buffer.alloc(0))).to.be.revertedWith("OC: NO_MGR_SET");
+            });
         });
 
         it("should revert with msg='EXPIRED_SIG' when signature is expired", async () => {
-            await mc.connect(marketCreator2).setManager(mid, deployer.address);
             const now = await advanceBlockTime(1);
             await expect(core.cancelOrderByManagerSig(orderID, now, Buffer.alloc(0))).to.be.revertedWith("OC: EXPIRED_SIG");
         });
 
         it("should revert with msg='BAD_SIG' when signature is invalid", async () => {
-            await mc.connect(marketCreator2).setManager(mid, deployer.address);
             const now = await advanceBlockTime(1);
             await expect(core.cancelOrderByManagerSig(orderID, now + 10, Buffer.alloc(65))).to.be.revertedWith("OC: BAD_SIG");
         });
 
         it("should emit 'OrderCancelled' and 'FinalizedByManagerSig' on success", async () => {
             const mgr = deployer;
-            await mc.connect(marketCreator2).setManager(mid, mgr.address);
             const expireAt = (await advanceBlockTime(2)) + 4;
             const msgHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint", "uint256", "uint", "uint256"], [chainId, orderID, 2, expireAt]));
             const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");

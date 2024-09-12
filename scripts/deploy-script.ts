@@ -12,6 +12,7 @@ import {
     FeePool,
     FeePurse,
     MarketCore,
+    MarketManager,
     MediatorManager,
     MinerRegistry,
     NFT,
@@ -61,6 +62,7 @@ let assetReg: AssetRegistry;
 let provReg: ProviderRegistry;
 let router: Router;
 let payRouter: PayRouter;
+let marketManager: MarketManager;
 let feePurse: FeePurse;
 let deployer: SignerWithAddress;
 let accts: SignerWithAddress[];
@@ -130,6 +132,7 @@ async function deployLocal() {
     await deployProviderRegistry();
     await deployRouter();
     await deployPayRouter();
+    await deployMarketManager();
 }
 
 async function main() {
@@ -376,6 +379,18 @@ async function deployFeePurse() {
             });
         });
     });
+}
+
+async function deployMarketManager() {
+    await deployOrAttach<MarketManager>(
+        "MarketManager",
+        {MarketAuxLib: libs.MarketAuxLib.address},
+        [core.address, payRouter.address],
+        async (contract, attached) => {
+            marketManager = contract;
+            if (attached) return;
+        },
+    );
 }
 
 async function deployRandomness() {

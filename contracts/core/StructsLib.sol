@@ -235,6 +235,7 @@ library StructsLib {
         uint256[] ids;
         uint256 expireAt;
         uint256 operator;
+        bytes marketMgrData;
     }
 
     struct CreateOfferParams {
