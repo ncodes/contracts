@@ -12,6 +12,7 @@ contract FeePool is Ownable, ReentrancyGuard {
     address public tokenPool;
     address public notifier;
     IBadge public badge;
+    IWETH9 public weth;
 
     uint256 public rewardsDuration = 30 days;
     mapping(address => uint256) public rewardRates;
@@ -53,9 +54,11 @@ contract FeePool is Ownable, ReentrancyGuard {
     /// @notice Initialize the fee rewards contract.
     /// @param _tokenPool The token pool contract address
     /// @param _notifier The notifier contract
-    constructor(address _tokenPool, address _notifier) {
+    /// @param _weth The WETH contract address
+    constructor(address _tokenPool, address _notifier, address _weth) {
         tokenPool = _tokenPool;
         notifier = _notifier;
+        weth = IWETH9(_weth);
     }
 
     /// @notice Set reward duration
@@ -175,7 +178,7 @@ contract FeePool is Ownable, ReentrancyGuard {
     /// @notice Notify the contract of fee token transfer
     /// @param feeToken The fee token address
     /// @param amount The amount of fee token transferred
-    function notifyFeeDeposit(address feeToken, uint256 amount) external onlyNotifier updateReward(address(0)) {
+    function notifyFeeDeposit(address feeToken, uint256 amount) public onlyNotifier updateReward(address(0)) {
         require(amount > 0, "FR: AMOUNT_REQ");
 
         if (block.timestamp >= periodFinish[feeToken]) {
@@ -225,4 +228,14 @@ contract FeePool is Ownable, ReentrancyGuard {
     function tokenBalanceOf(address token) external view returns (uint256) {
         return IERC20(token).balanceOf(address(this));
     }
+
+    /// @notice Handle ETH deposit by converting to WETH and notifying the fee pool
+    function depositEth() external payable {
+        weth.deposit{value: msg.value}();
+        notifyFeeDeposit(address(weth), msg.value);
+    }
+}
+
+interface IWETH9 {
+    function deposit() external payable;
 }

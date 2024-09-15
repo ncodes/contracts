@@ -25,6 +25,7 @@ export enum ContractNames {
     MediatorManager = "MediatorManager",
     DisputeManager = "DisputeManager",
     NFT = "NFT",
+    MarketManager = "MarketManager",
     ENERGON = "ENERGON",
     WETH9 = "WETH9",
     UNI = "UNI",

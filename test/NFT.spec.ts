@@ -3,7 +3,7 @@ import {expect} from "chai";
 import {constants} from "ethers";
 import {formatBytes32String} from "ethers/lib/utils";
 import {ethers} from "hardhat";
-import {ENERGON, FeePool, NFT} from "../typechain-types";
+import {ENERGON, FeePool, NFT, WETH9} from "../typechain-types";
 import {advanceBlockTime, toBN} from "../utils/utils";
 import {MINTABLE_TOKEN} from "./../typechain-types/MINTABLE_TOKEN";
 
@@ -14,6 +14,7 @@ describe("NFT", function () {
     let deployer: SignerWithAddress;
     let user2: SignerWithAddress;
     let notifier: SignerWithAddress;
+    let weth: WETH9;
     let accts: SignerWithAddress[];
     let rewardToken: MINTABLE_TOKEN;
     const maxSupply = 10;
@@ -30,25 +31,18 @@ describe("NFT", function () {
         let TOKEN = await ethers.getContractFactory("MINTABLE_TOKEN");
         rewardToken = (await TOKEN.deploy("REWARD_TOKEN", "REWARD_TOKEN", supply, 18)) as MINTABLE_TOKEN;
 
+        let wethFac = await ethers.getContractFactory("WETH9");
+        weth = (await wethFac.deploy()) as WETH9;
+
         let supply2 = toBN("1000000000000000000000000");
         let ENERGON = await ethers.getContractFactory("ENERGON");
         e = (await ENERGON.deploy("ENERGON", "ENR", supply2, 18)) as ENERGON;
 
         let factory = await ethers.getContractFactory("FeePool");
-        feePool = (await factory.deploy(constants.AddressZero, notifier.address)) as FeePool;
+        feePool = (await factory.deploy(constants.AddressZero, notifier.address, weth.address)) as FeePool;
 
         let factory2 = await ethers.getContractFactory("NFT");
-        nft = (await factory2.deploy(
-            "NFT",
-            "NFT",
-            baseURI,
-            maxSupply,
-            treasuryEditionSupply,
-            feePool.address,
-            deployer.address,
-            e.address,
-            rewardToken.address,
-        )) as NFT;
+        nft = (await factory2.deploy("NFT", "NFT", baseURI, maxSupply, treasuryEditionSupply, feePool.address, deployer.address, e.address, rewardToken.address)) as NFT;
         await nft.setAllocator(deployer.address);
         await nft.toggleAllowMint();
     });
@@ -172,9 +166,7 @@ describe("NFT", function () {
 
     describe("allowAddr", () => {
         it("should revert with reason=OWNABLE: NOT_OWNER when sender is not owner", async () => {
-            await expect(nft.connect(user2).allowAddr(constants.AddressZero, 2, true)).to.be.revertedWith(
-                "OWNABLE: NOT_OWNER",
-            );
+            await expect(nft.connect(user2).allowAddr(constants.AddressZero, 2, true)).to.be.revertedWith("OWNABLE: NOT_OWNER");
         });
 
         it("should be successfully", async () => {
@@ -249,9 +241,7 @@ describe("NFT", function () {
 
         describe("when sender is owner", () => {
             it("should revert with msg=SURPASSED_MAX_SUPPLY when mint will surpass max supply", async () => {
-                await expect(nft.mint(maxSupply, false, Buffer.alloc(0), 0)).to.be.revertedWith(
-                    "NFT: SURPASSED_MAX_SUPPLY",
-                );
+                await expect(nft.mint(maxSupply, false, Buffer.alloc(0), 0)).to.be.revertedWith("NFT: SURPASSED_MAX_SUPPLY");
                 await expect(nft.mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
                 await expect(nft.mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
                 await expect(nft.mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
@@ -295,24 +285,18 @@ describe("NFT", function () {
                 expect(await nft.balanceOf(user2.address)).to.be.eql(toBN(1));
                 expect(await nft.allowlist(user2.address)).to.eql(toBN(0));
                 expect(await nft.mintedByAllowlist()).to.eq(1);
-                await expect(nft.connect(user2).mint(1, false, Buffer.alloc(0), 0)).to.be.revertedWith(
-                    "NFT: SIG_REQUIRED",
-                );
+                await expect(nft.connect(user2).mint(1, false, Buffer.alloc(0), 0)).to.be.revertedWith("NFT: SIG_REQUIRED");
             });
 
             it("should revert with reason=ABOVE_SLOT_LIMIT if mint amount > slot", async () => {
                 await expect(nft.allowAddr(user2.address, 2, true)).not.to.be.reverted;
-                await expect(nft.connect(user2).mint(3, false, Buffer.alloc(0), 0)).to.be.revertedWith(
-                    "NFT: ABOVE_SLOT_LIMIT",
-                );
+                await expect(nft.connect(user2).mint(3, false, Buffer.alloc(0), 0)).to.be.revertedWith("NFT: ABOVE_SLOT_LIMIT");
             });
         });
 
         describe("when sender is not owner and not on the allowlist", () => {
             it("should revert with reason=SIG_REQUIRED signature was not provided", async () => {
-                await expect(nft.connect(user2).mint(1, false, Buffer.alloc(0), 0)).to.be.revertedWith(
-                    "NFT: SIG_REQUIRED",
-                );
+                await expect(nft.connect(user2).mint(1, false, Buffer.alloc(0), 0)).to.be.revertedWith("NFT: SIG_REQUIRED");
             });
 
             it("should revert with reason=BAD_SIG when signature is bad", async () => {
@@ -321,33 +305,19 @@ describe("NFT", function () {
 
             it("should revert with reason=EXPIRED_SIG when signature has expired", async () => {
                 const expireAt = (await advanceBlockTime(1)) - 1;
-                const msgHash = ethers.utils.keccak256(
-                    ethers.utils.solidityPack(
-                        ["address", "uint256", "bool", "uint256"],
-                        [user2.address, toBN(1), false, toBN(expireAt)],
-                    ),
-                );
+                const msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "bool", "uint256"], [user2.address, toBN(1), false, toBN(expireAt)]));
                 const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
                 const signedMsg = await deployer.signMessage(msgHashBytes);
-                await expect(nft.connect(user2).mint(1, false, signedMsg, expireAt)).to.be.revertedWith(
-                    "NFT: EXPIRED_SIG",
-                );
+                await expect(nft.connect(user2).mint(1, false, signedMsg, expireAt)).to.be.revertedWith("NFT: EXPIRED_SIG");
             });
 
             it("should revert with reason=NO_PERMIT when contract is not permitted to receive energon", async () => {
                 await nft.setMintCost(1);
                 const expireAt = (await advanceBlockTime(1)) + 2;
-                const msgHash = ethers.utils.keccak256(
-                    ethers.utils.solidityPack(
-                        ["address", "uint256", "bool", "uint256"],
-                        [user2.address, toBN(1), false, toBN(expireAt)],
-                    ),
-                );
+                const msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "bool", "uint256"], [user2.address, toBN(1), false, toBN(expireAt)]));
                 const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
                 const signedMsg = await deployer.signMessage(msgHashBytes);
-                await expect(nft.connect(user2).mint(1, false, signedMsg, expireAt)).to.be.revertedWith(
-                    "ENERGON: NO_PERMIT",
-                );
+                await expect(nft.connect(user2).mint(1, false, signedMsg, expireAt)).to.be.revertedWith("ENERGON: NO_PERMIT");
             });
 
             it("should revert when contract cannot transfer Energon cost from sender", async () => {
@@ -355,17 +325,10 @@ describe("NFT", function () {
                 await e.addRecipient(nft.address);
                 await nft.setMintCost(cost);
                 const expireAt = (await advanceBlockTime(1)) + 4;
-                const msgHash = ethers.utils.keccak256(
-                    ethers.utils.solidityPack(
-                        ["address", "uint256", "bool", "uint256"],
-                        [user2.address, toBN(1), false, toBN(expireAt)],
-                    ),
-                );
+                const msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "bool", "uint256"], [user2.address, toBN(1), false, toBN(expireAt)]));
                 const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
                 const signedMsg = await deployer.signMessage(msgHashBytes);
-                await expect(nft.connect(user2).mint(1, false, signedMsg, expireAt)).to.be.revertedWith(
-                    "ERC20: insufficient allowance",
-                );
+                await expect(nft.connect(user2).mint(1, false, signedMsg, expireAt)).to.be.revertedWith("ERC20: insufficient allowance");
             });
 
             it("should successfully mint just 1 token", async () => {
@@ -374,12 +337,7 @@ describe("NFT", function () {
                 await e.addRecipient(user2.address);
                 await nft.setMintCost(cost);
                 const expireAt = (await advanceBlockTime(1)) + 4;
-                const msgHash = ethers.utils.keccak256(
-                    ethers.utils.solidityPack(
-                        ["address", "uint256", "bool", "uint256"],
-                        [user2.address, toBN(1), false, toBN(expireAt)],
-                    ),
-                );
+                const msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "bool", "uint256"], [user2.address, toBN(1), false, toBN(expireAt)]));
                 const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
                 const signedMsg = await deployer.signMessage(msgHashBytes);
                 await e.transfer(user2.address, cost);
@@ -401,12 +359,7 @@ describe("NFT", function () {
                     await e.addRecipient(user2.address);
                     await nft.setMintCost(cost);
                     const expireAt = (await advanceBlockTime(1)) + 4;
-                    const msgHash = ethers.utils.keccak256(
-                        ethers.utils.solidityPack(
-                            ["address", "uint256", "bool", "uint256"],
-                            [user2.address, toBN(1), true, toBN(expireAt)],
-                        ),
-                    );
+                    const msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "bool", "uint256"], [user2.address, toBN(1), true, toBN(expireAt)]));
                     const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
                     const signedMsg = await deployer.signMessage(msgHashBytes);
                     await expect(nft.connect(user2).mint(1, true, signedMsg, expireAt)).not.to.be.reverted;
@@ -420,9 +373,7 @@ describe("NFT", function () {
     describe(".mint and .mintTE", function () {
         describe("when sender is owner", () => {
             it("should revert with msg=SURPASSED_MAX_SUPPLY when mint will surpass max supply", async () => {
-                await expect(nft.mint(maxSupply, false, Buffer.alloc(0), 0)).to.be.revertedWith(
-                    "NFT: SURPASSED_MAX_SUPPLY",
-                );
+                await expect(nft.mint(maxSupply, false, Buffer.alloc(0), 0)).to.be.revertedWith("NFT: SURPASSED_MAX_SUPPLY");
 
                 // standard mint 1
                 await expect(nft.mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
@@ -462,9 +413,7 @@ describe("NFT", function () {
 
         it("should revert with msg= when token is not owned by the sender", async () => {
             await expect(nft.mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
-            await expect(nft.connect(user2).allocate(tokenId, 1, Buffer.alloc(10))).to.be.revertedWith(
-                "NFT: NOT_OWNER",
-            );
+            await expect(nft.connect(user2).allocate(tokenId, 1, Buffer.alloc(10))).to.be.revertedWith("NFT: NOT_OWNER");
         });
 
         it("should revert with msg=BAD_SIG when signature is invalid", async () => {
@@ -474,16 +423,9 @@ describe("NFT", function () {
 
         it("should revert with msg=BAD_SIG when allocator did not sign the signature", async () => {
             await expect(nft.mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
-            const signedMsg = await deployer.signMessage(
-                ethers.utils.solidityPack(
-                    ["address", "uint256", "uint256"],
-                    [deployer.address, tokenId, toBN(expectedAmount)],
-                ),
-            );
+            const signedMsg = await deployer.signMessage(ethers.utils.solidityPack(["address", "uint256", "uint256"], [deployer.address, tokenId, toBN(expectedAmount)]));
             await nft.setAllocator(user2.address);
-            await expect(nft.allocate(tokenId, 1, Buffer.from(signedMsg.substring(2), "hex"))).to.be.revertedWith(
-                "NFT: BAD_SIG",
-            );
+            await expect(nft.allocate(tokenId, 1, Buffer.from(signedMsg.substring(2), "hex"))).to.be.revertedWith("NFT: BAD_SIG");
         });
 
         let expectedAmount = 0;
@@ -498,12 +440,7 @@ describe("NFT", function () {
                 await nft.setCost(1);
 
                 // Sign message
-                const msgHash = ethers.utils.keccak256(
-                    ethers.utils.solidityPack(
-                        ["address", "uint256", "uint256"],
-                        [deployer.address, tokenId, toBN(expectedAmount)],
-                    ),
-                );
+                const msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "uint256"], [deployer.address, tokenId, toBN(expectedAmount)]));
                 const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
                 const signedMsg = await deployer.signMessage(msgHashBytes);
 
@@ -527,20 +464,13 @@ describe("NFT", function () {
                 await nft.setCost(1);
 
                 // Sign message
-                const msgHash = ethers.utils.keccak256(
-                    ethers.utils.solidityPack(
-                        ["address", "uint256", "uint256"],
-                        [deployer.address, tokenId, expectedAmount],
-                    ),
-                );
+                const msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "uint256"], [deployer.address, tokenId, expectedAmount]));
                 const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
                 const signedMsg = await deployer.signMessage(msgHashBytes);
 
                 // Attempt allocation with low balance
                 await nft.setAllocator(deployer.address);
-                await expect(
-                    nft.allocate(tokenId, expectedAmount, signedMsg, {value: toBN(expectedAmount - 1)}),
-                ).to.be.revertedWith("NFT: INSUFFICIENT_DEPOSIT");
+                await expect(nft.allocate(tokenId, expectedAmount, signedMsg, {value: toBN(expectedAmount - 1)})).to.be.revertedWith("NFT: INSUFFICIENT_DEPOSIT");
             });
         });
     });
@@ -621,12 +551,7 @@ describe("NFT", function () {
             await nft.setCost(1);
 
             // Sign message
-            const msgHash = ethers.utils.keccak256(
-                ethers.utils.solidityPack(
-                    ["address", "uint256", "uint256"],
-                    [deployer.address, tokenId, toBN(expectedAmount)],
-                ),
-            );
+            const msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "uint256"], [deployer.address, tokenId, toBN(expectedAmount)]));
             const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
             const signedMsg = await deployer.signMessage(msgHashBytes);
 
@@ -639,21 +564,15 @@ describe("NFT", function () {
 
         it("should revert with reason='BURN_DISABLED' if burn is disabled", async () => {
             await nft.toggleAllowEnergonOps();
-            await expect(nft.connect(user2).burnEnergon(tokenId, 0, formatBytes32String(""))).to.be.revertedWith(
-                "NFT: BURN_DISABLED",
-            );
+            await expect(nft.connect(user2).burnEnergon(tokenId, 0, formatBytes32String(""))).to.be.revertedWith("NFT: BURN_DISABLED");
         });
 
         it("should revert with reason='NOT_OWNER' if sender is not owner of token", async () => {
-            await expect(nft.connect(user2).burnEnergon(tokenId, 0, formatBytes32String(""))).to.be.revertedWith(
-                "NFT: NOT_OWNER",
-            );
+            await expect(nft.connect(user2).burnEnergon(tokenId, 0, formatBytes32String(""))).to.be.revertedWith("NFT: NOT_OWNER");
         });
 
         it("should revert with reason='INSUFFICIENT_BAL' if sender has insufficient energon balance", async () => {
-            await expect(nft.burnEnergon(tokenId, expectedAmount + 1, formatBytes32String(""))).to.be.revertedWith(
-                "NFT: INSUFFICIENT_BAL",
-            );
+            await expect(nft.burnEnergon(tokenId, expectedAmount + 1, formatBytes32String(""))).to.be.revertedWith("NFT: INSUFFICIENT_BAL");
         });
 
         it("should burn successfully", async () => {
@@ -678,12 +597,7 @@ describe("NFT", function () {
             await nft.setCost(1);
 
             // Sign message
-            const msgHash = ethers.utils.keccak256(
-                ethers.utils.solidityPack(
-                    ["address", "uint256", "uint256"],
-                    [deployer.address, tokenId, toBN(expectedAmount)],
-                ),
-            );
+            const msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "uint256"], [deployer.address, tokenId, toBN(expectedAmount)]));
             const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
             const signedMsg = await deployer.signMessage(msgHashBytes);
 
@@ -707,9 +621,7 @@ describe("NFT", function () {
             const allowance = 10 + 1;
             await nft.burnApprove(tokenId, user2.address, allowance + 1);
             expect(await nft.burnAllowance(tokenId, user2.address)).to.eq(allowance + 1);
-            await expect(nft.connect(user2).burnFrom(tokenId, allowance + 1)).to.be.revertedWith(
-                "NFT: INSUFFICIENT_BAL",
-            );
+            await expect(nft.connect(user2).burnFrom(tokenId, allowance + 1)).to.be.revertedWith("NFT: INSUFFICIENT_BAL");
         });
 
         it("should burn successfully", async () => {
@@ -734,12 +646,7 @@ describe("NFT", function () {
             await expect(nft.mint(1, false, Buffer.alloc(0), 0)).not.to.be.reverted;
 
             // Sign message
-            const msgHash = ethers.utils.keccak256(
-                ethers.utils.solidityPack(
-                    ["address", "uint256", "uint256"],
-                    [deployer.address, tokenId, toBN(expectedAmount)],
-                ),
-            );
+            const msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "uint256"], [deployer.address, tokenId, toBN(expectedAmount)]));
             const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
             const signedMsg = await deployer.signMessage(msgHashBytes);
 
@@ -777,19 +684,13 @@ describe("NFT", function () {
             await nft.setCost(1);
 
             // Sign message
-            const msgHash = ethers.utils.keccak256(
-                ethers.utils.solidityPack(
-                    ["address", "uint256", "uint256"],
-                    [deployer.address, tokenId, toBN(expectedAmount)],
-                ),
-            );
+            const msgHash = ethers.utils.keccak256(ethers.utils.solidityPack(["address", "uint256", "uint256"], [deployer.address, tokenId, toBN(expectedAmount)]));
             const msgHashBytes = Buffer.from(msgHash.substring(2), "hex");
             const signedMsg = await deployer.signMessage(msgHashBytes);
 
             // Allocate
             await nft.setAllocator(deployer.address);
-            await expect(nft.allocate(tokenId, expectedAmount, signedMsg, {value: toBN(expectedAmount)})).not.to.be
-                .reverted;
+            await expect(nft.allocate(tokenId, expectedAmount, signedMsg, {value: toBN(expectedAmount)})).not.to.be.reverted;
 
             expect(await ethers.provider.getBalance(nft.address)).to.eql(toBN(expectedAmount));
             const before = await deployer.getBalance();

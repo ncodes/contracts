@@ -2,8 +2,8 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
 import {BigNumber, BigNumberish} from "ethers";
 import {ethers} from "hardhat";
-import {AssetRegistry, Core, FeePool, FeePurse, MarketCore, MediatorManager, TOKEN} from "../../typechain-types";
-import {AddressZero, AssetType, advanceBlockTime, getERC20, makeMarketID, powOf, toBN, toDec} from "../../utils/utils";
+import {AssetRegistry, Core, FeePool, FeePurse, MarketCore, MediatorManager, TOKEN, WETH9} from "../../typechain-types";
+import {AddressZero, AssetType, advanceBlockTime, makeMarketID, powOf, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
 const {getContractFactory} = ethers;
 
@@ -22,6 +22,7 @@ describe("Core", function () {
     let token: TOKEN;
     let baseAsset: TOKEN;
     let quoteAsset: TOKEN;
+    let weth: WETH9;
     let mid: string;
     let tokenDec: BigNumber;
     let baseDec: BigNumber;
@@ -74,6 +75,7 @@ describe("Core", function () {
         inventor = vars.inventor;
         user5 = vars.user5;
         medMgr = vars.mediatorMgr;
+        weth = vars.weth;
 
         await medMgr.updateTicketPool(0, vars.ticketBondAmt, 10, 10, 100, 100, 1, 0, 0, false, false);
     });
@@ -214,7 +216,7 @@ describe("Core", function () {
         });
     });
 
-    describe.skip(".transferToFeePool", () => {
+    describe(".transferToFeePool", () => {
         const marketCom = 0.1 * 100;
         let fp: FeePool;
         let protoFee: BigNumber;
@@ -225,7 +227,7 @@ describe("Core", function () {
                 await core.configureFeePool(toBN(86400));
 
                 let factory = await getContractFactory("FeePool");
-                fp = (await factory.deploy(user5.address, core.address)) as FeePool;
+                fp = (await factory.deploy(user5.address, core.address, weth.address)) as FeePool;
                 await core.setFeePool(fp.address);
                 await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, 1, 1, false, false, marketCom, 0);
                 mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 1, 1);
@@ -280,27 +282,19 @@ describe("Core", function () {
             });
         });
 
-        context("fee purse is zero (fork mainnet)", () => {
-            const WETH9 = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
-
+        context("fee purse is zero", () => {
             beforeEach(async () => {
                 await core.configureFeePool(toBN(86400));
 
-                // set up provider's impersonated account (UNI)
-                baseAddr = "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984";
-                await core.setAmmPoolInfo(baseAddr, WETH9, 3000);
-                const baseAsset = getERC20(ethers.provider, baseAddr);
-                provider = await ethers.getImpersonatedSigner("0xb93B36F305464761ABDbd01D7731D4BA496Fb6Fb");
-                await core.setAmmInfo("0xE592427A0AEce92De3Edee1F18E0157C05861564", WETH9, 3000);
-
                 // Setup Fee pool
                 let factory = await getContractFactory("FeePool");
-                fp = (await factory.deploy(user5.address, core.address)) as FeePool;
+                fp = (await factory.deploy(user5.address, core.address, weth.address)) as FeePool;
                 await core.setFeePool(fp.address);
                 await mc.connect(marketCreator2).createMarket(baseAddr, quoteAddr, 1, 1, false, false, marketCom, 0);
                 mid = makeMarketID(marketCreator2.address, baseAddr, quoteAddr, 1, 1);
 
                 // Add provider's liquidity
+                await baseAsset.transfer(provider.address, amountOfBase);
                 await baseAsset.connect(provider).approve(core.address, amountOfBase);
                 await core.connect(provider).updateFungibleLiquidity({
                     marketId: mid,
@@ -357,12 +351,12 @@ describe("Core", function () {
                 expect((await core.shareablesBalanceOf(baseAddr)).eq(0)).to.be.true;
 
                 // ensure fee pool contract has non zero balance
-                expect(await getERC20(ethers.provider, WETH9).balanceOf(fp.address)).not.to.eq(0);
+                expect(await baseAsset.balanceOf(fp.address)).to.eq(shareableBal);
 
                 // expect fee pool to have been notified
-                expect((await fp.periodFinish(WETH9)).gt(0)).to.be.true;
-                expect((await fp.lastUpdateTime(WETH9)).gt(0)).to.be.true;
-                expect((await fp.rewardRates(WETH9)).gt(0)).to.be.true;
+                expect((await fp.periodFinish(baseAddr)).gt(0)).to.be.true;
+                expect((await fp.lastUpdateTime(baseAddr)).gt(0)).to.be.true;
+                expect((await fp.rewardRates(baseAddr)).gt(0)).to.be.true;
             });
 
             it("should revert with msg='OC: NOT_READY' when called before the next call interval", async () => {
@@ -375,9 +369,8 @@ describe("Core", function () {
             });
         });
 
-        context("fee token is native ETH; convert to ERC20 and send to FeePool (fork mainnet)", () => {
+        context("fee token is native ETH, send to FeePool and FeePool must convert to WETH", () => {
             const WETH9 = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
-            const outToken = "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984"; // UNI
 
             beforeEach(async () => {
                 const nativeAssetAddr = WETH9;
@@ -387,14 +380,9 @@ describe("Core", function () {
                 await core.configureFeePool(toBN(86400));
                 amountOfBase = powOf(10, 18);
 
-                // set up provider's impersonated account (UNI)
-                await core.setAmmPoolInfo(nativeAssetAddr, outToken, 3000);
-                provider = await ethers.getImpersonatedSigner("0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B");
-                await core.setAmmInfo("0xE592427A0AEce92De3Edee1F18E0157C05861564", WETH9, 3000);
-
                 // Setup Fee pool
                 let factory = await getContractFactory("FeePool");
-                fp = (await factory.deploy(user5.address, core.address)) as FeePool;
+                fp = (await factory.deploy(user5.address, core.address, weth.address)) as FeePool;
                 await core.setFeePool(fp.address);
 
                 // Create market
@@ -402,19 +390,22 @@ describe("Core", function () {
                 mid = makeMarketID(marketCreator2.address, nativeAssetAddr, quoteAddr, AssetType.NATIVE, AssetType.ERC20);
 
                 // Add provider's liquidity
-                await core.connect(provider).updateFungibleLiquidity({
-                    marketId: mid,
-                    target: AddressZero,
-                    lid: 0,
-                    amount: amountOfBase,
-                    price: pricePerBase,
-                    timeToPay: 0,
-                    expireAt: 0,
-                    pause: false,
-                    wantOrIds: [],
-                    wantAndIds: [],
-                    deduct: false,
-                });
+                await core.connect(provider).updateFungibleLiquidity(
+                    {
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        amount: amountOfBase,
+                        price: pricePerBase,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        pause: false,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                    },
+                    {value: amountOfBase},
+                );
 
                 // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
                 const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
@@ -456,12 +447,12 @@ describe("Core", function () {
                 expect((await core.shareablesBalanceOf(baseAddr)).eq(0)).to.be.true;
 
                 // ensure fee pool contract has non zero balance
-                expect(await getERC20(ethers.provider, outToken).balanceOf(fp.address)).not.to.eq(0);
+                expect(await weth.balanceOf(fp.address)).to.eq(shareableBal);
 
                 // expect fee pool to have been notified
-                expect((await fp.periodFinish(outToken)).gt(0)).to.be.true;
-                expect((await fp.lastUpdateTime(outToken)).gt(0)).to.be.true;
-                expect((await fp.rewardRates(outToken)).gt(0)).to.be.true;
+                expect((await fp.periodFinish(weth.address)).gt(0)).to.be.true;
+                expect((await fp.lastUpdateTime(weth.address)).gt(0)).to.be.true;
+                expect((await fp.rewardRates(weth.address)).gt(0)).to.be.true;
             });
         });
     });

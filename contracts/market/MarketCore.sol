@@ -105,8 +105,7 @@ contract MarketCore is Writable {
     }
 
     /// @notice Set the native asset address.
-    /// Note: This should be set to the same address used by the preferred AMM Dex used
-    /// for converting wrapped ETH to ETH or other output tokens.
+    /// Use an address that is not in use by any other token contract
     /// @param addr The native asset address
     function setNativeAssetAddr(address addr) public onlyOwner {
         nativeAssetAddr = addr;

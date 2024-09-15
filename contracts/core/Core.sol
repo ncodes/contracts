@@ -48,7 +48,6 @@ contract Core is Ownable, ERC1155Holder {
     );
     event SwapOrderPaid(uint256 indexed orderID, address payer, uint256 disputeDelayDur);
     event OrderCancelled(uint256 indexed orderID, address indexed canceller, bool indexed byDispute);
-    event TransferredToFeePool(address indexed token, uint256 amount, address convAsset, uint256 convAmount);
     event FinalizedByManagerSig(address manager, address finalizer, uint256 orderId, uint action);
     event ProtocolFeeUpdated(
         uint256 instantSwapFeeBp,
@@ -129,8 +128,7 @@ contract Core is Ownable, ERC1155Holder {
     event UpdatedDisputeManager(address addr);
     event UpdatedOperator(address addr);
     event UpdatedMinerRegistry(address addr);
-    event UpdatedAMMInfo(address swapRouter, address ethErc20Addr, uint256 poolFee);
-    event UpdatedAMMPoolInfo(address input, address output, uint256 poolFee);
+    event TransferredToFeePool(address indexed token, uint256 amount);
 
     /// @dev Modifier to ensure a market exist
     /// @param id The market ID
@@ -249,26 +247,6 @@ contract Core is Ownable, ERC1155Holder {
     function setMinerRegistry(address addr) external onlyOwner {
         state2.minerReg = IMinerRegistry(addr);
         emit UpdatedMinerRegistry(addr);
-    }
-
-    /// @notice Set native AMM information
-    /// @param swapRouter The address of the swap router
-    /// @param ethErc20Addr The address of the ETH ERC20 token
-    /// @param poolFee The fee tier of ETH pool on the native AMM DEX
-    function setAmmInfo(address swapRouter, address ethErc20Addr, uint256 poolFee) external onlyOwner {
-        state2.ammEth = ethErc20Addr;
-        state2.ints.ammEthPoolFee = poolFee;
-        state.ammSwapRouter = swapRouter;
-        emit UpdatedAMMInfo(swapRouter, ethErc20Addr, poolFee);
-    }
-
-    /// @notice Set AMM pool info a given input address
-    /// @param input The input token address
-    /// @param out The output token address
-    /// @param poolFee The fee tier of the pool
-    function setAmmPoolInfo(address input, address out, uint256 poolFee) external onlyOwner {
-        state2.ammSwapPool[input] = StructsLib.AmmSwapPoolInfo(out, poolFee);
-        emit UpdatedAMMPoolInfo(input, out, poolFee);
     }
 
     /// @notice Updated the FeePurse contract

@@ -2,7 +2,7 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
 import {BigNumber} from "ethers";
 import {ethers} from "hardhat";
-import {BadgeManager, FeePool, TOKEN, TokenPool} from "../typechain-types";
+import {BadgeManager, FeePool, TOKEN, TokenPool, WETH9} from "../typechain-types";
 import {advanceBlockTime, toBN} from "../utils/utils";
 
 describe("TokenPool", function () {
@@ -16,6 +16,7 @@ describe("TokenPool", function () {
     let rewardToken: TOKEN;
     let tokenDec: BigNumber;
     let badgeMgr: BadgeManager;
+    let weth: WETH9;
 
     beforeEach(async () => {
         accts = await ethers.getSigners();
@@ -29,11 +30,14 @@ describe("TokenPool", function () {
         rewardToken = (await TOKEN.deploy("REWARD_TOKEN", "REWARD_TOKEN", supply, 18)) as TOKEN;
         tokenDec = toBN(10).pow(18);
 
+        let wethFac = await ethers.getContractFactory("WETH9");
+        weth = (await wethFac.deploy()) as WETH9;
+
         let tokenPoolFac = await ethers.getContractFactory("TokenPool");
         tokenPool = (await tokenPoolFac.deploy(stakingToken.address, rewardToken.address)) as TokenPool;
 
         let feePoolFac = await ethers.getContractFactory("FeePool");
-        feePool = (await feePoolFac.deploy(tokenPool.address, accts[4].address)) as FeePool;
+        feePool = (await feePoolFac.deploy(tokenPool.address, accts[4].address, weth.address)) as FeePool;
         await tokenPool.setFeePool(feePool.address);
 
         let badgeFac = await ethers.getContractFactory("BadgeManager");
@@ -161,9 +165,7 @@ describe("TokenPool", function () {
         });
 
         it("should revert with reason=INSUFFICIENT_BALANCE when user has insufficient reward balance", async () => {
-            await expect(tokenPool.connect(user2).withdrawReward(tokenDec.mul(2))).to.be.revertedWith(
-                "INSUFFICIENT_BALANCE",
-            );
+            await expect(tokenPool.connect(user2).withdrawReward(tokenDec.mul(2))).to.be.revertedWith("INSUFFICIENT_BALANCE");
         });
 
         it("should successfully withdraw reward", async () => {
@@ -206,9 +208,7 @@ describe("TokenPool", function () {
         it("should revert with reason=INVALID_TOKEN_ADDRESS when asset is the staking asset", async () => {
             await stakingToken.approve(tokenPool.address, tokenDec.mul(1000));
             await tokenPool.stake(1000);
-            await expect(tokenPool.recoverERC20(stakingToken.address, 1)).to.be.revertedWith(
-                "TP: INVALID_TOKEN_ADDRESS",
-            );
+            await expect(tokenPool.recoverERC20(stakingToken.address, 1)).to.be.revertedWith("TP: INVALID_TOKEN_ADDRESS");
         });
 
         it("should withdraw successfully", async () => {

@@ -53,8 +53,6 @@ library StructsLib {
         uint256 feePoolTxInterval;
         // The protocol inventor.
         address inventor;
-        // The AMM swap router address
-        address ammSwapRouter;
         // The list of orders.
         Structs.Order[] orders;
         // Temporary list of reward log to be skipped
@@ -81,17 +79,9 @@ library StructsLib {
         mapping(address => uint256) lastFeePoolTransfer;
     }
 
-    struct UintSlotState2 {
-        // The fee tier of ETH pool on the native AMM DEX
-        uint256 ammEthPoolFee;
-    }
-
     struct State2 {
-        UintSlotState2 ints;
         // Dispute manager contract address
         address disputeManager;
-        // ETH ERC20 token on native AMM
-        address ammEth;
         // Provider registry contract address
         IProviderRegistry provReg;
         // Registry for asset information
@@ -115,16 +105,8 @@ library StructsLib {
         // Liquidity-level badges required of swappers.
         // market => provider => liquidity ID => [badgeID ... badgeID
         mapping(address => mapping(address => mapping(uint256 => string[2][]))) reqSwapBadges;
-        // AMM pools where an asset can be swapped
-        // input address => output (address, pool fee)
-        mapping(address => AmmSwapPoolInfo) ammSwapPool;
         // Used to initialize an uint256 mapping.
         mapping(uint256 => bool) intIdx;
-    }
-
-    struct AmmSwapPoolInfo {
-        address outAddr;
-        uint256 poolFee;
     }
 
     struct SwapSlotAddresses {

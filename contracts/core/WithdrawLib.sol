@@ -6,12 +6,13 @@ import "../common/SafeERC20.sol";
 import "../pools/interfaces/IFeePool.sol";
 import "../feepurse/interfaces/IFeePurse.sol";
 import "../market/interfaces/IMarketCore.sol";
+import "hardhat/console.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
 library WithdrawLib {
     using SafeERC20 for IERC20;
 
-    event TransferredToFeePool(address indexed token, uint256 amount, address convAsset, uint256 convAmount);
+    event TransferredToFeePool(address indexed token, uint256 amount);
     event TransferInventorBalance(address owner, address token, uint256 amount);
     event TransferOperatorBalance(address owner, address token, uint256 amount);
 
@@ -29,7 +30,7 @@ library WithdrawLib {
         }
 
         emit TransferInventorBalance(state.inventor, asset, bal);
-        
+
         bal = state2.feePurse.balanceOf(state.inventor);
         if (bal > 0) {
             state2.feePurse.withdrawFrom(bal, state.inventor, state.inventor);
@@ -75,42 +76,15 @@ library WithdrawLib {
             state.shareablesBalance[token] = 0;
             state.lastFeePoolTransfer[token] = block.timestamp;
 
-            // Convert balance to another asset (e.g. ETH, USDC)
-            ISwapRouter swapRouter = ISwapRouter(state.ammSwapRouter);
-
-            // Determine the output asset and pool
-            address tokenOut = state2.ammEth;
-            uint256 poolFee = state2.ints.ammEthPoolFee;
-            if (state2.ammSwapPool[token].outAddr != address(0)) {
-                tokenOut = state2.ammSwapPool[token].outAddr;
-                poolFee = state2.ammSwapPool[token].poolFee;
-            }
-
-            require(token != tokenOut, "OC: SAME_ASSET");
-
-            // Execute swap
-            IERC20(token).safeIncreaseAllowance(address(swapRouter), bal);
-            ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
-                tokenIn: token,
-                tokenOut: tokenOut,
-                fee: uint24(poolFee),
-                recipient: address(state2.feePool),
-                deadline: block.timestamp,
-                amountIn: bal,
-                amountOutMinimum: 0,
-                sqrtPriceLimitX96: 0
-            });
-
-            uint256 amountOut;
-            if (token == IMarketCore(state2.marketCore).getNativeAssetAddr()) {
-                amountOut = swapRouter.exactInputSingle{value: bal}(params);
+            if (IMarketCore(state2.marketCore).getNativeAssetAddr() == token) {
+                state2.feePool.depositEth{value: bal}();
             } else {
-                amountOut = swapRouter.exactInputSingle(params);
+                IERC20(token).transfer(address(state2.feePool), bal);
+                state2.feePool.notifyFeeDeposit(token, bal);
             }
 
             // Notify fee pool of new deposit
-            state2.feePool.notifyFeeDeposit(tokenOut, amountOut);
-            emit TransferredToFeePool(token, bal, tokenOut, amountOut);
+            emit TransferredToFeePool(token, bal);
         }
 
         // Transfer shareable fees held in feepurse to feepool
@@ -118,7 +92,7 @@ library WithdrawLib {
         if (bal > 0) {
             state2.feePurse.withdraw(bal, address(state2.feePool));
             state2.feePool.notifyFeeDeposit(address(state2.feePurse.getFeeToken()), bal);
-            emit TransferredToFeePool(address(state2.feePurse.getFeeToken()), bal, address(0), 0);
+            emit TransferredToFeePool(address(state2.feePurse.getFeeToken()), bal);
         }
     }
 }

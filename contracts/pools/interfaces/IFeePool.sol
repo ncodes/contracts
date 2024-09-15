@@ -2,6 +2,8 @@
 pragma solidity ^0.8.13;
 
 interface IFeePool {
+    function depositEth() external payable;
+
     function notifyWithdraw(address account, uint256 _amount) external;
 
     function notifyStake(address account, uint256 _amount) external;

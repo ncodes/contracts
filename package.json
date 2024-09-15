@@ -41,6 +41,7 @@
   "dependencies": {
     "@chainlink/contracts": "^0.6.1",
     "@enzoferey/ethers-error-parser": "^0.2.3",
+    "@jointlabs/meta": "^0.0.1",
     "@nomiclabs/hardhat-etherscan": "^3.1.5",
     "@openzeppelin/merkle-tree": "^1.0.6",
     "@types/command-line-args": "^5.2.0",

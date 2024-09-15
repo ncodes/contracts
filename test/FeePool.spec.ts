@@ -1,12 +1,13 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
 import {ethers} from "hardhat";
-import {BadgeManager, FeePool, MINTABLE_TOKEN, TokenPool} from "../typechain-types";
+import {BadgeManager, FeePool, MINTABLE_TOKEN, TokenPool, WETH9} from "../typechain-types";
 import {advanceBlockTime, toBN} from "../utils/utils";
 
 describe("FeePool", function () {
     let tokenPool: TokenPool;
     let feePool: FeePool;
+    let weth: WETH9;
     let deployer: SignerWithAddress;
     let user2: SignerWithAddress;
     let notifier: SignerWithAddress;
@@ -25,6 +26,9 @@ describe("FeePool", function () {
         user2 = accts[2];
         notifier = accts[3];
 
+        let wethFac = await ethers.getContractFactory("WETH9");
+        weth = (await wethFac.deploy()) as WETH9;
+
         let supply = toBN("500000000000000000000000000");
         let tokenFac = await ethers.getContractFactory("MINTABLE_TOKEN");
         stakingToken = (await tokenFac.deploy("STAKE_TOKEN", "STAKE_TOKEN", supply, 18)) as MINTABLE_TOKEN;
@@ -37,7 +41,7 @@ describe("FeePool", function () {
         tokenPool = (await tokenPoolFac.deploy(stakingToken.address, rewardToken.address)) as TokenPool;
 
         let feePoolFac = await ethers.getContractFactory("FeePool");
-        feePool = (await feePoolFac.deploy(tokenPool.address, notifier.address)) as FeePool;
+        feePool = (await feePoolFac.deploy(tokenPool.address, notifier.address, weth.address)) as FeePool;
         await tokenPool.setFeePool(feePool.address);
         await feePool.setRewardDuration(86400); // 1 day
 
