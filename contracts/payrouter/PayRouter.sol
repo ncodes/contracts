@@ -53,6 +53,7 @@ contract PayRouter is Ownable {
     uint256 public protocolFeeBp;
     mapping(uint256 => Route) public routes;
     mapping(uint256 => Org) public orgs;
+    mapping(address => mapping(string => bool)) public userOrgs;
     mapping(uint256 => mapping(address => bool)) public approvedRouteRequesters;
     mapping(uint256 => Request) public requests;
     mapping(address => uint256) public requestersFeeBp;
@@ -142,9 +143,18 @@ contract PayRouter is Ownable {
     /// @notice Create an organization
     /// @param name The name of the organization
     function createOrg(string calldata name) external {
+        require(!userOrgs[msg.sender][name], "PR: ORG_EXISTS");
         numOrgs++;
         orgs[numOrgs] = Org(msg.sender, name);
+        userOrgs[msg.sender][name] = true;
         emit OrgCreated(msg.sender, name, numOrgs);
+    }
+
+    /// @notice Check if a user created an organization
+    /// @param user The user address
+    /// @param name The name of the organization
+    function userHasOrg(address user, string calldata name) external view returns (bool) {
+        return userOrgs[user][name];
     }
 
     /// @notice Create a route

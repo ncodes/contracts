@@ -145,6 +145,18 @@ describe("PayRouter", function () {
             expect(org.creator).to.eq(deployer.address);
             expect(org.name).to.eq("org1");
         });
+
+        it("should revert with reason=ORG_EXISTS when org already exists", async () => {
+            await payRouter.createOrg("org1");
+            expect(await payRouter.userHasOrg(deployer.address, "org1")).to.be.true;
+
+            await expect(payRouter.createOrg("org1")).to.be.revertedWith("PR: ORG_EXISTS");
+
+            // should allow another account create same org name
+            expect(await payRouter.userHasOrg(user2.address, "org1")).to.be.false;
+            await expect(payRouter.connect(user2).createOrg("org1")).to.emit(payRouter, "OrgCreated").withArgs(user2.address, "org1", 2);
+            expect(await payRouter.userHasOrg(user2.address, "org1")).to.be.true;
+        });
     });
 
     describe(".createRoute", () => {
