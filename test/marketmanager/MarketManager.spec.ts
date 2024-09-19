@@ -165,6 +165,29 @@ describe("MarketManager", function () {
         });
     });
 
+    // test: setRouteValueLockDuration
+    describe(".setRouteValueLockDuration", () => {
+        it("should revert if the caller is not the owner", async () => {
+            await expect(mktMgr.connect(swapper).setRouteValueLockDuration(0, 100)).to.be.revertedWith("OWNABLE: NOT_OWNER");
+        });
+
+        it("should set the value lock duration for a route", async () => {
+            await mktMgr.setRouteValueLockDuration(0, 100);
+            expect(await mktMgr.routeValueLockDuration(0)).to.eq(100);
+        });
+    });
+
+    describe(".getHighestValueLockDuration", () => {
+        it("should return the highest value lock duration", async () => {
+            await mktMgr.setRouteValueLockDuration(0, 100);
+            await mktMgr.setRouteValueLockDuration(1, 210);
+            await mktMgr.setRouteValueLockDuration(2, 200);
+            expect(await mktMgr.getHighestValueLockDuration([0, 1])).to.eq(210);
+            expect(await mktMgr.getHighestValueLockDuration([0, 2])).to.eq(200);
+            expect(await mktMgr.getHighestValueLockDuration([3, 4])).to.eq(0);
+        });
+    });
+
     describe(".beforeSwap", () => {
         it("should revert if the caller is not the core", async () => {
             await mktMgr.setCore(AddressZero);
@@ -187,7 +210,13 @@ describe("MarketManager", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
-                    marketMgrData: abi.encode(["uint256[]", "uint256[]", "uint256"], [[0, 1], [0, 0], 0]),
+                    marketMgrData: abi.encode(
+                        ["uint256[]", "uint256[]"],
+                        [
+                            [0, 1],
+                            [0, 0],
+                        ],
+                    ),
                 }),
             ).to.be.revertedWith("MM: NOT_CORE");
         });
@@ -212,7 +241,13 @@ describe("MarketManager", function () {
                 ids: [],
                 expireAt: 0,
                 operator: 0,
-                marketMgrData: abi.encode(["uint256[]", "uint256[]", "uint256"], [[0, 1], [0, 0], 0]),
+                marketMgrData: abi.encode(
+                    ["uint256[]", "uint256[]"],
+                    [
+                        [0, 1],
+                        [0, 0],
+                    ],
+                ),
             };
 
             await mktMgr.setCore(AddressZero);
@@ -249,7 +284,13 @@ describe("MarketManager", function () {
                 ids: [],
                 expireAt: 0,
                 operator: 0,
-                marketMgrData: abi.encode(["uint256[]", "uint256[]", "uint256"], [[0, 1], [0, 0], 0]),
+                marketMgrData: abi.encode(
+                    ["uint256[]", "uint256[]"],
+                    [
+                        [0, 1],
+                        [0, 0],
+                    ],
+                ),
             };
 
             await mktMgr.setCore(AddressZero);
@@ -288,7 +329,13 @@ describe("MarketManager", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
-                    marketMgrData: abi.encode(["uint256[]", "uint256[]", "uint256"], [[0, 1], [0, 0], 0]),
+                    marketMgrData: abi.encode(
+                        ["uint256[]", "uint256[]"],
+                        [
+                            [0, 1],
+                            [0, 0],
+                        ],
+                    ),
                 }),
             ).not.to.be.reverted;
 
@@ -324,7 +371,13 @@ describe("MarketManager", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
-                    marketMgrData: abi.encode(["uint256[]", "uint256[]", "uint256"], [[0, 1], [0, 0], 0]),
+                    marketMgrData: abi.encode(
+                        ["uint256[]", "uint256[]"],
+                        [
+                            [0, 1],
+                            [0, 0],
+                        ],
+                    ),
                 }),
             ).not.to.be.reverted;
 
@@ -390,7 +443,13 @@ describe("MarketManager", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
-                    marketMgrData: abi.encode(["uint256[]", "uint256[]", "uint256"], [[0, 1], [powOf(10), 0], 0]),
+                    marketMgrData: abi.encode(
+                        ["uint256[]", "uint256[]"],
+                        [
+                            [0, 1],
+                            [powOf(10), 0],
+                        ],
+                    ),
                 }),
             ).not.to.be.reverted;
 
@@ -435,7 +494,13 @@ describe("MarketManager", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
-                    marketMgrData: abi.encode(["uint256[]", "uint256[]", "uint256"], [[0, 1], [powOf(10), 0], 0]),
+                    marketMgrData: abi.encode(
+                        ["uint256[]", "uint256[]"],
+                        [
+                            [0, 1],
+                            [powOf(10), 0],
+                        ],
+                    ),
                 }),
             ).not.to.be.reverted;
 
@@ -472,7 +537,13 @@ describe("MarketManager", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
-                    marketMgrData: abi.encode(["uint256[]", "uint256[]", "uint256"], [[0, 1], [powOf(10), 0], 0]),
+                    marketMgrData: abi.encode(
+                        ["uint256[]", "uint256[]"],
+                        [
+                            [0, 1],
+                            [powOf(10), 0],
+                        ],
+                    ),
                 }),
             ).not.to.be.reverted;
 
@@ -509,7 +580,13 @@ describe("MarketManager", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
-                    marketMgrData: abi.encode(["uint256[]", "uint256[]", "uint256"], [[0, 1], [powOf(10), 0], 10]),
+                    marketMgrData: abi.encode(
+                        ["uint256[]", "uint256[]"],
+                        [
+                            [0, 1],
+                            [powOf(10), 0],
+                        ],
+                    ),
                 }),
             ).not.to.be.reverted;
 

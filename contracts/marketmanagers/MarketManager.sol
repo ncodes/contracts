@@ -23,6 +23,7 @@ contract MarketManager is Ownable, IMarketManager, ERC165 {
     IPayRouter public payRouter;
     mapping(uint256 => RequestInfo) public requestInfo;
     mapping(address => bool) public delegates;
+    mapping(uint256 => uint256) public routeValueLockDuration;
 
     constructor(address _core, address _payRouter) {
         core = ICore(_core);
@@ -39,6 +40,7 @@ contract MarketManager is Ownable, IMarketManager, ERC165 {
     event RequestCancelled(uint256 requestId, uint256 orderId);
     event RequestPaid(uint256 requestId, uint256 orderId);
     event RequestReleased(uint256 requestId, uint256 orderId);
+    event UpdateRouteValueLockDuration(uint256 routeId, uint256 duration);
 
     modifier onlyCore() {
         require(msg.sender == address(core), "MM: NOT_CORE");
@@ -82,6 +84,27 @@ contract MarketManager is Ownable, IMarketManager, ERC165 {
         emit UpdatedDelegate(delegate, false);
     }
 
+    /// @notice Set the value lock duration for a route
+    /// @param routeId The route ID
+    /// @param duration The duration in seconds
+    function setRouteValueLockDuration(uint256 routeId, uint256 duration) external onlyOwner {
+        routeValueLockDuration[routeId] = duration;
+        emit UpdateRouteValueLockDuration(routeId, duration);
+    }
+
+    /// @notice Get the highest value lock duration
+    /// @param routeIds The route IDs
+    /// @return The highest value lock duration
+    function getHighestValueLockDuration(uint256[] memory routeIds) public view returns (uint256) {
+        uint256 highestDuration = 0;
+        for (uint256 i = 0; i < routeIds.length; i++) {
+            if (routeValueLockDuration[routeIds[i]] > highestDuration) {
+                highestDuration = routeValueLockDuration[routeIds[i]];
+            }
+        }
+        return highestDuration;
+    }
+
     /// @notice Before swap hook
     /// @param params The swap params
     function beforeSwap(StructsLib.SwapQuoteForBaseParams memory params) external override onlyCore {}
@@ -94,13 +117,10 @@ contract MarketManager is Ownable, IMarketManager, ERC165 {
         if (market.isInstantMarket()) return;
 
         // Get the routeIds and bonds from params
-        (uint256[] memory routeIds, uint256[] memory bonds, uint256 valueLockDuration) = abi.decode(
-            params.marketMgrData,
-            (uint256[], uint256[], uint256)
-        );
+        (uint256[] memory routeIds, uint256[] memory bonds) = abi.decode(params.marketMgrData, (uint256[], uint256[]));
 
         // Create PayRouter request
-        payRouter.createRequest(routeIds, bonds, 0, valueLockDuration);
+        payRouter.createRequest(routeIds, bonds, 0, getHighestValueLockDuration(routeIds));
         uint256 requestId = payRouter.numRequests() - 1;
 
         requestInfo[orderId - 1] = RequestInfo(true, requestId, orderId - 1);
