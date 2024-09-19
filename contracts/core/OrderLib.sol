@@ -28,7 +28,6 @@ library OrderLib {
     );
     event OrderCancelled(uint256 indexed orderID, address indexed canceller, bool indexed byDispute);
     event SwapOrderPaid(uint256 indexed orderID, address payer, uint256 disputeDelayDur);
-    event FinalizedByManagerSig(address manager, address finalizer, uint256 orderId, uint action);
 
     /// @notice Create order for ERC20/SYNTH, SYNTH/ERC20, SYNTH/SYNTH, SYNTH/NFT, NFT/SYNTH, NATIVE/SYNTH, SYNTH/NATIVE
     /// @param s1 The State object
@@ -122,29 +121,6 @@ library OrderLib {
         );
     }
 
-    /// @notice Cancel an order by a market manager's signature
-    /// @param s1 The State object
-    /// @param s2 The State2 object
-    /// @param owner The contract owner
-    /// @param oid The order ID.
-    /// @param expireAt The expire time of the signature
-    /// @param signature The signature created by the manager
-    function cancelOrderByManagerSig(
-        StructsLib.State storage s1,
-        StructsLib.State2 storage s2,
-        address owner,
-        uint256 oid,
-        uint256 expireAt,
-        bytes calldata signature
-    ) public {
-        Structs.Market memory mkt = s2.marketCore.getMarket(s1.orders[oid].marketId);
-        require(mkt.manager != address(0), "OC: NO_MGR_SET");
-        require(expireAt > block.timestamp, "OC: EXPIRED_SIG");
-        require(verifyMarketManagerSig(mkt.manager, oid, 2, expireAt, signature), "OC: BAD_SIG");
-        cancelOrder(s1, s2, owner, oid, false, true);
-        emit FinalizedByManagerSig(mkt.manager, msg.sender, oid, 2);
-    }
-
     /// @notice Cancel an inactive order. An inactive order is one where:
     /// The order has not been marked as paid, released or disputed
     /// and has reached its cancel time.
@@ -226,27 +202,6 @@ library OrderLib {
         }
 
         emit OrderCancelled(id, msg.sender, byDispute);
-    }
-
-    /// @notice Mark a swap order as paid using a market manager's signature
-    /// @param s1 The State object
-    /// @param s2 The State2 object
-    /// @param oid The order ID.
-    /// @param expireAt The expire time of the signature
-    /// @param signature The signature created by the manager
-    function markOrderAsPaidByManagerSig(
-        StructsLib.State storage s1,
-        StructsLib.State2 storage s2,
-        uint256 oid,
-        uint256 expireAt,
-        bytes calldata signature
-    ) public {
-        Structs.Market memory mkt = s2.marketCore.getMarket(s1.orders[oid].marketId);
-        require(mkt.manager != address(0), "OC: NO_MGR_SET");
-        require(expireAt > block.timestamp, "OC: EXPIRED_SIG");
-        require(verifyMarketManagerSig(mkt.manager, oid, 0, expireAt, signature), "OC: BAD_SIG");
-        markOrderAsPaid(s1, s2.marketCore, oid, true);
-        emit FinalizedByManagerSig(mkt.manager, msg.sender, oid, 0);
     }
 
     /// @notice Mark a swap order as paid.

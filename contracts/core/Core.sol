@@ -48,7 +48,6 @@ contract Core is Ownable, ERC1155Holder {
     );
     event SwapOrderPaid(uint256 indexed orderID, address payer, uint256 disputeDelayDur);
     event OrderCancelled(uint256 indexed orderID, address indexed canceller, bool indexed byDispute);
-    event FinalizedByManagerSig(address manager, address finalizer, uint256 orderId, uint action);
     event ProtocolFeeUpdated(
         uint256 instantSwapFeeBp,
         uint256 synthSwapFeeBp,
@@ -451,32 +450,22 @@ contract Core is Ownable, ERC1155Holder {
         return (info.protoFee, info.mktCreatorFee, info.feeBp, info.mktFeeBp);
     }
 
-    /// @notice Withdraw fees accrued for the protocol inventor
-    /// @param asset The address of the asset the fee is denominated in.
-    function withdrawInventorBalance(address asset) external onlyInventor {
-        WithdrawLib.withdrawInventorBalance(state, state2, asset);
+    /// @notice Mark a swap order as paid.
+    /// Order must be have been released or cancelled.
+    /// When the base asset is ERC20, the sender must be the taker.
+    /// When the base asset is synthetic,the sender must be the provider.
+    /// @param id The order ID.
+    function markOrderAsPaid(uint256 id) external {
+        require(hasOrder(id), "OC: UNKNOWN_ORDER");
+        Structs.Market memory mkt = state2.marketCore.getMarket(state.orders[id].marketId);
+        SwapLib.markOrderAsPaid(state, state2.marketCore, id, mkt.manager == msg.sender);
     }
 
     /// @notice Release an order
     /// @param id The order ID
     function releaseOrder(uint256 id) external {
-        require(id <= state.orders.length - 1, "OC: UNKNOWN_ORDER");
+        require(hasOrder(id), "OC: UNKNOWN_ORDER");
         SwapLib.releaseOrder(state, state2, owner(), id, false);
-    }
-
-    /// @notice Release an order using a market manager's signature
-    /// @param id The order ID
-    /// @param expireAt The expire time of the signature
-    /// @param signature The signature created by the manager
-    function releaseOrderByManagerSig(uint256 id, uint256 expireAt, bytes calldata signature) external {
-        require(id <= state.orders.length - 1, "OC: UNKNOWN_ORDER");
-        SwapLib.releaseOrderByManagerSig(state, state2, owner(), id, expireAt, signature);
-    }
-
-    /// @notice Allow the dispute manager to release an order.
-    /// @param id The order ID.
-    function releaseOrderByDispute(uint256 id) external onlyDisputeManager {
-        SwapLib.releaseOrder(state, state2, owner(), id, true);
     }
 
     /// @notice Cancel an order
@@ -486,37 +475,16 @@ contract Core is Ownable, ERC1155Holder {
         SwapLib.cancelOrder(state, state2, owner(), id, false);
     }
 
-    /// @notice Cancel an order using a market manager's signature
-    /// @param id The order ID
-    /// @param expireAt The expire time of the signature
-    /// @param signature The signature created by the manager
-    function cancelOrderByManagerSig(uint256 id, uint256 expireAt, bytes calldata signature) external {
-        require(id <= state.orders.length - 1, "OC: UNKNOWN_ORDER");
-        SwapLib.cancelOrderByManagerSig(state, state2, owner(), id, expireAt, signature);
+    /// @notice Allow the dispute manager to release an order.
+    /// @param id The order ID.
+    function releaseOrderByDispute(uint256 id) external onlyDisputeManager {
+        SwapLib.releaseOrder(state, state2, owner(), id, true);
     }
 
     /// @notice Allow the dispute manager to cancel an order.
     /// @param id The order ID.
     function cancelOrderByDispute(uint256 id) external onlyDisputeManager {
         SwapLib.cancelOrder(state, state2, owner(), id, true);
-    }
-
-    /// @notice Mark a swap order as paid.
-    /// Order must be have been released or cancelled.
-    /// When the base asset is ERC20, the sender must be the taker.
-    /// When the base asset is synthetic,the sender must be the provider.
-    /// @param id The order ID.
-    function markOrderAsPaid(uint256 id) external {
-        SwapLib.markOrderAsPaid(state, state2.marketCore, id, false);
-    }
-
-    /// @notice Mark a swap order as paid using a market manager's signature.
-    /// @param id The order ID.
-    /// @param expireAt The expire time of the signature
-    /// @param signature The signature created by the manager
-    function markOrderAsPaidByManagerSig(uint256 id, uint256 expireAt, bytes calldata signature) external {
-        require(id <= state.orders.length - 1, "OC: UNKNOWN_ORDER");
-        SwapLib.markOrderAsPaidByManagerSig(state, state2, id, expireAt, signature);
     }
 
     /// @notice Checks if at order at index id exist
@@ -566,6 +534,12 @@ contract Core is Ownable, ERC1155Holder {
     /// @param _token The address of a shareable token
     function transferToFeePool(address _token) external {
         WithdrawLib.transferToFeePool(state, state2, _token);
+    }
+
+    /// @notice Withdraw fees accrued for the protocol inventor
+    /// @param asset The address of the asset the fee is denominated in.
+    function withdrawInventorBalance(address asset) external onlyInventor {
+        WithdrawLib.withdrawInventorBalance(state, state2, asset);
     }
 
     /// @notice Withdraw fee earned by an operator for a given asset

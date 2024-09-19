@@ -1,6 +1,7 @@
 import {EthersError, getParsedEthersError} from "@enzoferey/ethers-error-parser";
+import {PaymentMethods} from "@jointlabs/meta";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import {BigNumberish, Contract, ContractTransaction, Signer, Wallet} from "ethers";
+import {BigNumberish, Contract, ContractTransaction, Signer} from "ethers";
 import fs from "fs";
 import {ethers, network} from "hardhat";
 import path from "path";
@@ -163,42 +164,42 @@ async function deployBadgeManager() {
 
         // TODO: Step 2
         // - Deposit gas into issuer wallet
-        await runStep(2, "Create `pm/*` badge issuer and initial badges", async () => {
-            const issuer = new Wallet(params.paymentMethodBadgeIssuerKey, provider);
-            await call(badgeMgr, deployer, (c) => {
-                return c.registerIssuer(issuer.address, "pm", [], []);
-            });
-            await call(badgeMgr, issuer, (c) => {
-                return c.registerPath("pm", "gtb", [], []);
-            });
-            await call(badgeMgr, issuer, (c) => {
-                return c.registerPath("pm", "bank_transfer", [], []);
-            });
-            await call(badgeMgr, issuer, (c) => {
-                return c.registerPath("pm", "first_bank", [], []);
-            });
-            await call(badgeMgr, issuer, (c) => {
-                return c.registerPath("pm", "zenith", [], []);
-            });
-            await call(badgeMgr, issuer, (c) => {
-                return c.registerPath("pm", "sterling_bank", [], []);
-            });
-            await call(badgeMgr, issuer, (c) => {
-                return c.registerPath("pm", "union_bank", [], []);
-            });
-        });
+        // await runStep(2, "Create `pm/*` badge issuer and initial badges", async () => {
+        //     const issuer = new Wallet(params.paymentMethodBadgeIssuerKey, provider);
+        //     await call(badgeMgr, deployer, (c) => {
+        //         return c.registerIssuer(issuer.address, "pm", [], []);
+        //     });
+        //     await call(badgeMgr, issuer, (c) => {
+        //         return c.registerPath("pm", "gtb", [], []);
+        //     });
+        //     await call(badgeMgr, issuer, (c) => {
+        //         return c.registerPath("pm", "bank_transfer", [], []);
+        //     });
+        //     await call(badgeMgr, issuer, (c) => {
+        //         return c.registerPath("pm", "first_bank", [], []);
+        //     });
+        //     await call(badgeMgr, issuer, (c) => {
+        //         return c.registerPath("pm", "zenith", [], []);
+        //     });
+        //     await call(badgeMgr, issuer, (c) => {
+        //         return c.registerPath("pm", "sterling_bank", [], []);
+        //     });
+        //     await call(badgeMgr, issuer, (c) => {
+        //         return c.registerPath("pm", "union_bank", [], []);
+        //     });
+        // });
 
-        // TODO: Step 2:
-        // - Deposit gas into issuer wallet
-        await runStep(2, "Create `kyc/*` badge issuer and initial badges", async () => {
-            const issuer = new Wallet(params.kycBadgeIssuerKey, provider);
-            await call(badgeMgr, deployer, (c) => {
-                return c.registerIssuer(issuer.address, "kyc", [], []);
-            });
-            await call(badgeMgr, issuer, (c) => {
-                return c.registerPath("kyc", "nga", [], []);
-            });
-        });
+        // // TODO: Step 2:
+        // // - Deposit gas into issuer wallet
+        // await runStep(2, "Create `kyc/*` badge issuer and initial badges", async () => {
+        //     const issuer = new Wallet(params.kycBadgeIssuerKey, provider);
+        //     await call(badgeMgr, deployer, (c) => {
+        //         return c.registerIssuer(issuer.address, "kyc", [], []);
+        //     });
+        //     await call(badgeMgr, issuer, (c) => {
+        //         return c.registerPath("kyc", "nga", [], []);
+        //     });
+        // });
     });
 }
 
@@ -360,7 +361,15 @@ async function deployRouter() {
 async function deployPayRouter() {
     await deployOrAttach<PayRouter>("PayRouter", undefined, [joinToken.address], async (contract, attached) => {
         payRouter = contract;
-        if (attached) return;
+
+        await runStep(2, "Create orgs", async () => {
+            for (const org of PaymentMethods) {
+                if (await payRouter.userHasOrg(deployer.address, org.name)) continue;
+                await call(payRouter, deployer, async (c) => {
+                    return c.createOrg(org.name);
+                });
+            }
+        });
     });
 }
 

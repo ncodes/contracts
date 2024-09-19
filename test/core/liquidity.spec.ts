@@ -1,11 +1,11 @@
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { expect } from "chai";
-import { BigNumber, BigNumberish, constants } from "ethers";
-import { getAddress } from "ethers/lib/utils";
-import { randomAddressString } from "hardhat/internal/hardhat-network/provider/utils/random";
-import { AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MediatorManager, ProviderRegistry, TOKEN } from "../../typechain-types";
-import { AddressZero, AssetType, advanceBlockTime, makeMarketID, pow10str, toBN, toDec } from "../../utils/utils";
-import { initCoreTestSuite } from "../helpers/helpers";
+import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
+import {expect} from "chai";
+import {BigNumber, BigNumberish, constants} from "ethers";
+import {getAddress} from "ethers/lib/utils";
+import {randomAddressString} from "hardhat/internal/hardhat-network/provider/utils/random";
+import {AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MediatorManager, ProviderRegistry, TOKEN} from "../../typechain-types";
+import {AddressZero, AssetType, advanceBlockTime, makeMarketID, pow10str, toBN, toDec} from "../../utils/utils";
+import {initCoreTestSuite} from "../helpers/helpers";
 
 describe("Core - Liquidity", function () {
     let baseAddr: string;
@@ -119,41 +119,26 @@ describe("Core - Liquidity", function () {
     describe(".updateNonFungibleLiquidity", () => {
         it("should revert with reason='EXPIRED_TX' when transaction has expired", async () => {
             const now = await advanceBlockTime(1);
-            await expect(core.updateNonFungibleLiquidity({
-                marketId: mid,
-                target: constants.AddressZero,
-                lid: 0,
-                price: 0,
-                timeToPay: 0,
-                expireAt: now,
-                pause: false,
-                wantOrIds: [],
-                wantAndIds: [],
-                deduct: false,
-                ids: [100, 10045]
-            })).to.be.revertedWith("EXPIRED_TX");
+            await expect(
+                core.updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: constants.AddressZero,
+                    lid: 0,
+                    price: 0,
+                    timeToPay: 0,
+                    expireAt: now,
+                    pause: false,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                    ids: [100, 10045],
+                }),
+            ).to.be.revertedWith("EXPIRED_TX");
         });
 
         it("should revert with reason='UNKNOWN_MARKET' when market does not exist", async () => {
-            await expect(core.updateNonFungibleLiquidity({
-                marketId: mid,
-                target: constants.AddressZero,
-                lid: 0,
-                price: 0,
-                timeToPay: 0,
-                expireAt: 0,
-                pause: false,
-                wantOrIds: [],
-                wantAndIds: [],
-                deduct: false,
-                ids: [100, 10045]
-            })).to.be.revertedWith("UNKNOWN_MARKET");
-        });
-
-        context("market is permissioned and sender is not the owner of the market and also no permitted", () => {
-            it("should revert with reason='NO_PUT_PERM'", async () => {
-                mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC20, true, true, 0, 0);
-                await expect(core.connect(provider).updateNonFungibleLiquidity({
+            await expect(
+                core.updateNonFungibleLiquidity({
                     marketId: mid,
                     target: constants.AddressZero,
                     lid: 0,
@@ -164,33 +149,298 @@ describe("Core - Liquidity", function () {
                     wantOrIds: [],
                     wantAndIds: [],
                     deduct: false,
-                    ids: []
-                })).to.be.revertedWith("MC: NO_PUT_PERM");
+                    ids: [100, 10045],
+                }),
+            ).to.be.revertedWith("UNKNOWN_MARKET");
+        });
+
+        context("market is permissioned and sender is not the owner of the market and also no permitted", () => {
+            it("should revert with reason='NO_PUT_PERM'", async () => {
+                mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC20, true, true, 0, 0);
+                await expect(
+                    core.connect(provider).updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: constants.AddressZero,
+                        lid: 0,
+                        price: 0,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        pause: false,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                        ids: [],
+                    }),
+                ).to.be.revertedWith("MC: NO_PUT_PERM");
             });
         });
 
         it("should revert with msg=UNEXP_BASE when base asset type is not NFT", async () => {
             mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
-            await expect(core.updateNonFungibleLiquidity({
-                marketId: mid,
-                target: constants.AddressZero,
-                lid: 0,
-                price: 0,
-                timeToPay: 0,
-                expireAt: 0,
-                pause: false,
-                wantOrIds: [],
-                wantAndIds: [],
-                deduct: false,
-                ids: []
-            })).to.be.revertedWith("OC: UNEXP_BASE");
+            await expect(
+                core.updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: constants.AddressZero,
+                    lid: 0,
+                    price: 0,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                    ids: [],
+                }),
+            ).to.be.revertedWith("OC: UNEXP_BASE");
         });
 
         context("market is not instant and timeToPay was non-zero", () => {
             it("should revert with msg=LOW_TTP when value is non-zero but less than minimum time to pay", async () => {
                 await core.setMinTimeToPay(2);
                 mid = await createMarket(deployer, baseAddr, quoteAddr, AssetType.ERC721, AssetType.SYNTH, false, false, 0, 0);
-                await expect(core.updateNonFungibleLiquidity({
+                await expect(
+                    core.updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: constants.AddressZero,
+                        lid: 0,
+                        price: 0,
+                        timeToPay: 1,
+                        expireAt: 0,
+                        pause: false,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                        ids: [],
+                    }),
+                ).to.be.revertedWith("OC: LOW_TTP");
+            });
+        });
+
+        it("should revert with msg=PRICE_NREQ when quote is NFT and price was provided", async () => {
+            await core.setMinTimeToPay(2);
+            mid = await createMarket(deployer, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, 0, 0);
+            await expect(
+                core.updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: constants.AddressZero,
+                    lid: 0,
+                    price: 1,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                    ids: [],
+                }),
+            ).to.be.revertedWith("OC: PRICE_NREQ");
+        });
+
+        it("should revert with msg=PRICE_NREQ when quote is NFT and price is set", async () => {
+            mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, 0, 0);
+            await expect(
+                core.updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: constants.AddressZero,
+                    lid: 0,
+                    price: 1,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                    ids: [],
+                }),
+            ).to.be.revertedWith("OC: PRICE_NREQ");
+        });
+
+        it("should revert with msg=PRICE_REQ when quote is ERC20/SYNTH and price was not provided", async () => {
+            await core.setMinTimeToPay(2);
+            mid = await createMarket(deployer, baseAddr, quoteAddr, AssetType.ERC721, AssetType.SYNTH, false, false, 0, 0);
+            await expect(
+                core.updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: constants.AddressZero,
+                    lid: 0,
+                    price: 0,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                    ids: [],
+                }),
+            ).to.be.revertedWith("OC: PRICE_REQ");
+        });
+
+        it("should revert with msg=WANT_IDS_NREQ when quote is ERC20/SYNTH and want IDs were set", async () => {
+            mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC20, false, false, 0, 0);
+            await expect(
+                core.updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: constants.AddressZero,
+                    lid: 0,
+                    price: 1,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [1],
+                    wantAndIds: [],
+                    deduct: false,
+                    ids: [],
+                }),
+            ).to.be.revertedWith("OC: WANT_IDS_NREQ");
+            await expect(
+                core.updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: constants.AddressZero,
+                    lid: 0,
+                    price: 1,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [],
+                    wantAndIds: [1],
+                    deduct: false,
+                    ids: [],
+                }),
+            ).to.be.revertedWith("OC: WANT_IDS_NREQ");
+        });
+
+        it("should revert with msg=WANT_IDS_NUNIQ when quote is NFT and want IDs include duplicates", async () => {
+            mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, 0, 0);
+            await expect(
+                core.updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: constants.AddressZero,
+                    lid: 0,
+                    price: 0,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [1, 1],
+                    wantAndIds: [],
+                    deduct: false,
+                    ids: [],
+                }),
+            ).to.be.revertedWith("OC: WANT_IDS_NUNIQ");
+            await expect(
+                core.updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: constants.AddressZero,
+                    lid: 0,
+                    price: 0,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [],
+                    wantAndIds: [1, 1],
+                    deduct: false,
+                    ids: [],
+                }),
+            ).to.be.revertedWith("OC: WANT_IDS_NUNIQ");
+        });
+
+        it("should revert with msg=WANT_IDS_HSIZE when quote is NFT and want array length is more than 16", async () => {
+            const wantOrIds = Array(17).fill(0).map((_, i) => i); // prettier-ignore
+            const wantAndIds = wantOrIds;
+            mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, 0, 0);
+            await expect(
+                core.updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: constants.AddressZero,
+                    lid: 0,
+                    price: 0,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: wantOrIds,
+                    wantAndIds: [],
+                    deduct: false,
+                    ids: [],
+                }),
+            ).to.be.revertedWith("OC: WANT_IDS_HSIZE");
+            await expect(
+                core.updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: constants.AddressZero,
+                    lid: 0,
+                    price: 0,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [],
+                    wantAndIds: wantAndIds,
+                    deduct: false,
+                    ids: [],
+                }),
+            ).to.be.revertedWith("OC: WANT_IDS_HSIZE");
+        });
+
+        it("should revert with msg=REQ_IDS when no previous liquidity and ids was not set", async () => {
+            mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, 0, 0);
+            await expect(
+                core.updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: constants.AddressZero,
+                    lid: 0,
+                    price: 0,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [1],
+                    wantAndIds: [],
+                    deduct: false,
+                    ids: [],
+                }),
+            ).to.be.revertedWith("OC: REQ_IDS");
+        });
+
+        it("should revert with msg=IDS_HSIZE when quote is NFT and want IDs include duplicates", async () => {
+            const ids = Array(17).fill(0).map((_, i) => i); // prettier-ignore
+            mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, 0, 0);
+            await expect(
+                core.updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: constants.AddressZero,
+                    lid: 0,
+                    price: 0,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [1],
+                    wantAndIds: [],
+                    deduct: false,
+                    ids: ids,
+                }),
+            ).to.be.revertedWith("OC: IDS_HSIZE");
+        });
+
+        it("should revert with msg=IDS_NUNIQ when quote is NFT and want or/and IDs include duplicates", async () => {
+            mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, 0, 0);
+            await expect(
+                core.updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: constants.AddressZero,
+                    lid: 0,
+                    price: 0,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    wantOrIds: [1],
+                    wantAndIds: [],
+                    deduct: false,
+                    ids: [1, 2, 1],
+                }),
+            ).to.be.revertedWith("OC: IDS_NUNIQ");
+        });
+
+        it("should revert with msg=TTP_NREQ when market is instant and timeToPay was set", async () => {
+            mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC20, false, false, 0, 0);
+            await expect(
+                core.updateNonFungibleLiquidity({
                     marketId: mid,
                     target: constants.AddressZero,
                     lid: 0,
@@ -198,226 +448,12 @@ describe("Core - Liquidity", function () {
                     timeToPay: 1,
                     expireAt: 0,
                     pause: false,
-                    wantOrIds: [],
+                    wantOrIds: [1],
                     wantAndIds: [],
                     deduct: false,
-                    ids: []
-                })).to.be.revertedWith("OC: LOW_TTP");
-            });
-        });
-
-        it("should revert with msg=PRICE_NREQ when quote is NFT and price was provided", async () => {
-            await core.setMinTimeToPay(2);
-            mid = await createMarket(deployer, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, 0, 0);
-            await expect(core.updateNonFungibleLiquidity({
-                marketId: mid,
-                target: constants.AddressZero,
-                lid: 0,
-                price: 1,
-                timeToPay: 0,
-                expireAt: 0,
-                pause: false,
-                wantOrIds: [],
-                wantAndIds: [],
-                deduct: false,
-                ids: []
-            })).to.be.revertedWith("OC: PRICE_NREQ");
-        });
-
-        it("should revert with msg=PRICE_NREQ when quote is NFT and price is set", async () => {
-            mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, 0, 0);
-            await expect(core.updateNonFungibleLiquidity({
-                marketId: mid,
-                target: constants.AddressZero,
-                lid: 0,
-                price: 1,
-                timeToPay: 0,
-                expireAt: 0,
-                pause: false,
-                wantOrIds: [],
-                wantAndIds: [],
-                deduct: false,
-                ids: []
-            })).to.be.revertedWith("OC: PRICE_NREQ");
-        });
-
-        it("should revert with msg=PRICE_REQ when quote is ERC20/SYNTH and price was not provided", async () => {
-            await core.setMinTimeToPay(2);
-            mid = await createMarket(deployer, baseAddr, quoteAddr, AssetType.ERC721, AssetType.SYNTH, false, false, 0, 0);
-            await expect(core.updateNonFungibleLiquidity({
-                marketId: mid,
-                target: constants.AddressZero,
-                lid: 0,
-                price: 0,
-                timeToPay: 0,
-                expireAt: 0,
-                pause: false,
-                wantOrIds: [],
-                wantAndIds: [],
-                deduct: false,
-                ids: []
-            })).to.be.revertedWith("OC: PRICE_REQ");
-        });
-
-        it("should revert with msg=WANT_IDS_NREQ when quote is ERC20/SYNTH and want IDs were set", async () => {
-            mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC20, false, false, 0, 0);
-            await expect(core.updateNonFungibleLiquidity({
-                marketId: mid,
-                target: constants.AddressZero,
-                lid: 0,
-                price: 1,
-                timeToPay: 0,
-                expireAt: 0,
-                pause: false,
-                wantOrIds: [1],
-                wantAndIds: [],
-                deduct: false,
-                ids: []
-            })).to.be.revertedWith("OC: WANT_IDS_NREQ");
-            await expect(core.updateNonFungibleLiquidity({
-                marketId: mid,
-                target: constants.AddressZero,
-                lid: 0,
-                price: 1,
-                timeToPay: 0,
-                expireAt: 0,
-                pause: false,
-                wantOrIds: [],
-                wantAndIds: [1],
-                deduct: false,
-                ids: []
-            })).to.be.revertedWith("OC: WANT_IDS_NREQ");
-        });
-
-        it("should revert with msg=WANT_IDS_NUNIQ when quote is NFT and want IDs include duplicates", async () => {
-            mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, 0, 0);
-            await expect(core.updateNonFungibleLiquidity({
-                marketId: mid,
-                target: constants.AddressZero,
-                lid: 0,
-                price: 0,
-                timeToPay: 0,
-                expireAt: 0,
-                pause: false,
-                wantOrIds: [1, 1],
-                wantAndIds: [],
-                deduct: false,
-                ids: []
-            })).to.be.revertedWith("OC: WANT_IDS_NUNIQ");
-            await expect(core.updateNonFungibleLiquidity({
-                marketId: mid,
-                target: constants.AddressZero,
-                lid: 0,
-                price: 0,
-                timeToPay: 0,
-                expireAt: 0,
-                pause: false,
-                wantOrIds: [],
-                wantAndIds: [1, 1],
-                deduct: false,
-                ids: []
-            })).to.be.revertedWith("OC: WANT_IDS_NUNIQ");
-        });
-
-        it("should revert with msg=WANT_IDS_HSIZE when quote is NFT and want array length is more than 16", async () => {
-            const wantOrIds = Array(17).fill(0).map((_, i) => i); // prettier-ignore
-            const wantAndIds = wantOrIds;
-            mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, 0, 0);
-            await expect(core.updateNonFungibleLiquidity({
-                marketId: mid,
-                target: constants.AddressZero,
-                lid: 0,
-                price: 0,
-                timeToPay: 0,
-                expireAt: 0,
-                pause: false,
-                wantOrIds: wantOrIds,
-                wantAndIds: [],
-                deduct: false,
-                ids: []
-            })).to.be.revertedWith("OC: WANT_IDS_HSIZE");
-            await expect(core.updateNonFungibleLiquidity({
-                marketId: mid,
-                target: constants.AddressZero,
-                lid: 0,
-                price: 0,
-                timeToPay: 0,
-                expireAt: 0,
-                pause: false,
-                wantOrIds: [],
-                wantAndIds: wantAndIds,
-                deduct: false,
-                ids: []
-            })).to.be.revertedWith("OC: WANT_IDS_HSIZE");
-        });
-
-        it("should revert with msg=REQ_IDS when no previous liquidity and ids was not set", async () => {
-            mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, 0, 0);
-            await expect(core.updateNonFungibleLiquidity({
-                marketId: mid,
-                target: constants.AddressZero,
-                lid: 0,
-                price: 0,
-                timeToPay: 0,
-                expireAt: 0,
-                pause: false,
-                wantOrIds: [1],
-                wantAndIds: [],
-                deduct: false,
-                ids: []
-            })).to.be.revertedWith("OC: REQ_IDS");
-        });
-
-        it("should revert with msg=IDS_HSIZE when quote is NFT and want IDs include duplicates", async () => {
-            const ids = Array(17).fill(0).map((_, i) => i); // prettier-ignore
-            mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, 0, 0);
-            await expect(core.updateNonFungibleLiquidity({
-                marketId: mid,
-                target: constants.AddressZero,
-                lid: 0,
-                price: 0,
-                timeToPay: 0,
-                expireAt: 0,
-                pause: false,
-                wantOrIds: [1],
-                wantAndIds: [],
-                deduct: false,
-                ids: ids
-            })).to.be.revertedWith("OC: IDS_HSIZE");
-        });
-
-        it("should revert with msg=IDS_NUNIQ when quote is NFT and want or/and IDs include duplicates", async () => {
-            mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, 0, 0);
-            await expect(core.updateNonFungibleLiquidity({
-                marketId: mid,
-                target: constants.AddressZero,
-                lid: 0,
-                price: 0,
-                timeToPay: 0,
-                expireAt: 0,
-                pause: false,
-                wantOrIds: [1],
-                wantAndIds: [],
-                deduct: false,
-                ids: [1, 2, 1]
-            })).to.be.revertedWith("OC: IDS_NUNIQ");
-        });
-
-        it("should revert with msg=TTP_NREQ when market is instant and timeToPay was set", async () => {
-            mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC20, false, false, 0, 0);
-            await expect(core.updateNonFungibleLiquidity({
-                marketId: mid,
-                target: constants.AddressZero,
-                lid: 0,
-                price: 0,
-                timeToPay: 1,
-                expireAt: 0,
-                pause: false,
-                wantOrIds: [1],
-                wantAndIds: [],
-                deduct: false,
-                ids: []
-            })).to.be.revertedWith("OC: TTP_NREQ");
+                    ids: [],
+                }),
+            ).to.be.revertedWith("OC: TTP_NREQ");
         });
 
         context("BASE is ERC721/ERC1155 and QUOTE is ERC20", () => {
@@ -433,19 +469,21 @@ describe("Core - Liquidity", function () {
             it("should successfully transfer NFT to contract", async () => {
                 const ids = [1, 2];
                 mid = await createMarket(undefined, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.ERC20, false, false, 0, 0);
-                await expect(core.updateNonFungibleLiquidity({
-                    marketId: mid,
-                    target: constants.AddressZero,
-                    lid: 0,
-                    price: 1,
-                    timeToPay: 0,
-                    expireAt: 0,
-                    pause: false,
-                    wantOrIds: [],
-                    wantAndIds: [],
-                    deduct: false,
-                    ids: ids
-                })).not.to.be.reverted;
+                await expect(
+                    core.updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: constants.AddressZero,
+                        lid: 0,
+                        price: 1,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        pause: false,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                        ids: ids,
+                    }),
+                ).not.to.be.reverted;
                 expect(await testERC721.balanceOf(core.address)).to.eql(toBN(2));
                 expect(await testERC721.balanceOf(deployer.address)).to.eql(toBN(0));
 
@@ -472,19 +510,21 @@ describe("Core - Liquidity", function () {
                 it("should successfully transfer NFT to contract", async () => {
                     const ids = [1, 2];
                     mid = await createMarket(undefined, testERC1155.address, quoteAddr, AssetType.ERC1155, AssetType.ERC20, false, false, 0, 0);
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: false,
-                        ids: ids
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                            ids: ids,
+                        }),
+                    ).not.to.be.reverted;
                     expect(await testERC1155.balanceOf(core.address, 1)).to.eql(toBN(1));
                     expect(await testERC1155.balanceOf(core.address, 2)).to.eql(toBN(1));
                     expect(await testERC1155.balanceOf(deployer.address, 1)).to.eql(toBN(0));
@@ -509,52 +549,58 @@ describe("Core - Liquidity", function () {
                     await testERC721.connect(provider).setApprovalForAll(core.address, true);
                     mid = await createMarket(undefined, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.ERC20, true, false, 0, 0);
                     await mc.permitPut(mid, provider.address);
-                    await expect(core.connect(provider).updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: false,
-                        ids: ids
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.connect(provider).updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                            ids: ids,
+                        }),
+                    ).not.to.be.reverted;
                     expect(await testERC721.balanceOf(core.address)).to.eql(toBN(2));
                     expect(await testERC721.balanceOf(provider.address)).to.eql(toBN(0));
 
                     // Revoke PUT permission; Should not be able to put liquidity
                     await mc.revokePut(mid, provider.address);
-                    await expect(core.connect(provider).updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: false,
-                        ids: [5]
-                    })).to.be.revertedWith("MC: NO_PUT_PERM");
+                    await expect(
+                        core.connect(provider).updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                            ids: [5],
+                        }),
+                    ).to.be.revertedWith("MC: NO_PUT_PERM");
 
                     // Should be able to remove liquidity
-                    await expect(core.connect(provider).updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: true,
-                        ids: [0, 1, 2]
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.connect(provider).updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: true,
+                            ids: [0, 1, 2],
+                        }),
+                    ).not.to.be.reverted;
                     expect(await testERC721.balanceOf(core.address)).to.eql(toBN(0));
                     expect(await testERC721.balanceOf(provider.address)).to.eql(toBN(2));
                 });
@@ -565,19 +611,21 @@ describe("Core - Liquidity", function () {
                     mid = await createMarket(undefined, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.ERC20, false, false, 0, 0);
 
                     const ids = [1, 2];
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: false,
-                        ids: ids
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                            ids: ids,
+                        }),
+                    ).not.to.be.reverted;
                     let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.ids).to.eql([toBN(1), toBN(2)]);
                     expect(await testERC721.balanceOf(deployer.address)).to.eql(toBN(0));
@@ -586,19 +634,21 @@ describe("Core - Liquidity", function () {
                     expect(mkt.numLiquidity).to.eq(2);
 
                     // delete ID at index 0
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: true,
-                        ids: [0]
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: true,
+                            ids: [0],
+                        }),
+                    ).not.to.be.reverted;
                     liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.ids).to.eql([toBN(2)]);
                     expect(await testERC721.ownerOf(1)).to.eql(deployer.address);
@@ -607,19 +657,21 @@ describe("Core - Liquidity", function () {
                     expect(mkt.numLiquidity).to.eq(1);
 
                     // delete ID at new index 0
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: true,
-                        ids: [0]
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: true,
+                            ids: [0],
+                        }),
+                    ).not.to.be.reverted;
                     liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.ids).to.eql([]);
                     expect(await testERC721.ownerOf(1)).to.eql(deployer.address);
@@ -632,19 +684,21 @@ describe("Core - Liquidity", function () {
                     // restart
                     await testERC721.approve(core.address, 1);
                     await testERC721.approve(core.address, 2);
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: false,
-                        ids: ids
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                            ids: ids,
+                        }),
+                    ).not.to.be.reverted;
                     liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.ids).to.eql([toBN(1), toBN(2)]);
 
@@ -652,19 +706,21 @@ describe("Core - Liquidity", function () {
                     expect(mkt.numLiquidity).to.eq(2);
 
                     // delete using a unknown index (no delete should happen)
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: true,
-                        ids: [2]
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: true,
+                            ids: [2],
+                        }),
+                    ).not.to.be.reverted;
                     liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.ids).to.eql([toBN(1), toBN(2)]);
 
@@ -672,19 +728,21 @@ describe("Core - Liquidity", function () {
                     expect(mkt.numLiquidity).to.eq(2);
 
                     // delete all at once with unknown index in-between
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: true,
-                        ids: [0, 2, 1]
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: true,
+                            ids: [0, 2, 1],
+                        }),
+                    ).not.to.be.reverted;
                     liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.ids).to.eql([]);
 
@@ -697,19 +755,21 @@ describe("Core - Liquidity", function () {
                 it("should set target", async () => {
                     const ids = [1, 2];
                     mid = await createMarket(undefined, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.ERC20, false, false, 0, 0);
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: swapper.address,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: false,
-                        ids: ids
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: swapper.address,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                            ids: ids,
+                        }),
+                    ).not.to.be.reverted;
                     let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.target).to.eq(swapper.address);
                 });
@@ -719,19 +779,21 @@ describe("Core - Liquidity", function () {
                 it("should set liquidity 'paused' state to true", async () => {
                     const ids = [1, 2];
                     mid = await createMarket(undefined, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.ERC20, false, false, 0, 0);
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: swapper.address,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: true,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: false,
-                        ids: ids
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: swapper.address,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: true,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                            ids: ids,
+                        }),
+                    ).not.to.be.reverted;
                     let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.paused).to.be.true;
                 });
@@ -748,19 +810,21 @@ describe("Core - Liquidity", function () {
 
                 const ids = [1, 2];
                 mid = await createMarket(undefined, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.SYNTH, false, false, 0, 0);
-                await expect(core.updateNonFungibleLiquidity({
-                    marketId: mid,
-                    target: constants.AddressZero,
-                    lid: 0,
-                    price: 10,
-                    timeToPay: 0,
-                    expireAt: 0,
-                    pause: false,
-                    wantOrIds: [],
-                    wantAndIds: [],
-                    deduct: false,
-                    ids: ids
-                })).to.be.revertedWith("FP: LOW_BAL");
+                await expect(
+                    core.updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: constants.AddressZero,
+                        lid: 0,
+                        price: 10,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        pause: false,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                        ids: ids,
+                    }),
+                ).to.be.revertedWith("FP: LOW_BAL");
             });
 
             context("base asset has asset registry record", () => {
@@ -778,19 +842,21 @@ describe("Core - Liquidity", function () {
                     await token.approve(feePurse.address, fee);
                     await feePurse.deposit(fee);
 
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 10,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: false,
-                        ids: ids
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 10,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                            ids: ids,
+                        }),
+                    ).not.to.be.reverted;
                     expect(await testERC721.balanceOf(core.address)).to.eql(toBN(2));
                     expect(await testERC721.balanceOf(deployer.address)).to.eql(toBN(0));
 
@@ -813,19 +879,21 @@ describe("Core - Liquidity", function () {
                     await token.approve(feePurse.address, expectedFee);
                     await feePurse.deposit(expectedFee);
 
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 10,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: false,
-                        ids: ids
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 10,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                            ids: ids,
+                        }),
+                    ).not.to.be.reverted;
                     expect(await testERC721.balanceOf(core.address)).to.eql(toBN(2));
                     expect(await testERC721.balanceOf(deployer.address)).to.eql(toBN(0));
 
@@ -848,19 +916,21 @@ describe("Core - Liquidity", function () {
                     await feePurse.deposit(expectedFee);
 
                     mid = await createMarket(undefined, testERC1155.address, quoteAddr, AssetType.ERC1155, AssetType.SYNTH, false, false, 0, 0);
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: false,
-                        ids: ids
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                            ids: ids,
+                        }),
+                    ).not.to.be.reverted;
                     expect(await testERC1155.balanceOf(core.address, 1)).to.eql(toBN(1));
                     expect(await testERC1155.balanceOf(core.address, 2)).to.eql(toBN(1));
                     expect(await testERC1155.balanceOf(deployer.address, 1)).to.eql(toBN(0));
@@ -893,19 +963,21 @@ describe("Core - Liquidity", function () {
                     await token.approve(feePurse.address, fee);
                     await feePurse.deposit(fee);
 
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: false,
-                        ids: ids
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                            ids: ids,
+                        }),
+                    ).not.to.be.reverted;
                     let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.ids).to.eql([toBN(1), toBN(2)]);
                     expect(await testERC721.balanceOf(deployer.address)).to.eql(toBN(0));
@@ -915,19 +987,21 @@ describe("Core - Liquidity", function () {
                     expect(liq.mktCreatorFeeRate).to.eql(toBN(marketFee.div(2)));
 
                     // delete ID at index 0
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: true,
-                        ids: [0]
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: true,
+                            ids: [0],
+                        }),
+                    ).not.to.be.reverted;
                     liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.ids).to.eql([toBN(2)]);
                     expect(await testERC721.ownerOf(1)).to.eql(deployer.address);
@@ -937,19 +1011,21 @@ describe("Core - Liquidity", function () {
                     expect(liq.mktCreatorFeeRate).to.eql(toBN(marketFee.div(2)));
 
                     // delete ID at new index 0
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: true,
-                        ids: [0]
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: true,
+                            ids: [0],
+                        }),
+                    ).not.to.be.reverted;
                     liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.ids).to.eql([]);
                     expect(await testERC721.ownerOf(1)).to.eql(deployer.address);
@@ -964,19 +1040,21 @@ describe("Core - Liquidity", function () {
                     // restart
                     await testERC721.approve(core.address, 1);
                     await testERC721.approve(core.address, 2);
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: false,
-                        ids: ids
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                            ids: ids,
+                        }),
+                    ).not.to.be.reverted;
                     expect(await testERC721.balanceOf(deployer.address)).to.eql(toBN(0));
                     liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.ids).to.eql([toBN(1), toBN(2)]);
@@ -984,38 +1062,42 @@ describe("Core - Liquidity", function () {
                     expect(await feePurse.getLocked(liq.mktCreatorFeePurseId)).to.eql(toBN(marketFee));
 
                     // delete using an unknown index (no delete should happen)
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: true,
-                        ids: [2]
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: true,
+                            ids: [2],
+                        }),
+                    ).not.to.be.reverted;
                     expect(await testERC721.balanceOf(deployer.address)).to.eql(toBN(0));
                     liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(await feePurse.getLocked(liq.protoFeePurseId)).to.eql(toBN(protoFee));
                     expect(await feePurse.getLocked(liq.mktCreatorFeePurseId)).to.eql(toBN(marketFee));
 
                     // delete all at once with unknown index in-between
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 1,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [],
-                        wantAndIds: [],
-                        deduct: true,
-                        ids: [0, 2, 1]
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: true,
+                            ids: [0, 2, 1],
+                        }),
+                    ).not.to.be.reverted;
                     expect(await testERC721.balanceOf(deployer.address)).to.eq(2);
                     liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.ids).to.eql([]);
@@ -1041,19 +1123,21 @@ describe("Core - Liquidity", function () {
             it("should successfully transfer NFT to contract", async () => {
                 const ids = [1, 2];
                 mid = await createMarket(undefined, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, 0, 0);
-                await expect(core.updateNonFungibleLiquidity({
-                    marketId: mid,
-                    target: constants.AddressZero,
-                    lid: 0,
-                    price: 0,
-                    timeToPay: 0,
-                    expireAt: 0,
-                    pause: false,
-                    wantOrIds: [1],
-                    wantAndIds: [2],
-                    deduct: false,
-                    ids: ids
-                })).not.to.be.reverted;
+                await expect(
+                    core.updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: constants.AddressZero,
+                        lid: 0,
+                        price: 0,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        pause: false,
+                        wantOrIds: [1],
+                        wantAndIds: [2],
+                        deduct: false,
+                        ids: ids,
+                    }),
+                ).not.to.be.reverted;
                 expect(await testERC721.balanceOf(core.address)).to.eql(toBN(2));
                 expect(await testERC721.balanceOf(deployer.address)).to.eql(toBN(0));
 
@@ -1074,19 +1158,21 @@ describe("Core - Liquidity", function () {
                 it("should successfully transfer NFT to contract", async () => {
                     const ids = [1, 2];
                     mid = await createMarket(undefined, testERC1155.address, quoteAddr, AssetType.ERC1155, AssetType.ERC1155, false, false, 0, 0);
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 0,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [1],
-                        wantAndIds: [2],
-                        deduct: false,
-                        ids: ids
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 0,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [1],
+                            wantAndIds: [2],
+                            deduct: false,
+                            ids: ids,
+                        }),
+                    ).not.to.be.reverted;
                     expect(await testERC1155.balanceOf(core.address, 1)).to.eql(toBN(1));
                     expect(await testERC1155.balanceOf(core.address, 2)).to.eql(toBN(1));
                     expect(await testERC1155.balanceOf(deployer.address, 1)).to.eql(toBN(0));
@@ -1102,56 +1188,62 @@ describe("Core - Liquidity", function () {
                     mid = await createMarket(undefined, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, 0, 0);
 
                     const ids = [1, 2];
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 0,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [1],
-                        wantAndIds: [],
-                        deduct: false,
-                        ids: ids
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 0,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [1],
+                            wantAndIds: [],
+                            deduct: false,
+                            ids: ids,
+                        }),
+                    ).not.to.be.reverted;
                     let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.ids).to.eql([toBN(1), toBN(2)]);
                     expect(await testERC721.balanceOf(deployer.address)).to.eql(toBN(0));
 
                     // delete ID at index 0
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 0,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [1],
-                        wantAndIds: [],
-                        deduct: true, 
-                        ids: [0]
-                    })).not.to.be.reverted;
-                    
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 0,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [1],
+                            wantAndIds: [],
+                            deduct: true,
+                            ids: [0],
+                        }),
+                    ).not.to.be.reverted;
+
                     liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.ids).to.eql([toBN(2)]);
                     expect(await testERC721.ownerOf(1)).to.eql(deployer.address);
 
                     // delete ID at new index 0
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 0,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [1],
-                        wantAndIds: [],
-                        deduct: true,
-                        ids: [0]
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 0,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [1],
+                            wantAndIds: [],
+                            deduct: true,
+                            ids: [0],
+                        }),
+                    ).not.to.be.reverted;
                     liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.ids).to.eql([]);
                     expect(await testERC721.ownerOf(1)).to.eql(deployer.address);
@@ -1161,53 +1253,59 @@ describe("Core - Liquidity", function () {
                     // restart
                     await testERC721.approve(core.address, 1);
                     await testERC721.approve(core.address, 2);
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 0,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [1],
-                        wantAndIds: [],
-                        deduct: false,
-                        ids: ids
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 0,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [1],
+                            wantAndIds: [],
+                            deduct: false,
+                            ids: ids,
+                        }),
+                    ).not.to.be.reverted;
                     liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.ids).to.eql([toBN(1), toBN(2)]);
 
                     // delete using a unknown index (no delete should happen)
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 0,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [1],
-                        wantAndIds: [],
-                        deduct: true,
-                        ids: [2]
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 0,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [1],
+                            wantAndIds: [],
+                            deduct: true,
+                            ids: [2],
+                        }),
+                    ).not.to.be.reverted;
                     liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.ids).to.eql([toBN(1), toBN(2)]);
 
                     // delete all at once with unknown index in-between
-                    await expect(core.updateNonFungibleLiquidity({
-                        marketId: mid,
-                        target: constants.AddressZero,
-                        lid: 0,
-                        price: 0,
-                        timeToPay: 0,
-                        expireAt: 0,
-                        pause: false,
-                        wantOrIds: [1],
-                        wantAndIds: [],
-                        deduct: true,
-                        ids: [0, 2, 1]
-                    })).not.to.be.reverted;
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 0,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            pause: false,
+                            wantOrIds: [1],
+                            wantAndIds: [],
+                            deduct: true,
+                            ids: [0, 2, 1],
+                        }),
+                    ).not.to.be.reverted;
                     liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.ids).to.eql([]);
                 });
@@ -1227,19 +1325,21 @@ describe("Core - Liquidity", function () {
                 const badges: [string, string][] = [["verified", ""]];
                 await mc.setRequiredBadges(mid, badges, []);
 
-                await expect(core.updateNonFungibleLiquidity({
-                    marketId: mid,
-                    target: constants.AddressZero,
-                    lid: 0,
-                    price: 1,
-                    timeToPay: 0,
-                    expireAt: 0,
-                    pause: false,
-                    wantOrIds: [],
-                    wantAndIds: [],
-                    deduct: false,
-                    ids: ids
-                })).to.be.revertedWith("OC: MKT_BADGE_REQ");
+                await expect(
+                    core.updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: constants.AddressZero,
+                        lid: 0,
+                        price: 1,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        pause: false,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                        ids: ids,
+                    }),
+                ).to.be.revertedWith("OC: MKT_BADGE_REQ");
             });
 
             it("should revert with msg=MKT_BADGE_REQ when sender does not have all required badge", async () => {
@@ -1254,19 +1354,21 @@ describe("Core - Liquidity", function () {
                 ];
                 await mc.setRequiredBadges(mid, badges, []);
 
-                await expect(core.updateNonFungibleLiquidity({
-                    marketId: mid,
-                    target: constants.AddressZero,
-                    lid: 0,
-                    price: 1,
-                    timeToPay: 0,
-                    expireAt: 0,
-                    pause: false,
-                    wantOrIds: [],
-                    wantAndIds: [],
-                    deduct: false,
-                    ids: ids
-                })).to.be.revertedWith("OC: MKT_BADGE_REQ");
+                await expect(
+                    core.updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: constants.AddressZero,
+                        lid: 0,
+                        price: 1,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        pause: false,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                        ids: ids,
+                    }),
+                ).to.be.revertedWith("OC: MKT_BADGE_REQ");
             });
 
             it("should successfully transfer NFT to contract", async () => {
@@ -1284,19 +1386,21 @@ describe("Core - Liquidity", function () {
                 ];
                 await mc.setRequiredBadges(mid, badges, []);
 
-                await expect(core.updateNonFungibleLiquidity({
-                    marketId: mid,
-                    target: constants.AddressZero,
-                    lid: 0,
-                    price: 1,
-                    timeToPay: 0,
-                    expireAt: 0,
-                    pause: false,
-                    wantOrIds: [],
-                    wantAndIds: [],
-                    deduct: false,
-                    ids: ids
-                })).not.to.be.reverted;
+                await expect(
+                    core.updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: constants.AddressZero,
+                        lid: 0,
+                        price: 1,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        pause: false,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                        ids: ids,
+                    }),
+                ).not.to.be.reverted;
             });
         });
     });
@@ -2179,19 +2283,21 @@ describe("Core - Liquidity", function () {
                 await testERC721.approve(core.address, 1);
                 await core.setProtoFee(0, 0, 0, 0, 0, 0);
                 mid = await createMarket(undefined, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, 0, 0);
-                await expect(core.updateNonFungibleLiquidity({
-                    marketId: mid,
-                    target: constants.AddressZero,
-                    lid: 0,
-                    price: 0,
-                    timeToPay: 0,
-                    expireAt: 0,
-                    pause: false,
-                    ids: [1],
-                    wantOrIds: [1],
-                    wantAndIds: [1],
-                    deduct: false
-                })).not.to.be.reverted; 
+                await expect(
+                    core.updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: constants.AddressZero,
+                        lid: 0,
+                        price: 0,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        pause: false,
+                        ids: [1],
+                        wantOrIds: [1],
+                        wantAndIds: [1],
+                        deduct: false,
+                    }),
+                ).not.to.be.reverted;
                 await core.setLiquidityManager(mid, deployer.address);
                 await expect(core.updateLiquidityPrice(mid, deployer.address, 0, 1, 0)).to.be.revertedWith("OC: PRICE_NREQ");
             });
@@ -2203,19 +2309,21 @@ describe("Core - Liquidity", function () {
                 await testERC721.approve(core.address, 1);
                 await core.setProtoFee(0, 0, 0, 0, 0, 0);
                 mid = await createMarket(undefined, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.ERC20, false, false, 0, 0);
-                await expect(core.updateNonFungibleLiquidity({
-                    marketId: mid,
-                    target: constants.AddressZero,
-                    lid: 0,
-                    price: 1,
-                    timeToPay: 0,
-                    expireAt: 0,
-                    pause: false,
-                    ids: [1],
-                    wantOrIds: [],
-                    wantAndIds: [],
-                    deduct: false
-                })).not.to.be.reverted;
+                await expect(
+                    core.updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: constants.AddressZero,
+                        lid: 0,
+                        price: 1,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        pause: false,
+                        ids: [1],
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                    }),
+                ).not.to.be.reverted;
                 await core.setLiquidityManager(mid, deployer.address);
                 await expect(core.updateLiquidityPrice(mid, deployer.address, 0, 0, 0)).to.be.revertedWith("OC: PRICE_REQ");
             });

@@ -2,7 +2,7 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {BigNumber, BigNumberish, utils} from "ethers";
 import {ethers} from "hardhat";
 import {Core, MarketCore, MarketManager, MediatorManager, PayRouter, TOKEN} from "../../typechain-types";
-import {AddressZero, advanceBlockTime, AssetType, makeMarketID, SourceType, toBN, toDec} from "../../utils/utils";
+import {AddressZero, advanceBlockTime, AssetType, makeMarketID, powOf, SourceType, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
 const {getContractFactory} = ethers;
 const {expect} = require("chai");
@@ -27,7 +27,7 @@ describe("MarketManager", function () {
     let amountOfBase: BigNumber;
     let pricePerBase: BigNumber;
     const abi = utils.defaultAbiCoder;
-    let marketCreator: SignerWithAddress, provider: SignerWithAddress, swapper: SignerWithAddress, marketCreator2: SignerWithAddress, inventor: SignerWithAddress;
+    let marketCreator: SignerWithAddress, provider: SignerWithAddress, swapper: SignerWithAddress, user3: SignerWithAddress, user4: SignerWithAddress;
 
     beforeEach(async () => {
         const vars = await initCoreTestSuite();
@@ -50,8 +50,8 @@ describe("MarketManager", function () {
         marketCreator = vars.marketCreator;
         provider = vars.provider;
         swapper = vars.swapper;
-        marketCreator2 = vars.marketCreator2;
-        inventor = vars.inventor;
+        user3 = vars.accts[3];
+        user4 = vars.accts[4];
 
         let factory = await getContractFactory("PayRouter");
         payRouter = (await factory.deploy(token.address)) as PayRouter;
@@ -92,13 +92,15 @@ describe("MarketManager", function () {
         await payRouter.createOrg("AcmeBank");
         await payRouter.createOrg("ECorpBank");
 
+        await token.approve(payRouter.address, powOf(20));
+
         await payRouter.createRoute({
             source: SourceType.Org,
             sourceOrgId: 1,
             sourceToken: AddressZero,
             owner: AddressZero,
             destOrgId: 2,
-            bond: 0,
+            bond: powOf(10),
             requesters: [mktMgr.address],
         });
 
@@ -108,11 +110,35 @@ describe("MarketManager", function () {
             sourceToken: AddressZero,
             owner: AddressZero,
             destOrgId: 2,
-            bond: 0,
+            bond: powOf(10),
             requesters: [mktMgr.address],
         });
     });
 
+    describe(".setPayRouter", () => {
+        it("should revert if the caller is not the owner", async () => {
+            await expect(mktMgr.connect(swapper).setPayRouter(payRouter.address)).to.be.revertedWith("OWNABLE: NOT_OWNER");
+        });
+
+        it("should set the pay router", async () => {
+            await mktMgr.setPayRouter(payRouter.address);
+            expect(await mktMgr.payRouter()).to.eq(payRouter.address);
+        });
+    });
+
+    // test: setCore
+    describe(".setCore", () => {
+        it("should revert if the caller is not the owner", async () => {
+            await expect(mktMgr.connect(swapper).setCore(core.address)).to.be.revertedWith("OWNABLE: NOT_OWNER");
+        });
+
+        it("should set the core", async () => {
+            await mktMgr.setCore(core.address);
+            expect(await mktMgr.core()).to.eq(core.address);
+        });
+    });
+
+    // test: addDelegate
     describe(".addDelegate", () => {
         it("should add a delegate", async () => {
             expect(await mktMgr.delegates(swapper.address)).to.be.false;
@@ -161,13 +187,7 @@ describe("MarketManager", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
-                    marketMgrData: abi.encode(
-                        ["uint256[]", "uint256[]"],
-                        [
-                            [0, 1],
-                            [0, 0],
-                        ],
-                    ),
+                    marketMgrData: abi.encode(["uint256[]", "uint256[]", "uint256"], [[0, 1], [0, 0], 0]),
                 }),
             ).to.be.revertedWith("MM: NOT_CORE");
         });
@@ -192,13 +212,7 @@ describe("MarketManager", function () {
                 ids: [],
                 expireAt: 0,
                 operator: 0,
-                marketMgrData: abi.encode(
-                    ["uint256[]", "uint256[]"],
-                    [
-                        [0, 1],
-                        [0, 0],
-                    ],
-                ),
+                marketMgrData: abi.encode(["uint256[]", "uint256[]", "uint256"], [[0, 1], [0, 0], 0]),
             };
 
             await mktMgr.setCore(AddressZero);
@@ -235,13 +249,7 @@ describe("MarketManager", function () {
                 ids: [],
                 expireAt: 0,
                 operator: 0,
-                marketMgrData: abi.encode(
-                    ["uint256[]", "uint256[]"],
-                    [
-                        [0, 1],
-                        [0, 0],
-                    ],
-                ),
+                marketMgrData: abi.encode(["uint256[]", "uint256[]", "uint256"], [[0, 1], [0, 0], 0]),
             };
 
             await mktMgr.setCore(AddressZero);
@@ -280,13 +288,7 @@ describe("MarketManager", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
-                    marketMgrData: abi.encode(
-                        ["uint256[]", "uint256[]"],
-                        [
-                            [0, 1],
-                            [0, 0],
-                        ],
-                    ),
+                    marketMgrData: abi.encode(["uint256[]", "uint256[]", "uint256"], [[0, 1], [0, 0], 0]),
                 }),
             ).not.to.be.reverted;
 
@@ -322,13 +324,7 @@ describe("MarketManager", function () {
                     ids: [],
                     expireAt: 0,
                     operator: 0,
-                    marketMgrData: abi.encode(
-                        ["uint256[]", "uint256[]"],
-                        [
-                            [0, 1],
-                            [0, 0],
-                        ],
-                    ),
+                    marketMgrData: abi.encode(["uint256[]", "uint256[]", "uint256"], [[0, 1], [0, 0], 0]),
                 }),
             ).not.to.be.reverted;
 
@@ -341,6 +337,189 @@ describe("MarketManager", function () {
             expect(req.orgSrcPaid).to.be.true;
             expect(req.closed).to.be.true;
             expect(req.cancelled).to.be.false;
+        });
+    });
+
+    // test: setRequesterFeeBp
+    describe(".setRequesterFeeBp", () => {
+        it("should revert if the caller is not the owner", async () => {
+            await expect(mktMgr.connect(swapper).setRequesterFeeBp(100)).to.be.revertedWith("OWNABLE: NOT_OWNER");
+        });
+
+        it("should revert if value is > 10000 (100%)", async () => {
+            await expect(mktMgr.setRequesterFeeBp(10001)).to.be.revertedWith("PR: TOO_HIGH'");
+        });
+
+        it("should set the requester fee bp", async () => {
+            await expect(mktMgr.setRequesterFeeBp(100)).not.to.be.reverted;
+            expect(await payRouter.requestersFeeBp(mktMgr.address)).to.eq(100);
+        });
+    });
+
+    describe(".setRequesterValueLockDuration", () => {
+        it("should revert if the caller is not the owner", async () => {
+            await expect(mktMgr.connect(swapper).setRequesterValueLockDuration(100)).to.be.revertedWith("OWNABLE: NOT_OWNER");
+        });
+
+        it("should set the requester value lock duration", async () => {
+            await expect(mktMgr.setRequesterValueLockDuration(100)).not.to.be.reverted;
+            expect(await payRouter.requesterValueLockDuration(mktMgr.address)).to.eq(100);
+        });
+    });
+
+    describe(".transferRequestBond", () => {
+        it("should revert if the caller is not the owner or delegate", async () => {
+            await expect(mktMgr.connect(swapper).transferRequestBond(0, 0, 0, swapper.address)).to.be.revertedWith("MM: NOT_OWNER_OR_DELEGATE");
+        });
+
+        it("should transfer the request bond", async () => {
+            await provideLiquidity(provider, amountOfBase, pricePerBase);
+            const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+            const swapCost = swapAmt.mul(pricePerBase).div(baseDec);
+            await quoteAsset.transfer(swapper.address, swapCost);
+            await quoteAsset.connect(swapper).approve(cAddr, swapCost);
+
+            await expect(
+                core.connect(swapper).swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: swapAmt,
+                    maxPrice: pricePerBase,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                    marketMgrData: abi.encode(["uint256[]", "uint256[]", "uint256"], [[0, 1], [powOf(10), 0], 0]),
+                }),
+            ).not.to.be.reverted;
+
+            await expect(mktMgr.transferRequestBond(0, 0, powOf(5), user3.address)).not.to.be.reverted;
+
+            const bal = await token.balanceOf(user3.address);
+            expect(bal).to.eq(powOf(5));
+
+            // Allow delegate to transfer
+            await mktMgr.addDelegate(user4.address);
+            await expect(mktMgr.transferRequestBond(0, 0, powOf(5), user3.address)).not.to.be.reverted;
+
+            const bal2 = await token.balanceOf(user3.address);
+            expect(bal2).to.eq(powOf(10));
+
+            // Remove delegate
+            await mktMgr.removeDelegate(user4.address);
+            await expect(mktMgr.connect(user4).transferRequestBond(0, 0, powOf(5), user3.address)).to.be.revertedWith("MM: NOT_OWNER_OR_DELEGATE");
+        });
+    });
+
+    describe(".cancelOrder", () => {
+        it("should revert if the caller is not the owner or delegate", async () => {
+            await expect(mktMgr.connect(swapper).cancelOrder(0)).to.be.revertedWith("MM: NOT_OWNER_OR_DELEGATE");
+        });
+
+        it("should cancel the order", async () => {
+            await provideLiquidity(provider, amountOfBase, pricePerBase);
+            const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+            const swapCost = swapAmt.mul(pricePerBase).div(baseDec);
+            await quoteAsset.transfer(swapper.address, swapCost);
+            await quoteAsset.connect(swapper).approve(cAddr, swapCost);
+
+            await expect(
+                core.connect(swapper).swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: swapAmt,
+                    maxPrice: pricePerBase,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                    marketMgrData: abi.encode(["uint256[]", "uint256[]", "uint256"], [[0, 1], [powOf(10), 0], 0]),
+                }),
+            ).not.to.be.reverted;
+
+            // revert if not delegate or owner
+            await expect(mktMgr.connect(user4).cancelOrder(0)).to.be.revertedWith("MM: NOT_OWNER_OR_DELEGATE");
+
+            await advanceBlockTime(3600);
+            await expect(mktMgr.cancelOrder(0)).not.to.be.reverted;
+            const order = await core.getOrder(0);
+            expect(order.cancelled).to.be.true;
+        });
+    });
+
+    describe(".markOrderAsPaid", () => {
+        it("should revert if the caller is not the owner or delegate", async () => {
+            await expect(mktMgr.connect(swapper).markOrderAsPaid(0)).to.be.revertedWith("MM: NOT_OWNER_OR_DELEGATE");
+        });
+
+        it("should mark the order as paid", async () => {
+            await provideLiquidity(provider, amountOfBase, pricePerBase);
+            const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+            const swapCost = swapAmt.mul(pricePerBase).div(baseDec);
+            await quoteAsset.transfer(swapper.address, swapCost);
+            await quoteAsset.connect(swapper).approve(cAddr, swapCost);
+
+            await expect(
+                core.connect(swapper).swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: swapAmt,
+                    maxPrice: pricePerBase,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                    marketMgrData: abi.encode(["uint256[]", "uint256[]", "uint256"], [[0, 1], [powOf(10), 0], 0]),
+                }),
+            ).not.to.be.reverted;
+
+            await expect(mktMgr.markOrderAsPaid(0)).not.to.be.reverted;
+            const order = await core.getOrder(0);
+            expect(order.paid).to.be.true;
+
+            // revert if not delegate or owner
+            await expect(mktMgr.connect(user4).markOrderAsPaid(0)).to.be.revertedWith("MM: NOT_OWNER_OR_DELEGATE");
+        });
+    });
+
+    // test: releaseOrder
+    describe(".releaseOrder", () => {
+        it("should revert if the caller is not the owner or delegate", async () => {
+            await expect(mktMgr.connect(swapper).releaseOrder(0)).to.be.revertedWith("MM: NOT_OWNER_OR_DELEGATE");
+        });
+
+        it("should release the order", async () => {
+            await provideLiquidity(provider, amountOfBase, pricePerBase);
+            const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+            const swapCost = swapAmt.mul(pricePerBase).div(baseDec);
+            await quoteAsset.transfer(swapper.address, swapCost);
+            await quoteAsset.connect(swapper).approve(cAddr, swapCost);
+
+            await expect(
+                core.connect(swapper).swapQuoteForBase({
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: swapAmt,
+                    maxPrice: pricePerBase,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                    marketMgrData: abi.encode(["uint256[]", "uint256[]", "uint256"], [[0, 1], [powOf(10), 0], 10]),
+                }),
+            ).not.to.be.reverted;
+
+            await expect(mktMgr.markOrderAsPaid(0)).not.to.be.reverted;
+            await expect(mktMgr.releaseOrder(0)).not.to.be.reverted;
+            const order = await core.getOrder(0);
+            expect(order.released).to.be.true;
+
+            // revert if not delegate or owner
+            await expect(mktMgr.connect(user4).releaseOrder(0)).to.be.revertedWith("MM: NOT_OWNER_OR_DELEGATE");
         });
     });
 });

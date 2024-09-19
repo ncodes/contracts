@@ -81,7 +81,14 @@ contract PayRouter is Ownable {
     event WithdrawnBond(address indexed withdrawer, uint256 routeId, uint256 amount);
     event ApprovedRequester(uint256 routeId, address requester);
     event UnapprovedRequester(uint256 routeId, address requester);
-    event RequestCreated(address creator, uint256 requestId, uint256[] routeIds, uint256[] bonds, uint256 sourceAmt);
+    event RequestCreated(
+        address creator,
+        uint256 requestId,
+        uint256[] routeIds,
+        uint256[] bonds,
+        uint256 sourceAmt,
+        uint256 valueLockDuration
+    );
     event RequestPaid(address router, uint256 requestId, uint256 routeId, uint256 bond);
     event BondReturned(address router, uint256 routeId, uint256 bond);
     event SourceReturned(address indexed router, uint256 routeId, uint256 amount);
@@ -239,7 +246,13 @@ contract PayRouter is Ownable {
     /// @param _routeIds The route IDs
     /// @param _bonds The bond amounts
     /// @param _sourceAmt The amount of source token to transfer into the router
-    function createRequest(uint256[] calldata _routeIds, uint256[] calldata _bonds, uint256 _sourceAmt) external payable {
+    /// @param _valueLockDuration The value lock duration in seconds
+    function createRequest(
+        uint256[] calldata _routeIds,
+        uint256[] calldata _bonds,
+        uint256 _sourceAmt,
+        uint256 _valueLockDuration
+    ) external payable {
         require(_routeIds.length > 0, "PR: NO_ROUTES");
         require(_routeIds.length == _bonds.length, "PR: MISMATCHED_IDS_BONDS");
 
@@ -271,8 +284,8 @@ contract PayRouter is Ownable {
         requests[numRequests].paid = new bool[](_routeIds.length);
         requests[numRequests].requesterFeeBp = requestersFeeBp[msg.sender];
         requests[numRequests].protocolFeeBp = protocolFeeBp;
-        requests[numRequests].valueLockDuration = requesterValueLockDuration[msg.sender];
-        emit RequestCreated(msg.sender, numRequests, _routeIds, _bonds, _sourceAmt);
+        requests[numRequests].valueLockDuration = (_valueLockDuration > 0) ? _valueLockDuration : requesterValueLockDuration[msg.sender];
+        emit RequestCreated(msg.sender, numRequests, _routeIds, _bonds, _sourceAmt, requests[numRequests].valueLockDuration);
         numRequests++;
     }
 

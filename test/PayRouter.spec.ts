@@ -444,16 +444,16 @@ describe("PayRouter", function () {
     // test: createRequest
     describe("createRequest", () => {
         it("should revert with msg='PR: NO_ROUTES' when route is empty", async () => {
-            await expect(payRouter.createRequest([], [], 100)).to.be.revertedWith("PR: NO_ROUTES");
+            await expect(payRouter.createRequest([], [], 100, 0)).to.be.revertedWith("PR: NO_ROUTES");
         });
 
         it("should revert with msg='MISMATCHED_IDS_BONDS' when routeIds and bonds length are not the same", async () => {
-            await expect(payRouter.createRequest([1, 2], [100], 100)).to.be.revertedWith("PR: MISMATCHED_IDS_BONDS");
-            await expect(payRouter.createRequest([1], [100, 200], 100)).to.be.revertedWith("PR: MISMATCHED_IDS_BONDS");
+            await expect(payRouter.createRequest([1, 2], [100], 100, 0)).to.be.revertedWith("PR: MISMATCHED_IDS_BONDS");
+            await expect(payRouter.createRequest([1], [100, 200], 100, 0)).to.be.revertedWith("PR: MISMATCHED_IDS_BONDS");
         });
 
         it("should revert with msg='UNKNOWN_ROUTE' when route does not exist", async () => {
-            await expect(payRouter.createRequest([1], [100], 100)).to.be.revertedWith("PR: UNKNOWN_ROUTE");
+            await expect(payRouter.createRequest([1], [100], 100, 0)).to.be.revertedWith("PR: UNKNOWN_ROUTE");
         });
 
         it("should revert with msg='X' when when sender is not an approved requester", async () => {
@@ -467,7 +467,7 @@ describe("PayRouter", function () {
                 bond: 0,
                 requesters: [],
             });
-            await expect(payRouter.connect(user2).createRequest([0], [1], 1)).to.be.revertedWith("PR: NOT_APPROVED_REQUESTER");
+            await expect(payRouter.connect(user2).createRequest([0], [1], 1, 0)).to.be.revertedWith("PR: NOT_APPROVED_REQUESTER");
         });
 
         it("should revert with msg='SRC_NOT_ORG' when source org of routes preceding first route is not ORG", async () => {
@@ -493,7 +493,7 @@ describe("PayRouter", function () {
             });
             await payRouter.approveRequester(0, user2.address);
             await payRouter.approveRequester(1, user2.address);
-            await expect(payRouter.connect(user2).createRequest([0, 1], [0, 0], 0)).to.be.revertedWith("PR: SRC_NOT_ORG");
+            await expect(payRouter.connect(user2).createRequest([0, 1], [0, 0], 0, 0)).to.be.revertedWith("PR: SRC_NOT_ORG");
         });
 
         it("should revert with msg='BAD_ORG_LINK' when destination org ID of previous route is not equal to source org ID of next route", async () => {
@@ -519,7 +519,7 @@ describe("PayRouter", function () {
             });
             await payRouter.approveRequester(0, user2.address);
             await payRouter.approveRequester(1, user2.address);
-            await expect(payRouter.connect(user2).createRequest([0, 1], [0, 0], 0)).to.be.revertedWith("PR: BAD_ORG_LINK");
+            await expect(payRouter.connect(user2).createRequest([0, 1], [0, 0], 0, 0)).to.be.revertedWith("PR: BAD_ORG_LINK");
         });
 
         it("should revert with msg='INSUFFICIENT_BOND_BALANCE' when bond balance is insufficient", async () => {
@@ -534,7 +534,7 @@ describe("PayRouter", function () {
                 requesters: [],
             });
             await payRouter.approveRequester(0, user2.address);
-            await expect(payRouter.connect(user2).createRequest([0], [1], 1)).to.be.revertedWith("PR: INSUFFICIENT_BOND_BALANCE");
+            await expect(payRouter.connect(user2).createRequest([0], [1], 1, 0)).to.be.revertedWith("PR: INSUFFICIENT_BOND_BALANCE");
         });
 
         describe("source type = Token", () => {
@@ -556,7 +556,7 @@ describe("PayRouter", function () {
 
                 await payRouter.connect(user2).approveRequester(0, user2.address);
 
-                await expect(payRouter.connect(user2).createRequest([0], [1], 1)).to.be.revertedWith("ERC20: insufficient allowance");
+                await expect(payRouter.connect(user2).createRequest([0], [1], 1, 0)).to.be.revertedWith("ERC20: insufficient allowance");
             });
 
             it("should successfully create request", async () => {
@@ -580,9 +580,9 @@ describe("PayRouter", function () {
 
                 await payRouter.connect(user2).approveRequester(0, user2.address);
 
-                await expect(payRouter.connect(user2).createRequest([0], [1], 1))
+                await expect(payRouter.connect(user2).createRequest([0], [1], 1, 0))
                     .to.emit(payRouter, "RequestCreated")
-                    .withArgs(user2.address, 0, [0], [1], 1);
+                    .withArgs(user2.address, 0, [0], [1], 1, 0);
 
                 const req = await payRouter.getRequest(0);
                 expect(req.routeIds).to.have.length(1);
@@ -614,8 +614,8 @@ describe("PayRouter", function () {
 
                 await payRouter.connect(user2).approveRequester(0, user2.address);
 
-                await expect(payRouter.connect(user2).createRequest([0], [1], 1)).to.be.revertedWith("PR: INSUFFICIENT_DEPOSIT");
-                await expect(payRouter.connect(user2).createRequest([0], [1], 1, {value: 2})).to.be.revertedWith("PR: INSUFFICIENT_DEPOSIT");
+                await expect(payRouter.connect(user2).createRequest([0], [1], 1, 0)).to.be.revertedWith("PR: INSUFFICIENT_DEPOSIT");
+                await expect(payRouter.connect(user2).createRequest([0], [1], 1, 0, {value: 2})).to.be.revertedWith("PR: INSUFFICIENT_DEPOSIT");
             });
 
             it("should successfully create request", async () => {
@@ -637,9 +637,9 @@ describe("PayRouter", function () {
 
                 await payRouter.connect(user2).approveRequester(0, user2.address);
 
-                await expect(payRouter.connect(user2).createRequest([0], [1], 1, {value: 1}))
+                await expect(payRouter.connect(user2).createRequest([0], [1], 1, 0, {value: 1}))
                     .to.emit(payRouter, "RequestCreated")
-                    .withArgs(user2.address, 0, [0], [1], 1);
+                    .withArgs(user2.address, 0, [0], [1], 1, 0);
 
                 const req = await payRouter.getRequest(0);
                 expect(req.routeIds).to.have.length(1);
@@ -699,9 +699,9 @@ describe("PayRouter", function () {
                 await payRouter.connect(user2).approveRequester(0, user2.address);
                 await payRouter.connect(user3).approveRequester(1, user2.address);
 
-                await expect(payRouter.connect(user2).createRequest([0, 1], [1, 1], 1, {value: 1}))
+                await expect(payRouter.connect(user2).createRequest([0, 1], [1, 1], 1, 0, {value: 1}))
                     .to.emit(payRouter, "RequestCreated")
-                    .withArgs(user2.address, 0, [0, 1], [1, 1], 1);
+                    .withArgs(user2.address, 0, [0, 1], [1, 1], 1, 0);
 
                 await expect(payRouter.connect(user2).markRequestAsPaid(0)).not.to.be.reverted;
                 await expect(payRouter.connect(user3).markRequestAsPaid(0)).not.to.be.reverted;
@@ -763,9 +763,9 @@ describe("PayRouter", function () {
                 await payRouter.connect(user2).approveRequester(0, user2.address);
                 await payRouter.connect(user3).approveRequester(1, user2.address);
 
-                await expect(payRouter.connect(user2).createRequest([0, 1], [1, 1], 1, {value: 1}))
+                await expect(payRouter.connect(user2).createRequest([0, 1], [1, 1], 1, 0, {value: 1}))
                     .to.emit(payRouter, "RequestCreated")
-                    .withArgs(user2.address, 0, [0, 1], [1, 1], 1);
+                    .withArgs(user2.address, 0, [0, 1], [1, 1], 1, 0);
 
                 let route = await payRouter.routes(0);
                 expect(route.bond).to.eq(0);
@@ -844,9 +844,9 @@ describe("PayRouter", function () {
                 await payRouter.connect(user2).approveRequester(0, user2.address);
                 await payRouter.connect(user3).approveRequester(1, user2.address);
 
-                await expect(payRouter.connect(user2).createRequest([0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18)))
+                await expect(payRouter.connect(user2).createRequest([0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18), 0))
                     .to.emit(payRouter, "RequestCreated")
-                    .withArgs(user2.address, 0, [0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18));
+                    .withArgs(user2.address, 0, [0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18), 0);
 
                 const req = await payRouter.getRequest(0);
                 expect(req.requesterFeeBp).to.eq(100);
@@ -901,7 +901,7 @@ describe("PayRouter", function () {
 
             await payRouter.connect(user2).approveRequester(0, user2.address);
 
-            await expect(payRouter.connect(user2).createRequest([0], [0], 0)).not.to.be.reverted;
+            await expect(payRouter.connect(user2).createRequest([0], [0], 0, 0)).not.to.be.reverted;
 
             await expect(payRouter.closeRequest(0)).to.be.revertedWith("PR: NOT_CREATOR");
         });
@@ -924,7 +924,7 @@ describe("PayRouter", function () {
 
             await payRouter.connect(user2).approveRequester(0, user2.address);
 
-            await expect(payRouter.connect(user2).createRequest([0], [1], 1)).not.to.be.reverted;
+            await expect(payRouter.connect(user2).createRequest([0], [1], 1, 0)).not.to.be.reverted;
 
             await expect(payRouter.connect(user2).closeRequest(0)).to.emit(payRouter, "RequestClosed").withArgs(0);
 
@@ -975,7 +975,7 @@ describe("PayRouter", function () {
                 await payRouter.connect(user2).approveRequester(0, user2.address);
                 await payRouter.connect(user3).approveRequester(1, user2.address);
 
-                await expect(payRouter.connect(user2).createRequest([0, 1], [1, 1], 1)).not.to.be.reverted;
+                await expect(payRouter.connect(user2).createRequest([0, 1], [1, 1], 1, 0)).not.to.be.reverted;
 
                 await expect(payRouter.connect(user2).markRequestAsPaid(0)).not.to.be.reverted;
                 await expect(payRouter.connect(user3).markRequestAsPaid(0)).not.to.be.reverted;
@@ -1032,7 +1032,7 @@ describe("PayRouter", function () {
                     await payRouter.connect(user2).approveRequester(0, user2.address);
                     await payRouter.connect(user3).approveRequester(1, user2.address);
 
-                    await expect(payRouter.connect(user2).createRequest([0, 1], [1, 1], 1, {value: 1})).not.to.be.reverted;
+                    await expect(payRouter.connect(user2).createRequest([0, 1], [1, 1], 1, 0, {value: 1})).not.to.be.reverted;
 
                     await expect(payRouter.connect(user2).markRequestAsPaid(0)).not.to.be.reverted;
                     await expect(payRouter.connect(user3).markRequestAsPaid(0)).not.to.be.reverted;
@@ -1097,7 +1097,7 @@ describe("PayRouter", function () {
                 await payRouter.connect(user2).approveRequester(0, user2.address);
                 await payRouter.connect(user3).approveRequester(1, user2.address);
 
-                await expect(payRouter.connect(user2).createRequest([0, 1], [1, 1], 1)).not.to.be.reverted;
+                await expect(payRouter.connect(user2).createRequest([0, 1], [1, 1], 1, 0)).not.to.be.reverted;
 
                 await expect(payRouter.connect(user2).markRequestAsPaid(0)).not.to.be.reverted;
 
@@ -1154,7 +1154,7 @@ describe("PayRouter", function () {
                 await payRouter.connect(user2).approveRequester(0, user2.address);
                 await payRouter.connect(user3).approveRequester(1, user2.address);
 
-                await expect(payRouter.connect(user2).createRequest([0, 1], [1, 1], 1)).not.to.be.reverted;
+                await expect(payRouter.connect(user2).createRequest([0, 1], [1, 1], 1, 0)).not.to.be.reverted;
 
                 await expect(payRouter.connect(user3).markRequestAsPaid(0)).not.to.be.reverted;
 
@@ -1216,7 +1216,7 @@ describe("PayRouter", function () {
                 await payRouter.connect(user2).approveRequester(0, user2.address);
                 await payRouter.connect(user3).approveRequester(1, user2.address);
 
-                await expect(payRouter.connect(user2).createRequest([0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18))).not.to.be.reverted;
+                await expect(payRouter.connect(user2).createRequest([0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18), 0)).not.to.be.reverted;
 
                 await expect(payRouter.connect(user2).markRequestAsPaid(0)).not.to.be.reverted;
                 await expect(payRouter.connect(user3).markRequestAsPaid(0)).not.to.be.reverted;
@@ -1240,7 +1240,7 @@ describe("PayRouter", function () {
             });
         });
 
-        describe("request set a value unlock duration", () => {
+        describe("request set a value lock duration", () => {
             it("should not return bond and source amount until value unlock duration is over", async () => {
                 await payRouter.createOrg("org1");
                 await bondToken.transfer(user2.address, powOf(2, 18));
@@ -1273,7 +1273,9 @@ describe("PayRouter", function () {
                 await payRouter.connect(user3).approveRequester(1, user2.address);
 
                 await payRouter.connect(user2).setRequesterValueLockDuration(100);
-                await expect(payRouter.connect(user2).createRequest([0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18))).not.to.be.reverted;
+                await expect(payRouter.connect(user2).createRequest([0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18), 0))
+                    .to.emit(payRouter, "RequestCreated")
+                    .withArgs(user2.address, 0, [0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18), 100);
 
                 await expect(payRouter.connect(user2).markRequestAsPaid(0)).not.to.be.reverted;
                 await expect(payRouter.connect(user3).markRequestAsPaid(0)).not.to.be.reverted;
@@ -1293,6 +1295,61 @@ describe("PayRouter", function () {
                 expect(route.bond).to.eq(powOf(1, 18));
                 route2 = await payRouter.routes(1);
                 expect(route2.bond).to.eq(powOf(1, 18));
+            });
+
+            describe("per request value lock duration", () => {
+                it("should not return bond and source amount until value unlock duration is over", async () => {
+                    await payRouter.createOrg("org1");
+                    await bondToken.transfer(user2.address, powOf(2, 18));
+                    await bondToken.connect(user2).approve(payRouter.address, powOf(2, 18));
+
+                    await payRouter.connect(user2).createRoute({
+                        owner: AddressZero,
+                        source: SourceType.Token,
+                        sourceToken: bondToken.address,
+                        sourceOrgId: 0,
+                        destOrgId: 1,
+                        bond: powOf(1, 18),
+                        requesters: [],
+                    });
+
+                    await bondToken.transfer(user3.address, powOf(1, 18));
+                    await bondToken.connect(user3).approve(payRouter.address, powOf(1, 18));
+
+                    await payRouter.connect(user3).createRoute({
+                        owner: AddressZero,
+                        source: SourceType.Org,
+                        sourceToken: AddressZero,
+                        sourceOrgId: 1,
+                        destOrgId: 1,
+                        bond: powOf(1, 18),
+                        requesters: [],
+                    });
+
+                    await payRouter.connect(user2).approveRequester(0, user2.address);
+                    await payRouter.connect(user3).approveRequester(1, user2.address);
+
+                    await expect(payRouter.connect(user2).createRequest([0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18), 100)).not.to.be.reverted;
+
+                    await expect(payRouter.connect(user2).markRequestAsPaid(0)).not.to.be.reverted;
+                    await expect(payRouter.connect(user3).markRequestAsPaid(0)).not.to.be.reverted;
+
+                    await expect(payRouter.connect(user2).closeRequest(0)).not.to.emit(payRouter, "BondReturned").not.to.emit(payRouter, "SourceReturned");
+
+                    let route = await payRouter.routes(0);
+                    expect(route.bond).to.eq(0);
+                    let route2 = await payRouter.routes(1);
+                    expect(route2.bond).to.eq(0);
+
+                    await advanceBlockTime(100);
+                    await expect(payRouter.connect(user2).markRequestAsPaid(0)).not.to.be.reverted;
+                    await expect(payRouter.connect(user3).markRequestAsPaid(0)).not.to.be.reverted;
+
+                    route = await payRouter.routes(0);
+                    expect(route.bond).to.eq(powOf(1, 18));
+                    route2 = await payRouter.routes(1);
+                    expect(route2.bond).to.eq(powOf(1, 18));
+                });
             });
         });
     });
@@ -1332,7 +1389,7 @@ describe("PayRouter", function () {
             await payRouter.connect(user2).approveRequester(0, user2.address);
             await payRouter.connect(user3).approveRequester(1, user2.address);
 
-            await expect(payRouter.connect(user2).createRequest([0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18))).not.to.be.reverted;
+            await expect(payRouter.connect(user2).createRequest([0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18), 0)).not.to.be.reverted;
 
             await expect(payRouter.connect(user2).markRequestAsPaid(0)).not.to.be.reverted;
             await expect(payRouter.connect(user3).markRequestAsPaid(0)).not.to.be.reverted;
@@ -1392,7 +1449,7 @@ describe("PayRouter", function () {
             await payRouter.connect(user2).approveRequester(0, user2.address);
             await payRouter.connect(user3).approveRequester(1, user2.address);
 
-            await expect(payRouter.connect(user2).createRequest([0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18))).not.to.be.reverted;
+            await expect(payRouter.connect(user2).createRequest([0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18), 0)).not.to.be.reverted;
 
             await expect(payRouter.connect(user2).markRequestAsPaid(0)).not.to.be.reverted;
             await expect(payRouter.connect(user3).markRequestAsPaid(0)).not.to.be.reverted;
@@ -1455,7 +1512,7 @@ describe("PayRouter", function () {
             await payRouter.connect(user2).approveRequester(0, user2.address);
             await payRouter.connect(user3).approveRequester(1, user2.address);
 
-            await expect(payRouter.connect(user2).createRequest([0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18))).not.to.be.reverted;
+            await expect(payRouter.connect(user2).createRequest([0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18), 0)).not.to.be.reverted;
         });
 
         // revert if request is unknown
@@ -1512,7 +1569,7 @@ describe("PayRouter", function () {
                 requesters: [],
             });
             await payRouter.connect(user2).approveRequester(2, user2.address);
-            await expect(payRouter.connect(user2).createRequest([2], [0], 0)).not.to.be.reverted;
+            await expect(payRouter.connect(user2).createRequest([2], [0], 0, 0)).not.to.be.reverted;
             await expect(payRouter.connect(user2).markOrgSourceAsPaid(1)).not.to.be.reverted;
             await expect(payRouter.connect(user2).cancelRequest(1)).to.be.revertedWith("PR: ORG_SOURCE_PAID");
         });
@@ -1543,13 +1600,13 @@ describe("PayRouter", function () {
 
         it("should revert if sender is not request creator", async () => {
             await payRouter.connect(user2).approveRequester(0, user2.address);
-            await expect(payRouter.connect(user2).createRequest([0], [0], 0)).not.to.be.reverted;
+            await expect(payRouter.connect(user2).createRequest([0], [0], 0, 0)).not.to.be.reverted;
             await expect(payRouter.connect(user3).markOrgSourceAsPaid(0)).to.be.revertedWith("PR: NOT_CREATOR");
         });
 
         it("should mark request as paid", async () => {
             await payRouter.connect(user2).approveRequester(0, user2.address);
-            await expect(payRouter.connect(user2).createRequest([0], [0], 0)).not.to.be.reverted;
+            await expect(payRouter.connect(user2).createRequest([0], [0], 0, 0)).not.to.be.reverted;
             await expect(payRouter.connect(user2).markOrgSourceAsPaid(0)).to.emit(payRouter, "OrgSourcePaid").withArgs(0);
             const req = await payRouter.getRequest(0);
             expect(req.orgSrcPaid).to.be.true;
@@ -1590,7 +1647,7 @@ describe("PayRouter", function () {
             await payRouter.connect(user2).approveRequester(0, user2.address);
             await payRouter.connect(user3).approveRequester(1, user2.address);
 
-            await expect(payRouter.connect(user2).createRequest([0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18))).not.to.be.reverted;
+            await expect(payRouter.connect(user2).createRequest([0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18), 0)).not.to.be.reverted;
         });
 
         it("should revert if request is unknown", async () => {
@@ -1671,7 +1728,7 @@ describe("PayRouter", function () {
             await payRouter.connect(user2).approveRequester(0, user2.address);
             await payRouter.connect(user3).approveRequester(1, user2.address);
 
-            await expect(payRouter.connect(user2).createRequest([0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18))).not.to.be.reverted;
+            await expect(payRouter.connect(user2).createRequest([0, 1], [powOf(1, 18), powOf(1, 18)], powOf(1, 18), 0)).not.to.be.reverted;
         });
 
         it("should revert if request is unknown", async () => {

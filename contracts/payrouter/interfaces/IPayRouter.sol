@@ -67,7 +67,12 @@ interface IPayRouter {
     function getRequest(uint256 requestId) external view returns (Request memory);
     function depositBond(uint256 routeId, uint256 amount) external;
     function withdrawBond(uint256 routeId, uint256 amount) external;
-    function createRequest(uint256[] calldata _routeIds, uint256[] calldata _bonds, uint256 _sourceAmt) external payable;
+    function createRequest(
+        uint256[] calldata _routeIds,
+        uint256[] calldata _bonds,
+        uint256 _sourceAmt,
+        uint256 _valueLockDuration
+    ) external payable;
     function markOrgSourceAsPaid(uint256 requestId) external;
     function markRequestAsPaid(uint256 requestId) external;
     function closeRequest(uint256 requestId) external;

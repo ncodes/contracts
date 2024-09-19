@@ -64,30 +64,13 @@ library SwapLib {
         uint256 id,
         bool byDispute
     ) public {
-        OrderReleaseLib.releaseOrder(state, state2, owner, id, byDispute, false);
-
         Structs.Market memory mkt = state2.marketCore.getMarket(state.orders[id].marketId);
+
+        OrderReleaseLib.releaseOrder(state, state2, owner, id, byDispute, mkt.manager == msg.sender);
+
         if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
             IMarketManager(mkt.manager).onRelease(id);
         }
-    }
-
-    /// @notice Release an order using a market manager's signature
-    /// @param state The State object
-    /// @param state2 The State2 object
-    /// @param owner The contract owner
-    /// @param id The order ID
-    /// @param expireAt The expire time of the signature
-    /// @param signature The signature created by the manager
-    function releaseOrderByManagerSig(
-        StructsLib.State storage state,
-        StructsLib.State2 storage state2,
-        address owner,
-        uint256 id,
-        uint256 expireAt,
-        bytes calldata signature
-    ) public {
-        OrderReleaseLib.releaseOrderByManagerSig(state, state2, owner, id, expireAt, signature);
     }
 
     /// @dev Cancel an inactive order. An inactive order is one where:
@@ -113,24 +96,6 @@ library SwapLib {
         }
     }
 
-    /// @notice Cancel an order using a market manager's signature
-    /// @param state The State object
-    /// @param state2 The State2 object
-    /// @param owner The contract owner
-    /// @param id The order ID
-    /// @param expireAt The expire time of the signature
-    /// @param signature The signature created by the manager
-    function cancelOrderByManagerSig(
-        StructsLib.State storage state,
-        StructsLib.State2 storage state2,
-        address owner,
-        uint256 id,
-        uint256 expireAt,
-        bytes calldata signature
-    ) external {
-        OrderLib.cancelOrderByManagerSig(state, state2, owner, id, expireAt, signature);
-    }
-
     /// @dev Mark a swap order as paid.
     /// Order must not have been released or cancelled.
     /// When the base asset is on-chain (ERC20 or NFT), the sender must be the taker.
@@ -145,22 +110,6 @@ library SwapLib {
         if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
             IMarketManager(mkt.manager).onPaid(id);
         }
-    }
-
-    /// @notice Mark an order as paid using a market manager's signature
-    /// @param state The State object
-    /// @param state2 The State2 object
-    /// @param id The order ID
-    /// @param expireAt The expire time of the signature
-    /// @param signature The signature created by the manager
-    function markOrderAsPaidByManagerSig(
-        StructsLib.State storage state,
-        StructsLib.State2 storage state2,
-        uint256 id,
-        uint256 expireAt,
-        bytes calldata signature
-    ) external {
-        OrderLib.markOrderAsPaidByManagerSig(state, state2, id, expireAt, signature);
     }
 
     /// @dev Marks an order as `disputed`

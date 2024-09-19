@@ -35,14 +35,18 @@ contract MarketManager is Ownable, IMarketManager, ERC165 {
     event PayRouterUpdated(address payRouter);
     event TransferredRequestBond(address sender, uint256 requestId, uint256 routeId, uint256 amount, address to);
     event TransferredRequestSource(address sender, uint256 requestId, uint256 amount, address to);
+    event RequestCreated(uint256 requestId, uint256 orderId);
+    event RequestCancelled(uint256 requestId, uint256 orderId);
+    event RequestPaid(uint256 requestId, uint256 orderId);
+    event RequestReleased(uint256 requestId, uint256 orderId);
 
     modifier onlyCore() {
         require(msg.sender == address(core), "MM: NOT_CORE");
         _;
     }
 
-    modifier onlyDelegate() {
-        require(delegates[msg.sender], "MM: NOT_DELEGATE");
+    modifier onlyOwnerAndDelegate() {
+        require(msg.sender == owner() || delegates[msg.sender], "MM: NOT_OWNER_OR_DELEGATE");
         _;
     }
 
@@ -90,13 +94,18 @@ contract MarketManager is Ownable, IMarketManager, ERC165 {
         if (market.isInstantMarket()) return;
 
         // Get the routeIds and bonds from params
-        (uint256[] memory routeIds, uint256[] memory bonds) = abi.decode(params.marketMgrData, (uint256[], uint256[]));
+        (uint256[] memory routeIds, uint256[] memory bonds, uint256 valueLockDuration) = abi.decode(
+            params.marketMgrData,
+            (uint256[], uint256[], uint256)
+        );
 
         // Create PayRouter request
-        payRouter.createRequest(routeIds, bonds, 0);
+        payRouter.createRequest(routeIds, bonds, 0, valueLockDuration);
         uint256 requestId = payRouter.numRequests() - 1;
 
         requestInfo[orderId - 1] = RequestInfo(true, requestId, orderId - 1);
+
+        emit RequestCreated(requestId, orderId - 1);
     }
 
     /// @notice On cancel hook
@@ -104,6 +113,7 @@ contract MarketManager is Ownable, IMarketManager, ERC165 {
     function onCancel(uint256 orderId) external override onlyCore {
         if (!requestInfo[orderId].exists) return;
         payRouter.cancelRequest(requestInfo[orderId].requestId);
+        emit RequestCancelled(requestInfo[orderId].requestId, orderId);
     }
 
     /// @notice On paid hook
@@ -111,6 +121,7 @@ contract MarketManager is Ownable, IMarketManager, ERC165 {
     function onPaid(uint256 orderId) external override onlyCore {
         if (!requestInfo[orderId].exists) return;
         payRouter.markOrgSourceAsPaid(requestInfo[orderId].requestId);
+        emit RequestPaid(requestInfo[orderId].requestId, orderId);
     }
 
     /// @notice On release hook
@@ -118,6 +129,7 @@ contract MarketManager is Ownable, IMarketManager, ERC165 {
     function onRelease(uint256 orderId) external override onlyCore {
         if (!requestInfo[orderId].exists) return;
         payRouter.closeRequest(requestInfo[orderId].requestId);
+        emit RequestReleased(requestInfo[orderId].requestId, orderId);
     }
 
     /// @notice Set the requester fee bp
@@ -137,18 +149,9 @@ contract MarketManager is Ownable, IMarketManager, ERC165 {
     /// @param routeId The route ID
     /// @param amount The amount
     /// @param to The address to transfer to
-    function transferRequestBond(uint256 requestId, uint256 routeId, uint256 amount, address to) external onlyDelegate {
+    function transferRequestBond(uint256 requestId, uint256 routeId, uint256 amount, address to) external onlyOwnerAndDelegate {
         payRouter.transferRequestBond(requestId, routeId, amount, to);
         emit TransferredRequestBond(msg.sender, requestId, routeId, amount, to);
-    }
-
-    /// @notice Transfer source token
-    /// @param requestId The request ID
-    /// @param amount The amount
-    /// @param to The address to transfer to
-    function transferRequestSource(uint256 requestId, uint256 amount, address to) external onlyDelegate {
-        payRouter.transferRequestSource(requestId, amount, to);
-        emit TransferredRequestSource(msg.sender, requestId, amount, to);
     }
 
     /// @notice Withdraw requester fee
@@ -156,8 +159,28 @@ contract MarketManager is Ownable, IMarketManager, ERC165 {
     function withdrawRequesterFee(address beneficiary) external onlyOwner {
         payRouter.withdrawRequesterFee(beneficiary);
     }
+
+    /// @notice Cancel an order
+    /// @param orderId The order ID
+    function cancelOrder(uint256 orderId) external onlyOwnerAndDelegate {
+        core.cancelOrder(orderId);
+    }
+
+    /// @notice Release an order
+    function releaseOrder(uint256 orderId) external onlyOwnerAndDelegate {
+        core.releaseOrder(orderId);
+    }
+
+    /// @notice Mark an order as paid
+    /// @param orderId The order ID
+    function markOrderAsPaid(uint256 orderId) external onlyOwnerAndDelegate {
+        core.markOrderAsPaid(orderId);
+    }
 }
 
 interface ICore {
+    function markOrderAsPaid(uint256 orderId) external;
+    function releaseOrder(uint256 id) external;
+    function cancelOrder(uint256 id) external;
     function getMarket(address id) external view returns (Structs.Market memory);
 }
