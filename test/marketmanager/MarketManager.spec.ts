@@ -20,9 +20,7 @@ describe("MarketManager", function () {
     let baseAsset: TOKEN;
     let quoteAsset: TOKEN;
     let mid: string;
-    let tokenDec: BigNumber;
     let baseDec: BigNumber;
-    let quoteDec: BigNumber;
     let medMgr: MediatorManager;
     let amountOfBase: BigNumber;
     let pricePerBase: BigNumber;
@@ -42,9 +40,7 @@ describe("MarketManager", function () {
         baseAsset = vars.baseAsset;
         quoteAsset = vars.quoteAsset;
         mid = vars.mid;
-        tokenDec = vars.tokenDec;
         baseDec = vars.baseDec;
-        quoteDec = vars.quoteDec;
         amountOfBase = vars.amountOfBase;
         pricePerBase = vars.pricePerBase;
         marketCreator = vars.marketCreator;
@@ -263,6 +259,40 @@ describe("MarketManager", function () {
             expect(reqInfo.exists).to.be.true;
             expect(reqInfo.requestId).to.eq(0);
             expect(reqInfo.orderId).to.eq(0);
+        });
+
+        describe("no routes provided", () => {
+            it("should create a request after a swap order is created", async () => {
+                await provideLiquidity(provider, amountOfBase, pricePerBase);
+
+                const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                const swapCost = swapAmt.mul(pricePerBase).div(baseDec);
+                await quoteAsset.transfer(swapper.address, swapCost);
+                await quoteAsset.connect(swapper).approve(cAddr, swapCost);
+
+                const params = {
+                    marketId: mid,
+                    provider: provider.address,
+                    recipient: AddressZero,
+                    lid: 0,
+                    amount: swapAmt,
+                    maxPrice: pricePerBase,
+                    ids: [],
+                    expireAt: 0,
+                    operator: 0,
+                    marketMgrData: abi.encode(["uint256[]", "uint256[]"], [[], []]),
+                };
+
+                await mktMgr.setCore(AddressZero);
+                await mktMgr.setCore(core.address);
+                await expect(core.connect(swapper).swapQuoteForBase(params)).not.to.be.reverted;
+
+                const order = await core.getOrder(0);
+                expect(order.amount).to.eq(swapAmt);
+
+                const reqInfo = await mktMgr.requestInfo(0);
+                expect(reqInfo.exists).to.be.false;
+            });
         });
     });
 

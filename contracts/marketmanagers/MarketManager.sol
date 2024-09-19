@@ -113,11 +113,12 @@ contract MarketManager is Ownable, IMarketManager, ERC165 {
     /// @param params The swap params
     /// @param orderId The order ID
     function afterSwap(StructsLib.SwapQuoteForBaseParams memory params, uint256 orderId) external override onlyCore {
-        Structs.Market memory market = core.getMarket(params.marketId);
-        if (market.isInstantMarket()) return;
-
         // Get the routeIds and bonds from params
         (uint256[] memory routeIds, uint256[] memory bonds) = abi.decode(params.marketMgrData, (uint256[], uint256[]));
+        if (routeIds.length == 0) return;
+
+        Structs.Market memory market = core.getMarket(params.marketId);
+        if (market.isInstantMarket()) return;
 
         // Create PayRouter request
         payRouter.createRequest(routeIds, bonds, 0, getHighestValueLockDuration(routeIds));
