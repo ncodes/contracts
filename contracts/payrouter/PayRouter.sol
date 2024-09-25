@@ -334,11 +334,14 @@ contract PayRouter is Ownable {
     /// the sender's route will only be marked as paid. The function can be callled
     /// multiple times for the same request.
     /// @param requestId The request ID
-    function markRequestAsPaid(uint256 requestId) external {
+    /// @param routeId The route ID
+    function markRequestAsPaid(uint256 requestId, uint256 routeId) external {
         require(requests[requestId].routeIds.length > 0, "PR: UNKNOWN_REQUEST");
         Request storage req = requests[requestId];
 
         for (uint256 i = 0; i < req.routeIds.length; i++) {
+            if (req.routeIds[i] != routeId) continue;
+
             // Get the route. Skip current iteration if the route is not owned by the sender
             Route storage route = routes[req.routeIds[i]];
             if (route.owner != msg.sender) continue;

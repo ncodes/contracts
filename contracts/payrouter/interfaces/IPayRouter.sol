@@ -74,7 +74,7 @@ interface IPayRouter {
         uint256 _valueLockDuration
     ) external payable;
     function markOrgSourceAsPaid(uint256 requestId) external;
-    function markRequestAsPaid(uint256 requestId) external;
+    function markRequestAsPaid(uint256 requestId, uint256 routeId) external;
     function closeRequest(uint256 requestId) external;
     function cancelRequest(uint256 requestId) external;
     function transferRequestBond(uint256 requestId, uint256 routeId, uint256 amount, address to) external;
