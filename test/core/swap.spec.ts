@@ -572,6 +572,37 @@ describe("Core - Swap", function () {
                 ).to.be.revertedWith("LOW_QUOTE_BAL");
             });
 
+            it("should revert with msg='OC: NO_SELF_SWAP' when provider is the swapper", async () => {
+                await provideLiquidity(provider, amountOfBase, pricePerBase);
+
+                // Swap amount = 5.65 BASE (amount of BASE the swapper wants)
+                const swapAmt = toBN(toDec(5.65).mul(baseDec.toString()).toString());
+                const swapCost = swapAmt.mul(pricePerBase).div(baseDec); // amount the swapper will pay in QUOTE (=56.5 QUOTE)
+
+                // Give swapper enough QUOTE to pay swap cost and swapper must approve contract to spend it
+                await quoteAsset.transfer(swapper.address, swapCost);
+                await quoteAsset.connect(swapper).approve(cAddr, swapCost);
+
+                // Calculate expected swapper fees (for on-chain swap)
+                const protoFee = swapAmt.mul((await core.state()).ints.instantSwapFeeBp).div(10000);
+                const marketCreatorFee = swapAmt.mul(marketCommission).div(10000);
+                const totalFees = protoFee.add(marketCreatorFee);
+                await expect(
+                    core.connect(provider).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: swapAmt,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                        marketMgrData: Buffer.from([]),
+                    }),
+                ).to.be.revertedWith("OC: NO_SELF_SWAP");
+            });
+
             it("should perform instant swap transfer successfully", async () => {
                 await provideLiquidity(provider, amountOfBase, pricePerBase);
 
@@ -2582,6 +2613,41 @@ describe("Core - Swap", function () {
                         marketMgrData: Buffer.from([]),
                     }),
                 ).to.be.revertedWith("ERC20: insufficient allowance");
+            });
+
+            it("should revert with msg='OC: NO_SELF_SWAP' when provider is the swapper", async () => {
+                marketCom = toBN(10);
+                await mc.setCommission(mid, marketCom);
+
+                await expect(
+                    core.connect(provider).updateNonFungibleLiquidity({
+                        marketId: mid,
+                        target: AddressZero,
+                        lid: 0,
+                        price: pricePerBase,
+                        timeToPay: 0,
+                        expireAt: 0,
+                        ids: ids,
+                        wantOrIds: [],
+                        wantAndIds: [],
+                        deduct: false,
+                        pause: false,
+                    }),
+                ).not.to.be.reverted;
+                await expect(
+                    core.connect(provider).swapQuoteForBase({
+                        marketId: mid,
+                        provider: provider.address,
+                        recipient: AddressZero,
+                        lid: 0,
+                        amount: 0,
+                        maxPrice: pricePerBase,
+                        ids: [],
+                        expireAt: 0,
+                        operator: 0,
+                        marketMgrData: Buffer.from([]),
+                    }),
+                ).to.be.revertedWith("OC: NO_SELF_SWAP");
             });
 
             it("should successfully transfer quote asset to provider and base assets to sender and share fees correctly", async () => {

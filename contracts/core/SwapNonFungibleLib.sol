@@ -40,6 +40,7 @@ library SwapNonFungibleLib {
         StructsLib.SwapSlot memory sp,
         Structs.Market memory market
     ) public {
+        require(msg.sender != sp.addrs.provider, "OC: NO_SELF_SWAP");
         require(AuxLib.hasNonZeroLiquidity(s1, sp.addrs.marketId, sp.addrs.provider, sp.lid), "OC: ZERO_LIQ");
         Structs.Liquidity storage liq = s1.liquidity[sp.addrs.marketId][sp.addrs.provider][sp.lid];
         require(liq.target.isZero() || liq.target == msg.sender, "OC: NOT_TARGET");
