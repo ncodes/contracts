@@ -127,6 +127,17 @@ contract FreeToken is ERC20, Ownable {
         emit Claimed(addr, claimId, allocation);
     }
 
+    /// @notice Verify and claim multiple rewards
+    /// @param proofs The merkle proofs
+    /// @param addr The address to claim the reward
+    /// @param claimIds The claim ids
+    /// @param allocations The allocations
+    function claimMulti(bytes32[][] memory proofs, address addr, uint[] memory claimIds, uint256[] memory allocations) public {
+        for (uint i = 0; i < proofs.length; i++) {
+            claim(proofs[i], addr, claimIds[i], allocations[i]);
+        }
+    }
+
     /// @notice Withdraw a claim
     function withdrawClaim() public {
         require(allowWithdraw, "WITHDRAW_NOT_ALLOWED");

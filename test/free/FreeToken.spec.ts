@@ -15,7 +15,7 @@ export function generateTree(values: any[]) {
     return StandardMerkleTree.of(values, ["address", "uint", "uint256"]);
 }
 
-describe("FreeToken", function () {
+describe.only("FreeToken", function () {
     let deployer: SignerWithAddress;
     let user: SignerWithAddress;
     let user2: SignerWithAddress;
@@ -105,6 +105,31 @@ describe("FreeToken", function () {
             await expect(freeToken.claim(proof, deployer.address, 1, "2500000000000000000")).to.be.revertedWith(
                 "CLAIM_USED",
             );
+        });
+    });
+
+    describe(".claimMulti", () => {
+        beforeEach(async () => {
+            await freeToken.toggleAllowClaim();
+        });
+
+        it("should successfully claim multiple rewards", async () => {
+            let proof0 = tree.getProof(airdropTreeValues[0]);
+            let proof1 = tree.getProof(airdropTreeValues[1]);
+            await expect(
+                freeToken.claimMulti(
+                    [proof0, proof1],
+                    deployer.address,
+                    [0, 1],
+                    ["5000000000000000000", "2500000000000000000"],
+                ),
+            )
+                .to.emit(freeToken, "Claimed")
+                .withArgs(deployer.address, 0, "5000000000000000000")
+                .to.emit(freeToken, "Claimed")
+                .withArgs(deployer.address, 1, "2500000000000000000");
+
+            expect(await freeToken.claims(deployer.address)).to.eq("7500000000000000000");
         });
     });
 
