@@ -5,9 +5,9 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "../common/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "hardhat/console.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 
-contract FreeToken is ERC20, Ownable {
+contract BondCurveToken is ERC20, Ownable {
     uint8 _tokenDecimals;
     bytes32 public root;
     mapping(uint256 => mapping(address => int)) public usedClaims;
@@ -16,7 +16,8 @@ contract FreeToken is ERC20, Ownable {
     uint public devFeeBp;
     uint256 public devFeeEthBal;
     uint256 public claimedBalance;
-    uint256 public k = 16000000;
+    uint256 public airdropAlloc;
+    uint256 public k = 127330000000;
     uint256 public bondingCurveAlloc;
     uint256 public initialBondingCurveAlloc;
     uint256 public bondingCurveEthBal;
@@ -24,6 +25,8 @@ contract FreeToken is ERC20, Ownable {
     bool public allowTrade = false;
     bool public allowClaim = false;
     bool public allowWithdraw = false;
+    bool public allowSell = false;
+    bool public allowBuyTransfer = false;
     uint256 _scale = 1e18;
 
     /// @dev Initialize contract
@@ -31,8 +34,10 @@ contract FreeToken is ERC20, Ownable {
     /// @param _symbol The token symbol
     /// @param _initialSupply The initial supply
     /// @param _decimals The token's decimals
-    /// @param _devAlloc The dev supply
     /// @param _airdropTreeRoot The merkle root for the airdrop distribution
+    /// @param _airdropAlloc The airdrop supply
+    /// @param _devAlloc The dev supply
+    /// @param _bondingCurveAlloc The bonding curve supply
     /// @param _devFeeBp The dev fee in basis points
     constructor(
         string memory _name,
@@ -40,6 +45,7 @@ contract FreeToken is ERC20, Ownable {
         uint256 _initialSupply,
         uint8 _decimals,
         bytes32 _airdropTreeRoot,
+        uint256 _airdropAlloc,
         uint256 _devAlloc,
         uint256 _bondingCurveAlloc,
         uint256 _devFeeBp
@@ -50,6 +56,7 @@ contract FreeToken is ERC20, Ownable {
         devAlloc = _devAlloc;
         devFeeBp = _devFeeBp;
         root = _airdropTreeRoot;
+        airdropAlloc = _airdropAlloc;
         _mint(msg.sender, _initialSupply);
     }
 
@@ -57,18 +64,45 @@ contract FreeToken is ERC20, Ownable {
     event ClaimWithdrawn(address addr, uint256 amount);
     event WithdrawnToken(address beneficiary, uint256 amount);
     event AllowTrade(bool allowTrade);
+    event AllowSell(bool allowSell);
     event AllowClaim(bool allowClaim);
     event AllowWithdraw(bool allowWithdraw);
+    event AllowBuyTransfer(bool allowBuyTransfer);
     event Buy(address buyer, uint256 input, uint256 output, uint256 fee);
     event Sell(address seller, uint256 input, uint256 output, uint256 fee);
     event UpdatedMinBuyForReset(uint256 minBuyForReset);
     event UpdatedDevFeeBp(uint devFeeBp);
     event WithdrawnEth(address beneficiary, uint256 amount);
     event WithdrawnDevFee(address beneficiary, uint256 amount);
+    event ReInitialized(bytes32 root, uint256 airdropAlloc, uint256 devAlloc, uint256 bondingCurveAlloc, uint256 devFeeBp, uint256 k);
 
     /// @notice Get the token's decimals
     function decimals() public view override returns (uint8) {
         return _tokenDecimals;
+    }
+
+    /// @notice Reinitialize the contract
+    /// @param _airdropTreeRoot The merkle root for the airdrop distribution
+    /// @param _devAlloc The dev supply
+    /// @param _bondingCurveAlloc The bonding curve supply
+    /// @param _devFeeBp The dev fee in basis points
+    /// @param _k The k value
+    function reInit(
+        bytes32 _airdropTreeRoot,
+        uint256 _airdropAlloc,
+        uint256 _devAlloc,
+        uint256 _bondingCurveAlloc,
+        uint256 _devFeeBp,
+        uint256 _k
+    ) public onlyOwner {
+        root = _airdropTreeRoot;
+        airdropAlloc = _airdropAlloc;
+        devAlloc = _devAlloc;
+        initialBondingCurveAlloc = _bondingCurveAlloc;
+        bondingCurveAlloc = _bondingCurveAlloc;
+        devFeeBp = _devFeeBp;
+        k = _k;
+        emit ReInitialized(root, airdropAlloc, devAlloc, bondingCurveAlloc, devFeeBp, k);
     }
 
     /// @notice Toggle to enable or disable buy/sell operations
@@ -77,10 +111,22 @@ contract FreeToken is ERC20, Ownable {
         emit AllowTrade(allowTrade);
     }
 
+    /// @notice Toggle to enable or disable sell option
+    function toggleAllowSell() public onlyOwner {
+        allowSell = !allowSell;
+        emit AllowSell(allowSell);
+    }
+
     /// @notice Toggle to enable or disable claim option
     function toggleAllowClaim() public onlyOwner {
         allowClaim = !allowClaim;
         emit AllowClaim(allowClaim);
+    }
+
+    /// @notice Toggle to enable or disable buy transfer option
+    function toggleAllowBuyTransfer() public onlyOwner {
+        allowBuyTransfer = !allowBuyTransfer;
+        emit AllowBuyTransfer(allowBuyTransfer);
     }
 
     /// @notice Toggle to enable or disable withdraw option
@@ -99,6 +145,7 @@ contract FreeToken is ERC20, Ownable {
     /// @notice Set the dev fee in basis points
     /// @param _devFeeBp The dev fee in basis points
     function setDevFeeBp(uint _devFeeBp) public onlyOwner {
+        require(_devFeeBp <= 1000, "FEE_TOO_HIGH");
         devFeeBp = _devFeeBp;
         emit UpdatedDevFeeBp(devFeeBp);
     }
@@ -122,6 +169,8 @@ contract FreeToken is ERC20, Ownable {
 
         // Increment claimed balance
         claimedBalance += allocation;
+        require(claimedBalance <= airdropAlloc, "CLAIM_ALLOC_EXCEEDED");
+
         claims[addr] += allocation;
 
         emit Claimed(addr, claimId, allocation);
@@ -176,7 +225,7 @@ contract FreeToken is ERC20, Ownable {
     }
 
     /// @notice Buy tokens
-    function buy() public payable {
+    function buy(uint256 maxPrice) public payable {
         require(allowTrade, "TRADE_NOT_ALLOWED");
 
         uint256 value = msg.value;
@@ -186,7 +235,10 @@ contract FreeToken is ERC20, Ownable {
         value = value - devFee;
         devFeeEthBal += devFee;
 
-        uint256 amount = (value * _scale) / buyPrice(circulatingSupply());
+        uint256 price = buyPrice(circulatingSupply());
+        require(price <= maxPrice, "PRICE_TOO_HIGH");
+
+        uint256 amount = (value * _scale) / price;
         require(amount <= bondingCurveAlloc, "INSUFFICIENT_ALLOC");
         bondingCurveAlloc -= amount;
         bondingCurveEthBal += value;
@@ -195,18 +247,27 @@ contract FreeToken is ERC20, Ownable {
             usedClaims[0][msg.sender] = 0;
         }
 
-        ERC20(address(this)).transfer(msg.sender, amount);
+        if (allowBuyTransfer) {
+            ERC20(address(this)).transfer(msg.sender, amount);
+        } else {
+            claims[msg.sender] += amount;
+        }
 
         emit Buy(msg.sender, msg.value, amount, devFee);
     }
 
     /// @notice Sell tokens
     /// @param amount The amount to sell
-    function sell(uint256 amount) public {
+    /// @param minPrice The minimum price to sell
+    function sell(uint256 amount, uint256 minPrice) public {
         require(allowTrade, "TRADE_NOT_ALLOWED");
+        require(allowSell, "SELL_NOT_ALLOWED");
         require(amount > 0, "INVALID_AMOUNT");
 
-        uint256 value = (amount * sellPrice(circulatingSupply(), amount)) / _scale;
+        uint256 price = sellPrice(circulatingSupply(), amount);
+        require(price >= minPrice, "PRICE_TOO_LOW");
+
+        uint256 value = (amount * price) / _scale;
 
         bondingCurveAlloc += amount;
         bondingCurveEthBal -= value;
@@ -215,8 +276,8 @@ contract FreeToken is ERC20, Ownable {
         devFeeEthBal += devFee;
         value = value - devFee;
 
-        ERC20(address(this)).transferFrom(msg.sender, address(this), amount);
         payable(msg.sender).transfer(value);
+        ERC20(address(this)).transferFrom(msg.sender, address(this), amount);
 
         emit Sell(msg.sender, amount, value, devFee);
     }
@@ -243,6 +304,6 @@ contract FreeToken is ERC20, Ownable {
     }
 
     receive() external payable {
-        buy();
+        buy(buyPrice(circulatingSupply()));
     }
 }

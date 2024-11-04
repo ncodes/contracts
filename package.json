@@ -13,6 +13,7 @@
     "deploy-ethereum": "npx hardhat run scripts/deploy-script.ts --network ethereum",
     "deploy-arbitrum-sepolia": "npx hardhat run scripts/deploy-script.ts --network arbitrum-sepolia",
     "deploy-arbitrum": "npx hardhat run scripts/deploy-script.ts --network arbitrum",
+    "deploy-base": "npx hardhat run scripts/deploy-script.ts --network base",
     "deploy-nft": "npx hardhat run scripts/deploy-nft.ts",
     "gen-key": "npx hardhat run tasks/genkey.ts",
     "play": "npx hardhat run scripts/_play/play.ts --network localhost"
@@ -41,7 +42,7 @@
   "dependencies": {
     "@chainlink/contracts": "^0.6.1",
     "@enzoferey/ethers-error-parser": "^0.2.3",
-    "@nomiclabs/hardhat-etherscan": "^3.1.5",
+    "@nomiclabs/hardhat-etherscan": "^3.1.8",
     "@openzeppelin/merkle-tree": "^1.0.6",
     "@types/command-line-args": "^5.2.0",
     "@types/moment": "^2.13.0",

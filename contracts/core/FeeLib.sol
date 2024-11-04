@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.13;
 
 import "../common/Structs.sol";
@@ -79,7 +79,7 @@ library FeeLib {
         // ERC20/SYNTH, SYNTH/ERC20, NATIVE/SYNTH, SYNTH/NATIVE fee calculation.
         if (p.mkt.isFungible() && p.mkt.hasERC20OrNative()) {
             Structs.Asset memory asset = p.mkt.base.isOnchain() ? p.mkt.base : p.mkt.quote;
-            
+
             uint decimals = (p.mkt.quote.isSynth() || p.mkt.quote.isNative()) ? 10 ** 18 : 10 ** IERC20(p.mkt.base.addr).decimals();
             feeInfo.cost = (p.amount * p.price) / decimals;
             feeInfo.mktFeeBp = p.mkt.commission;

@@ -7,11 +7,11 @@ import path from "path";
 import {getCoreLibraries, makeLibs} from "../test/helpers/helpers";
 import {
     AssetRegistry,
+    BondCurveToken,
     DisputeManager,
     ENERGON,
     FeePool,
     FeePurse,
-    LPPool,
     MarketCore,
     MediatorManager,
     MinerRegistry,
@@ -59,9 +59,8 @@ let assetReg: AssetRegistry;
 let feePurse: FeePurse;
 let deployer: SignerWithAddress;
 let accts: SignerWithAddress[];
-let joinToken: TOKEN;
+let joinToken: BondCurveToken;
 let tokenPool: TokenPool;
-let lpPool: LPPool;
 let feePool: FeePool;
 let nft: NFT;
 let inventor: SignerWithAddress;
@@ -75,52 +74,46 @@ let deployed: Deployments = {
 };
 
 async function deployMainnet() {
-    // await deployToken("BANDIT", "BANDIT", powOf(1000000000, 18), 18);
-    // await deployToken("DROID", "DROID", powOf(1000000000, 18), 18);
-    // await deployToken("MULTIPLIER", "MULTI", powOf(1000000000, 18), 18);
-    // await deployToken("WARBOND", "BOND", powOf(10000000000, 18), 18);
-
-    // await deployBadgeManager();
-    await deployNativeToken("Joint", "JOIN", "10000000000000000000000000000");
-    // await deployMarketCore();
-    // await deployCore();
-    // await deployAssetRegistry();
-    // await deployOperatorManager();
-    // await deployFeePurse();
-    // await deployRandomness();
-    // await deployDummyRandomness();
-    // await deployMediatorManager();
-    // await deployDisputeManager();
-    // await deployMinerRegistry();
-    // await deployWrappedETH();
-    // await deployNFT();
-    // await deployTokenPoolAndFeePool();
-    // await deployLPPool();
-}
-
-async function deployLocal() {
     await deployBadgeManager();
-    await deployNativeToken();
+    await deployBondCurveToken();
     await deployMarketCore();
     await deployCore();
     await deployAssetRegistry();
     await deployOperatorManager();
     await deployFeePurse();
+    await deployRandomness();
     await deployDummyRandomness();
     await deployMediatorManager();
     await deployDisputeManager();
-    await deployWrappedETH();
-    await deployNFT();
-    await deployEnergon();
-
-    if (network.name == Network.Localhost || network.name == Network.Hardhat) {
-        await deployTestWETH9();
-        await deployTestUNI();
-        await deployTestNGN();
-        // await deployFakeUSDTToken();
-    }
-
     await deployMinerRegistry();
+    // await deployWrappedETH();
+    await deployTokenPoolAndFeePool();
+}
+
+async function deployLocal() {
+    // await deployBadgeManager();
+    // await deployNativeToken();
+    // await deployMarketCore();
+    // await deployCore();
+    // await deployAssetRegistry();
+    // await deployOperatorManager();
+    // await deployFeePurse();
+    // await deployDummyRandomness();
+    // await deployMediatorManager();
+    // await deployDisputeManager();
+    // await deployWrappedETH();
+    // await deployNFT();
+    // await deployEnergon();
+
+    // if (network.name == Network.Localhost || network.name == Network.Hardhat) {
+    //     await deployTestWETH9();
+    //     await deployTestUNI();
+    //     await deployTestNGN();
+    //     // await deployFakeUSDTToken();
+    // }
+
+    // await deployMinerRegistry();
+    await deployBondCurveToken();
 }
 
 async function main() {
@@ -128,8 +121,8 @@ async function main() {
     deployer = accts[0];
     inventor = accts[0];
 
-    // await deployMainnet();
-    await deployLocal();
+    await deployMainnet();
+    // await deployLocal();
 }
 
 async function deployBadgeManager() {
@@ -190,11 +183,11 @@ async function deployBadgeManager() {
     });
 }
 
-async function deployNativeToken(name = "Joint Test Token", symbol = "JOIN", supply = "10000000000000000000000000000") {
-    await deployOrAttach<TOKEN>("TOKEN", undefined, [name, symbol, supply, 18], async (contract) => {
-        joinToken = contract;
-    });
-}
+// async function deployNativeToken(name = "Joint Test Token", symbol = "JOIN", supply = "10000000000000000000000000000") {
+// await deployOrAttach<TOKEN>("TOKEN", undefined, [name, symbol, supply, 18], async (contract) => {
+// joinToken = contract;
+// });
+// }
 
 async function deployFakeUSDTToken(name = "Fake USDT2", symbol = "USDT2", supply = "10000000000000") {
     await deployOrAttach<TOKEN>("TOKEN", undefined, [name, symbol, supply, 6], async (contract) => {});
@@ -348,15 +341,6 @@ async function deployDummyRandomness() {
 }
 
 async function deployMediatorManager() {
-    console.log([
-        joinToken.address,
-        marketCore.address,
-        randomness.address,
-        params.ticketCancelDur,
-        params.ticketMatureDur,
-        params.ticketExpireDur,
-        params.ticketPauseDur,
-    ]);
     await deployOrAttach<MediatorManager>(
         "MediatorManager",
         undefined,
@@ -516,12 +500,6 @@ async function deployTokenPoolAndFeePool() {
     );
 }
 
-async function deployLPPool() {
-    await deployOrAttach<LPPool>("LPPool", undefined, [AddressZero, joinToken.address], async (contract) => {
-        lpPool = contract;
-    });
-}
-
 async function deployNFT() {
     await deployOrAttach<NFT>(
         "NFT",
@@ -569,6 +547,17 @@ async function deployTestNGN() {
         [],
         ["SYNTHETIC NAIRA", "NGN", "1000000000000000000000000000", 18],
         (c) => {},
+    );
+}
+
+async function deployBondCurveToken() {
+    await deployOrAttach<BondCurveToken>(
+        "BondCurveToken,TOKEN",
+        [],
+        ["Joint", "JOIN", "10000000000000000000000000000", 18, Buffer.alloc(32, 0), "0", "0", "0", "0"],
+        (c) => {
+            joinToken = c;
+        },
     );
 }
 

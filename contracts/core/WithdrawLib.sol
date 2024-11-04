@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.13;
 import "./StructsLib.sol";
 import "../token/interfaces/IERC20.sol";
@@ -29,7 +29,7 @@ library WithdrawLib {
         }
 
         emit TransferInventorBalance(state.inventor, asset, bal);
-        
+
         bal = state2.feePurse.balanceOf(state.inventor);
         if (bal > 0) {
             state2.feePurse.withdrawFrom(bal, state.inventor, state.inventor);
