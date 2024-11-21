@@ -1,0 +1,132 @@
+{
+  "meta": {
+    "created": 1731372417228
+  },
+  "contracts": {
+    "MarketAuxLib": {
+      "address": "0x5Eb896c6de72f763D0F3D26ee7F63F575D466902",
+      "isLib": true,
+      "gasUsed": 523272
+    },
+    "AuxLib": {
+      "address": "0xE9914155cBBbd33C9dB88A7134fF4aAc74162a28",
+      "isLib": true,
+      "gasUsed": 2050119
+    },
+    "LiquidityLib": {
+      "address": "0x85a2EEf7B8CfcB6c05b9991a6063D61F1b66f122",
+      "isLib": true,
+      "gasUsed": 1296182
+    },
+    "OrderLib": {
+      "address": "0xedd41b162D85120c741efF9B1DA6F4B430C434c1",
+      "isLib": true,
+      "gasUsed": 3057454
+    },
+    "FeeLib": {
+      "address": "0x6626DC82F9614401Bfe4093bFfbAdf781322e203",
+      "isLib": true,
+      "gasUsed": 2127403
+    },
+    "OrderReleaseLib": {
+      "address": "0x243C37f8338460D80Ba2918F8598D093bbBC7351",
+      "isLib": true,
+      "gasUsed": 3477424
+    },
+    "SwapNonFungibleLib": {
+      "address": "0xf93C832D12C20437A04fa6B8bAEA8F23D59e36f5",
+      "isLib": true,
+      "gasUsed": 2911662
+    },
+    "SwapFungibleLib": {
+      "address": "0xf11E0df184ECB86e7a16AE0eAbB19a851eA110ac",
+      "isLib": true,
+      "gasUsed": 3193340
+    },
+    "SwapLib": {
+      "address": "0xeb4eDC8d6eFE86bf39B7f493abDDbd2aa9B3C236",
+      "isLib": true,
+      "gasUsed": 1562153
+    },
+    "WithdrawLib": {
+      "address": "0x7a22aF56d43a9CC78d4cBe3Ae1C764377de73a9a",
+      "isLib": true,
+      "gasUsed": 1055412
+    },
+    "OfferLib": {
+      "address": "0x4e911c672c6744D37B462b2a8534E6Ed4253Ac0c",
+      "isLib": true,
+      "gasUsed": 2272704
+    },
+    "FungibleLiquidityLib": {
+      "address": "0xb6079Afb68B4EFdb30BF35aee2335Ea80A191D9a",
+      "isLib": true,
+      "gasUsed": 3222947
+    },
+    "NonFungibleLiquidityLib": {
+      "address": "0x4f30ea55aDA00a9eA2434962794B347F62281487",
+      "isLib": true,
+      "gasUsed": 3142039
+    },
+    "TOKEN": {
+      "address": "0x60ea5245179F18E71771f6087Db737De56F03f16",
+      "gasUsed": 741986
+    },
+    "BadgeManager": {
+      "address": "0x43C4db101537078132dB28222af5079D91FEc914",
+      "gasUsed": 3684120
+    },
+    "MarketCore": {
+      "address": "0x7F21677753907Ce5f6E49C01FD03C16EA98737Ae",
+      "gasUsed": 3316082
+    },
+    "Core": {
+      "address": "0xe613759EE3fd3F8eE1240b3c7428f21c2f1c1996",
+      "gasUsed": 5308699
+    },
+    "AssetRegistry": {
+      "address": "0xed48ec3Dbbc198eeDEEf18db93928bEb13A8C722",
+      "gasUsed": 684551
+    },
+    "Operator": {
+      "address": "0x5D54E2741520340F116A71AA856cECC14F860309",
+      "gasUsed": 650464
+    },
+    "FeePurse": {
+      "address": "0xbFd8d65979Fc6aad98dF2471aFF162Ccb3BEa668",
+      "gasUsed": 1011771
+    },
+    "Randomness": {
+      "address": "0xB2b5Ca498A457fbE1695A8A560209B5E06Eebc1C",
+      "gasUsed": 958511
+    },
+    "DummyRandomness": {
+      "address": "0xE9d44b328d9923377A0569DB5D8A1B0B8C7C59C2",
+      "gasUsed": 141989
+    },
+    "MediatorManager": {
+      "address": "0x753489965A140c2bC6b551F8b9231c51479a7a77",
+      "gasUsed": 3841037
+    },
+    "DisputeManager": {
+      "address": "0x52E1b685C3589CeB24196425aE9998e952479F79",
+      "gasUsed": 3826646
+    },
+    "MinerRegistry": {
+      "address": "0x5Df5557a98d6F652505A1a52Aa76817bA56045eC",
+      "gasUsed": 1561710
+    },
+    "BondCurveDistro": {
+      "address": "0x11b157C9C11c269B840372EF08d7F8b1EcEEA920",
+      "gasUsed": 2049178
+    },
+    "BANDIT": {
+      "address": "0x40cF5289cbc6949fddAD8b14d85ead5d20F6AE8C",
+      "gasUsed": 742022
+    },
+    "DROID": {
+      "address": "0x6225ccf32687ea72FDaf21394C9eb917bC9B485E",
+      "gasUsed": 741998
+    }
+  }
+}

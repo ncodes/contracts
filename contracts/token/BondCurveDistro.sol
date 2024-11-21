@@ -1,66 +1,46 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "./interfaces/IERC20.sol";
 import "../common/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
+import "../common/SigLib.sol";
 
-contract BondCurveToken is ERC20, Ownable {
-    uint8 _tokenDecimals;
-    bytes32 public root;
-    mapping(uint256 => mapping(address => int)) public usedClaims;
+contract BondCurveDistro is Ownable {
+    address public claimSigner;
+    address public rewardToken;
+    mapping(address => mapping(uint256 => mapping(uint256 => bool))) public usedClaimNonces;
     mapping(address => uint256) public claims;
     uint256 public devAlloc;
     uint public devFeeBp;
     uint256 public devFeeEthBal;
     uint256 public claimedBalance;
     uint256 public airdropAlloc;
-    uint256 public k = 127330000000;
+    uint256 public k = 80000000000;
     uint256 public bondingCurveAlloc;
     uint256 public initialBondingCurveAlloc;
     uint256 public bondingCurveEthBal;
-    uint256 public minBuyForReset;
     bool public allowTrade = false;
     bool public allowClaim = false;
     bool public allowWithdraw = false;
     bool public allowSell = false;
     bool public allowBuyTransfer = false;
-    uint256 _scale = 1e18;
+    uint256 scale = 1 ether;
 
     /// @dev Initialize contract
-    /// @param _name The name of the token
-    /// @param _symbol The token symbol
-    /// @param _initialSupply The initial supply
-    /// @param _decimals The token's decimals
-    /// @param _airdropTreeRoot The merkle root for the airdrop distribution
+    /// @param _rewardToken The reward token address
     /// @param _airdropAlloc The airdrop supply
     /// @param _devAlloc The dev supply
     /// @param _bondingCurveAlloc The bonding curve supply
     /// @param _devFeeBp The dev fee in basis points
-    constructor(
-        string memory _name,
-        string memory _symbol,
-        uint256 _initialSupply,
-        uint8 _decimals,
-        bytes32 _airdropTreeRoot,
-        uint256 _airdropAlloc,
-        uint256 _devAlloc,
-        uint256 _bondingCurveAlloc,
-        uint256 _devFeeBp
-    ) ERC20(_name, _symbol) {
-        _tokenDecimals = _decimals;
+    constructor(address _rewardToken, uint256 _airdropAlloc, uint256 _devAlloc, uint256 _bondingCurveAlloc, uint256 _devFeeBp) {
+        rewardToken = _rewardToken;
         bondingCurveAlloc = _bondingCurveAlloc;
         initialBondingCurveAlloc = _bondingCurveAlloc;
         devAlloc = _devAlloc;
         devFeeBp = _devFeeBp;
-        root = _airdropTreeRoot;
         airdropAlloc = _airdropAlloc;
-        _mint(msg.sender, _initialSupply);
     }
 
-    event Claimed(address addr, uint claimId, uint256 allocation);
+    event Claimed(address addr, uint claimId, uint nonce, uint256 allocation);
     event ClaimWithdrawn(address addr, uint256 amount);
     event WithdrawnToken(address beneficiary, uint256 amount);
     event AllowTrade(bool allowTrade);
@@ -70,39 +50,42 @@ contract BondCurveToken is ERC20, Ownable {
     event AllowBuyTransfer(bool allowBuyTransfer);
     event Buy(address buyer, uint256 input, uint256 output, uint256 fee);
     event Sell(address seller, uint256 input, uint256 output, uint256 fee);
-    event UpdatedMinBuyForReset(uint256 minBuyForReset);
     event UpdatedDevFeeBp(uint devFeeBp);
     event WithdrawnEth(address beneficiary, uint256 amount);
     event WithdrawnDevFee(address beneficiary, uint256 amount);
-    event ReInitialized(bytes32 root, uint256 airdropAlloc, uint256 devAlloc, uint256 bondingCurveAlloc, uint256 devFeeBp, uint256 k);
-
-    /// @notice Get the token's decimals
-    function decimals() public view override returns (uint8) {
-        return _tokenDecimals;
-    }
+    event ReInitialized(
+        address rewardToken,
+        uint256 airdropAlloc,
+        uint256 devAlloc,
+        uint256 bondingCurveAlloc,
+        uint256 devFeeBp,
+        uint256 k
+    );
+    event ClaimSignerUpdated(address newSigner, address oldSigner);
 
     /// @notice Reinitialize the contract
-    /// @param _airdropTreeRoot The merkle root for the airdrop distribution
+    /// @param _rewardToken The reward token address
+    /// @param _airdropAlloc The airdrop supply
     /// @param _devAlloc The dev supply
     /// @param _bondingCurveAlloc The bonding curve supply
     /// @param _devFeeBp The dev fee in basis points
     /// @param _k The k value
     function reInit(
-        bytes32 _airdropTreeRoot,
+        address _rewardToken,
         uint256 _airdropAlloc,
         uint256 _devAlloc,
         uint256 _bondingCurveAlloc,
         uint256 _devFeeBp,
         uint256 _k
     ) public onlyOwner {
-        root = _airdropTreeRoot;
+        rewardToken = _rewardToken;
         airdropAlloc = _airdropAlloc;
         devAlloc = _devAlloc;
         initialBondingCurveAlloc = _bondingCurveAlloc;
         bondingCurveAlloc = _bondingCurveAlloc;
         devFeeBp = _devFeeBp;
         k = _k;
-        emit ReInitialized(root, airdropAlloc, devAlloc, bondingCurveAlloc, devFeeBp, k);
+        emit ReInitialized(_rewardToken, _airdropAlloc, _devAlloc, _bondingCurveAlloc, _devFeeBp, _k);
     }
 
     /// @notice Toggle to enable or disable buy/sell operations
@@ -135,11 +118,11 @@ contract BondCurveToken is ERC20, Ownable {
         emit AllowWithdraw(allowWithdraw);
     }
 
-    /// @notice Set the minimum buy for reset
-    /// @param _minBuyForReset The minimum buy amount
-    function setMinBuyForReset(uint256 _minBuyForReset) public onlyOwner {
-        minBuyForReset = _minBuyForReset;
-        emit UpdatedMinBuyForReset(minBuyForReset);
+    /// @notice Set the claim signer
+    /// @param _claimSigner The claim signer address
+    function setClaimSigner(address _claimSigner) public onlyOwner {
+        emit ClaimSignerUpdated(_claimSigner, claimSigner);
+        claimSigner = _claimSigner;
     }
 
     /// @notice Set the dev fee in basis points
@@ -150,40 +133,50 @@ contract BondCurveToken is ERC20, Ownable {
         emit UpdatedDevFeeBp(devFeeBp);
     }
 
-    /// @notice Verify and claim reward
-    /// @param proof The merkle proof
-    /// @param addr The address to claim the reward
-    /// @param claimId The claim id presents the type of reward
-    /// @param allocation The allocation to claim
-    function claim(bytes32[] memory proof, address addr, uint claimId, uint256 allocation) public {
+    function claim(uint256 amount, uint claimId, uint nonce, bytes memory sig) public {
         require(allowClaim, "CLAIM_NOT_ALLOWED");
-        require(addr == msg.sender, "SENDER_MUST_BE_ADDR");
+        require(verifyClaimSig(claimSigner, msg.sender, amount, claimId, nonce, sig), "INVALID_SIG");
 
-        // verify the merkle proof
-        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(addr, claimId, allocation))));
-        require(MerkleProof.verify(proof, root, leaf), "Invalid proof");
-
-        // check if the claim is used for the sender
-        require(usedClaims[claimId][addr] == 0, "CLAIM_USED");
-        usedClaims[claimId][addr] = 1;
+        // check if the nonce is used for the sender
+        require(!usedClaimNonces[msg.sender][claimId][nonce], "NONCE_USED");
+        usedClaimNonces[msg.sender][claimId][nonce] = true;
 
         // Increment claimed balance
-        claimedBalance += allocation;
+        claimedBalance += amount;
         require(claimedBalance <= airdropAlloc, "CLAIM_ALLOC_EXCEEDED");
 
-        claims[addr] += allocation;
+        claims[msg.sender] += amount;
+        emit Claimed(msg.sender, claimId, nonce, amount);
+    }
 
-        emit Claimed(addr, claimId, allocation);
+    /// @notice Verify a claim signature
+    /// @param signer The market manager's address
+    /// @param beneficiary The beneficiary address
+    /// @param amount The amount to claim
+    /// @param claimId The claim id
+    /// @param nonce The nonce
+    /// @param signature The signature created by the manager
+    function verifyClaimSig(
+        address signer,
+        address beneficiary,
+        uint256 amount,
+        uint claimId,
+        uint nonce,
+        bytes memory signature
+    ) internal view returns (bool) {
+        if (address(0) == signer) return false;
+        bytes32 messageHash = keccak256(abi.encode(block.chainid, beneficiary, amount, claimId, nonce));
+        bytes32 ethSignedMessageHash = SigLib.getSignedMessageHash(messageHash);
+        return SigLib.recoverSigner(ethSignedMessageHash, signature) == signer;
     }
 
     /// @notice Verify and claim multiple rewards
-    /// @param proofs The merkle proofs
-    /// @param addr The address to claim the reward
-    /// @param claimIds The claim ids
+    /// @param signatures The signatures
+    /// @param nonces The nonces
     /// @param allocations The allocations
-    function claimMulti(bytes32[][] memory proofs, address addr, uint[] memory claimIds, uint256[] memory allocations) public {
-        for (uint i = 0; i < proofs.length; i++) {
-            claim(proofs[i], addr, claimIds[i], allocations[i]);
+    function claimMulti(bytes[] memory signatures, uint[] memory claimIds, uint[] memory nonces, uint256[] memory allocations) public {
+        for (uint i = 0; i < signatures.length; i++) {
+            claim(allocations[i], claimIds[i], nonces[i], signatures[i]);
         }
     }
 
@@ -192,20 +185,22 @@ contract BondCurveToken is ERC20, Ownable {
         require(allowWithdraw, "WITHDRAW_NOT_ALLOWED");
         uint256 amount = claims[msg.sender];
         claims[msg.sender] = 0;
-        ERC20(address(this)).transfer(msg.sender, amount);
+        IERC20(rewardToken).transfer(msg.sender, amount);
         emit ClaimWithdrawn(msg.sender, amount);
     }
 
     /// @notice Withdraw all tokens from the contract
     /// @param beneficiary The beneficiary address
     function withdrawToken(address beneficiary) public onlyOwner {
-        uint256 amount = ERC20(address(this)).balanceOf(address(this));
-        ERC20(address(this)).transfer(beneficiary, amount);
+        require(beneficiary != address(0), "INVALID_BENEFICIARY");
+        uint256 amount = IERC20(rewardToken).balanceOf(address(this));
+        IERC20(rewardToken).transfer(beneficiary, amount);
         emit WithdrawnToken(beneficiary, amount);
     }
 
     /// @notice Withdraw all ETH from the contract
     function withdrawEth(address beneficiary) public onlyOwner {
+        require(beneficiary != address(0), "INVALID_BENEFICIARY");
         uint256 amount = address(this).balance;
         emit WithdrawnEth(beneficiary, amount);
         payable(beneficiary).transfer(amount);
@@ -213,6 +208,7 @@ contract BondCurveToken is ERC20, Ownable {
 
     /// @notice Withdraw all dev fee from the contract
     function withdrawDevFee(address beneficiary) public onlyOwner {
+        require(beneficiary != address(0), "INVALID_BENEFICIARY");
         uint256 amount = devFeeEthBal;
         devFeeEthBal = 0;
         emit WithdrawnDevFee(beneficiary, amount);
@@ -238,17 +234,13 @@ contract BondCurveToken is ERC20, Ownable {
         uint256 price = buyPrice(circulatingSupply());
         require(price <= maxPrice, "PRICE_TOO_HIGH");
 
-        uint256 amount = (value * _scale) / price;
+        uint256 amount = (value * scale) / price;
         require(amount <= bondingCurveAlloc, "INSUFFICIENT_ALLOC");
         bondingCurveAlloc -= amount;
         bondingCurveEthBal += value;
 
-        if (value >= minBuyForReset) {
-            usedClaims[0][msg.sender] = 0;
-        }
-
         if (allowBuyTransfer) {
-            ERC20(address(this)).transfer(msg.sender, amount);
+            IERC20(rewardToken).transfer(msg.sender, amount);
         } else {
             claims[msg.sender] += amount;
         }
@@ -267,7 +259,7 @@ contract BondCurveToken is ERC20, Ownable {
         uint256 price = sellPrice(circulatingSupply(), amount);
         require(price >= minPrice, "PRICE_TOO_LOW");
 
-        uint256 value = (amount * price) / _scale;
+        uint256 value = (amount * price) / scale;
 
         bondingCurveAlloc += amount;
         bondingCurveEthBal -= value;
@@ -277,7 +269,7 @@ contract BondCurveToken is ERC20, Ownable {
         value = value - devFee;
 
         payable(msg.sender).transfer(value);
-        ERC20(address(this)).transferFrom(msg.sender, address(this), amount);
+        IERC20(rewardToken).transferFrom(msg.sender, address(this), amount);
 
         emit Sell(msg.sender, amount, value, devFee);
     }
@@ -286,7 +278,7 @@ contract BondCurveToken is ERC20, Ownable {
     /// @param supply The supply
     function buyPrice(uint256 supply) public view returns (uint256) {
         if (supply <= 0) return 0;
-        return (k * (supply ** 2)) / (_scale * _scale) / _scale;
+        return (k * (supply ** 2)) / (scale * scale) / scale;
     }
 
     /// @notice Get the sell price
@@ -297,10 +289,10 @@ contract BondCurveToken is ERC20, Ownable {
         if (supply <= 0 || amountToSell <= 0) return 0;
 
         uint256 newSupply = supply - amountToSell;
-        if (newSupply == 0) return _scale;
+        if (newSupply == 0) return scale;
 
-        uint256 price = (k * (newSupply ** 2)) / (_scale * _scale) / _scale;
-        return price > 0 ? price : _scale;
+        uint256 price = (k * (newSupply ** 2)) / (scale * scale) / scale;
+        return price > 0 ? price : scale;
     }
 
     receive() external payable {

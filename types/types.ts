@@ -28,7 +28,7 @@ export enum ContractNames {
     WETH9 = "WETH9",
     UNI = "UNI",
     NGN = "NGN",
-    BondCurveToken = "BondCurveToken",
+    BondCurveDistro = "BondCurveDistro",
 }
 
 export type DeployedContracts = Record<string, ContractInfo>;

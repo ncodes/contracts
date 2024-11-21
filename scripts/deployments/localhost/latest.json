@@ -1,15 +1,11 @@
 {
   "meta": {
-    "created": 1724091173536
+    "created": 1731183428761
   },
   "contracts": {
     "BadgeManager": {
       "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
       "gasUsed": 3683068
-    },
-    "TOKEN": {
-      "address": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
-      "gasUsed": 741880
     },
     "MarketCore": {
       "address": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
@@ -131,6 +127,14 @@
     "MinerRegistry": {
       "address": "0x5eb3Bc0a489C5A8288765d2336659EbCA68FCd00",
       "gasUsed": 1561282
+    },
+    "TOKEN": {
+      "address": "0x3aAde2dCD2Df6a8cAc689EE797591b2913658659",
+      "gasUsed": 741880
+    },
+    "BondCurveDistro": {
+      "address": "0xab16A69A5a8c12C732e0DEFF4BE56A70bb64c926",
+      "gasUsed": 2014245
     }
   }
 }
