@@ -173,7 +173,6 @@ contract PayRouter is Ownable {
         require(src != SourceType.Org || route.sourceOrgId <= numOrgs, "PR: SRC_ORG_UNKNOWN");
         require(route.destOrgId <= numOrgs, "PR: DEST_ORG_UNKNOWN");
         require(route.destOrgId > 0, "PR: DST_ORG_ZERO");
-        require(route.destOrgId <= numOrgs, "PR: DST_ORG_UNKNOWN");
 
         IERC20(bondToken).transferFrom(msg.sender, address(this), route.bond);
 
@@ -318,20 +317,21 @@ contract PayRouter is Ownable {
         // Send the source token to the first router if the request is not cancelled.
         // If the request is cancelled, the source token will be returned to the request creator.
         if (i == 0 && req.sourceAmtLeft > 0) {
+            uint256 srcAmt = req.sourceAmtLeft;
             req.sourceAmtLeft = 0;
             address receiver = req.cancelled ? req.creator : route.owner;
-            emit SourceReturned(receiver, req.routeIds[i], req.sourceAmt);
+            emit SourceReturned(receiver, req.routeIds[i], srcAmt);
             if (route.source == SourceType.Token) {
-                IERC20(route.sourceToken).transfer(receiver, req.sourceAmt);
+                IERC20(route.sourceToken).transfer(receiver, srcAmt);
             } else if (route.source == SourceType.Native) {
-                payable(receiver).transfer(req.sourceAmt);
+                payable(receiver).transfer(srcAmt);
             }
         }
     }
 
     /// @notice Mark a request as paid. Returns the bond and source amount
     /// to the router if the request has been closed. If the request is not closed,
-    /// the sender's route will only be marked as paid. The function can be callled
+    /// the sender's route will only be marked as paid. The function can be called
     /// multiple times for the same request.
     /// @param requestId The request ID
     /// @param routeId The route ID
