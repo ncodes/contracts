@@ -96,11 +96,7 @@ contract Router is Ownable {
             require(r.liqs.length > 0, "ROUTER: NO_LIQ");
             baseAddrs[i] = mkt.base;
 
-            if (isERC20(mkt.base)) {
-                startBaseBals[i] = IERC20(mkt.base.addr).balanceOf(address(this));
-            } else {
-                startBaseBals[i] = address(this).balance;
-            }
+            startBaseBals[i] = isERC20(mkt.base) ? IERC20(mkt.base.addr).balanceOf(address(this)) : address(this).balance;
 
             // Approve core to spend total supply of quote asset
             if (isERC20(mkt.quote)) {
@@ -108,6 +104,7 @@ contract Router is Ownable {
             }
 
             uint256 spentAmt = 0;
+            uint256 returnedAmt = 0;
             for (uint256 j = 0; j < r.liqs.length; j++) {
                 Liquidity memory liq = r.liqs[j];
                 address provider = provReg.get(liq.provider);
@@ -150,6 +147,7 @@ contract Router is Ownable {
                     );
                 } else {
                     uint256 operator = routeParams.operator;
+                    uint256 expectedAfterBal = address(this).balance - quoteAmt;
                     core.swapQuoteForBase{value: quoteAmt}(
                         StructsLib.SwapQuoteForBaseParams({
                             marketId: r.market,
@@ -164,14 +162,11 @@ contract Router is Ownable {
                             marketMgrData: ""
                         })
                     );
+                    returnedAmt += address(this).balance - expectedAfterBal;
                 }
             }
 
-            if (isERC20(mkt.base)) {
-                endBaseBals[i] = IERC20(mkt.base.addr).balanceOf(address(this));
-            } else {
-                endBaseBals[i] = address(this).balance;
-            }
+            endBaseBals[i] = (isERC20(mkt.base)) ? IERC20(mkt.base.addr).balanceOf(address(this)) : address(this).balance;
 
             // Transfer left over base from previous route to the sender
             if (i > 0) {
@@ -189,9 +184,11 @@ contract Router is Ownable {
             if (isERC20(mkt.quote)) {
                 uint quoteBal = IERC20(mkt.quote.addr).balanceOf(address(this));
                 IERC20(mkt.quote.addr).transfer(msg.sender, quoteBal);
-            } else if (!isNative(mkt.base)) {
-                uint quoteBal = address(this).balance;
-                payable(msg.sender).transfer(quoteBal);
+            }
+
+            // Transfer returned quote to the sender
+            if (returnedAmt > 0) {
+                payable(msg.sender).transfer(returnedAmt);
             }
         }
 
@@ -199,7 +196,7 @@ contract Router is Ownable {
         uint256 outputBaseBal = endBaseBals[routeParams.routes.length - 1];
         if (isERC20(mkt.base)) {
             IERC20(mkt.base.addr).transfer(setOr(routeParams.target, msg.sender), outputBaseBal);
-        } else if (isNative(mkt.base)) {
+        } else {
             payable(setOr(routeParams.target, msg.sender)).transfer(address(this).balance);
         }
 
