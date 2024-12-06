@@ -44,12 +44,12 @@ module.exports = {
         // sepolia: {
         //     url: `https://sepolia.infura.io/v3/${process.env.API_KEY}`,
         //     accounts: deployKey ? [process.env.DEPLOY_KEY] : undefined,
-        //     // gasPrice: 600000000000,
-        //     // gasData: {
-        //     //     maxFeePerGas: "200000000000",
-        //     //     maxPriorityFeePerGas: "200000000000",
-        //     //     type: 2,
-        //     // },
+        // gasPrice: 600000000000,
+        // gasData: {
+        //     maxFeePerGas: "200000000000",
+        //     maxPriorityFeePerGas: "200000000000",
+        //     type: 2,
+        // },
         // },
         // arbitrum: {
         //     url: "https://arb1.arbitrum.io/rpc",
@@ -59,9 +59,24 @@ module.exports = {
         //     url: "https://sepolia-rollup.arbitrum.io/rpc",
         //     accounts: deployKey ? [process.env.DEPLOY_KEY] : undefined,
         // },
+        base: {
+            url: `https://base-mainnet.infura.io/v3/${process.env.API_KEY}`,
+            accounts: deployKey ? [process.env.DEPLOY_KEY] : undefined,
+            // gasPrice: 1000000000,
+        },
     },
     etherscan: {
         apiKey: process.env.ETHERSCAN_API_KEY,
+        customChains: [
+            {
+                network: "base",
+                chainId: 8453,
+                urls: {
+                    apiURL: "https://api.basescan.org/api",
+                    browserURL: "https://basescan.org",
+                },
+            },
+        ],
     },
     solidity: {
         version: "0.8.13",

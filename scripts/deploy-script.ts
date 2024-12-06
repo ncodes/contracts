@@ -7,7 +7,7 @@ import path from "path";
 import {getCoreLibraries, makeLibs} from "../test/helpers/helpers";
 import {
     AssetRegistry,
-    BondCurveToken,
+    BondCurveDistro,
     DisputeManager,
     ENERGON,
     FeePool,
@@ -25,7 +25,7 @@ import {Operator} from "../typechain-types/Operator";
 import {TOKEN} from "../typechain-types/TOKEN";
 import {WETH9} from "../typechain-types/WETH9";
 import {Deployments} from "../types/types";
-import {AddressZero} from "../utils/utils";
+import {AddressZero, powOf} from "../utils/utils";
 import {Network, getParams} from "./params";
 
 // Supported ENV variables
@@ -59,7 +59,8 @@ let assetReg: AssetRegistry;
 let feePurse: FeePurse;
 let deployer: SignerWithAddress;
 let accts: SignerWithAddress[];
-let joinToken: BondCurveToken;
+let joinToken: TOKEN;
+let bondCurveDistro: BondCurveDistro;
 let tokenPool: TokenPool;
 let feePool: FeePool;
 let nft: NFT;
@@ -74,8 +75,14 @@ let deployed: Deployments = {
 };
 
 async function deployMainnet() {
-    await deployBadgeManager();
+    await deployToken("BANDIT", "BANDIT", powOf(1000000000, 18), 18);
+    await deployToken("DROID", "DROID", powOf(1000000000, 18), 18);
+
+    return;
+
+    await deployNativeToken();
     await deployBondCurveToken();
+    await deployBadgeManager();
     await deployMarketCore();
     await deployCore();
     await deployAssetRegistry();
@@ -87,32 +94,32 @@ async function deployMainnet() {
     await deployDisputeManager();
     await deployMinerRegistry();
     // await deployWrappedETH();
-    await deployTokenPoolAndFeePool();
+    // await deployTokenPoolAndFeePool();
 }
 
 async function deployLocal() {
-    // await deployBadgeManager();
-    // await deployNativeToken();
-    // await deployMarketCore();
-    // await deployCore();
-    // await deployAssetRegistry();
-    // await deployOperatorManager();
-    // await deployFeePurse();
-    // await deployDummyRandomness();
-    // await deployMediatorManager();
-    // await deployDisputeManager();
-    // await deployWrappedETH();
-    // await deployNFT();
-    // await deployEnergon();
+    await deployBadgeManager();
+    await deployNativeToken();
+    await deployMarketCore();
+    await deployCore();
+    await deployAssetRegistry();
+    await deployOperatorManager();
+    await deployFeePurse();
+    await deployDummyRandomness();
+    await deployMediatorManager();
+    await deployDisputeManager();
+    await deployWrappedETH();
+    await deployNFT();
+    await deployEnergon();
 
-    // if (network.name == Network.Localhost || network.name == Network.Hardhat) {
-    //     await deployTestWETH9();
-    //     await deployTestUNI();
-    //     await deployTestNGN();
-    //     // await deployFakeUSDTToken();
-    // }
+    if (network.name == Network.Localhost || network.name == Network.Hardhat) {
+        await deployTestWETH9();
+        await deployTestUNI();
+        await deployTestNGN();
+        //     // await deployFakeUSDTToken();
+    }
 
-    // await deployMinerRegistry();
+    await deployMinerRegistry();
     await deployBondCurveToken();
 }
 
@@ -121,8 +128,8 @@ async function main() {
     deployer = accts[0];
     inventor = accts[0];
 
-    await deployMainnet();
-    // await deployLocal();
+    // await deployMainnet();
+    await deployLocal();
 }
 
 async function deployBadgeManager() {
@@ -183,11 +190,11 @@ async function deployBadgeManager() {
     });
 }
 
-// async function deployNativeToken(name = "Joint Test Token", symbol = "JOIN", supply = "10000000000000000000000000000") {
-// await deployOrAttach<TOKEN>("TOKEN", undefined, [name, symbol, supply, 18], async (contract) => {
-// joinToken = contract;
-// });
-// }
+async function deployNativeToken(name = "Joint", symbol = "JOIN", supply = "10000000000000000000000000000") {
+    await deployOrAttach<TOKEN>("TOKEN", undefined, [name, symbol, supply, 18], async (contract) => {
+        joinToken = contract;
+    });
+}
 
 async function deployFakeUSDTToken(name = "Fake USDT2", symbol = "USDT2", supply = "10000000000000") {
     await deployOrAttach<TOKEN>("TOKEN", undefined, [name, symbol, supply, 6], async (contract) => {});
@@ -551,14 +558,9 @@ async function deployTestNGN() {
 }
 
 async function deployBondCurveToken() {
-    await deployOrAttach<BondCurveToken>(
-        "BondCurveToken,TOKEN",
-        [],
-        ["Joint", "JOIN", "10000000000000000000000000000", 18, Buffer.alloc(32, 0), "0", "0", "0", "0"],
-        (c) => {
-            joinToken = c;
-        },
-    );
+    await deployOrAttach<BondCurveDistro>("BondCurveDistro", [], [joinToken.address, "0", "0", "0", "0"], (c) => {
+        bondCurveDistro = c;
+    });
 }
 
 // ###############################################
