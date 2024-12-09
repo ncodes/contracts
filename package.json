@@ -17,8 +17,8 @@
     "deploy-nft": "npx hardhat run scripts/deploy-nft.ts",
     "gen-key": "npx hardhat run tasks/genkey.ts",
     "play": "npx hardhat run scripts/_play/play.ts --network localhost",
-    "docker:build:latest": "docker build . -t network-latest",
-    "docker:run:latest": "docker run -it -d -p 8545:8545 --name network-latest network-latest"
+    "docker:build:latest": "docker build . -t network-dexdrop",
+    "docker:run:latest": "docker run -it -d -p 8545:8545 --name network-dexdrop network-dexdrop"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.2.3",
