@@ -15,7 +15,9 @@
     "deploy-arbitrum": "npx hardhat run scripts/deploy-script.ts --network arbitrum",
     "deploy-nft": "npx hardhat run scripts/deploy-nft.ts",
     "gen-key": "npx hardhat run tasks/genkey.ts",
-    "play": "npx hardhat run scripts/_play/play.ts --network localhost"
+    "play": "npx hardhat run scripts/_play/play.ts --network localhost",
+    "docker:build:latest": "docker build . -t network-latest",
+    "docker:run:latest": "docker run -it -d -p 8545:8545 --name network-latest network-latest"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.2.3",
@@ -36,7 +38,8 @@
     "prettier-plugin-solidity": "^1.3.1",
     "ts-node": "^10.9.2",
     "typechain": "^8.2.0",
-    "typescript": "^5.1.3"
+    "typescript": "^5.1.3",
+    "wait-on": "^8.0.1"
   },
   "dependencies": {
     "@chainlink/contracts": "^0.6.1",
