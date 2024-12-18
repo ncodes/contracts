@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (access/Ownable.sol)
 
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.27;
 
 import "@openzeppelin/contracts/utils/Context.sol";
 

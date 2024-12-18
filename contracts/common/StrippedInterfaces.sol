@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.27;
 
 interface IERC721Strip {
     function balanceOf(address owner) external view returns (uint256 balance);
