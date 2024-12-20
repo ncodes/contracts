@@ -78,6 +78,8 @@ describe("Core - Offer", function () {
             amount: liquidityAmt,
             price: basePrice,
             timeToPay: timeToPay,
+            usePriceFromRegistry: false,
+            priceScaleBps: 0,
             expireAt: 0,
             pause: false,
             wantOrIds: [],
@@ -143,7 +145,7 @@ describe("Core - Offer", function () {
             function test() {
                 let params: any = {};
                 beforeEach(async () => {
-                    params = {marketId: mid, target: AddressZero, lid: 0, amount: 100, price: 100, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    params = {marketId: mid, target: AddressZero, lid: 0, amount: 100, price: 100, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                 });
 
                 it("should revert with msg=AMOUNT_REQ when amount was not provided", async () => {
@@ -403,6 +405,8 @@ describe("Core - Offer", function () {
                         timeToPay: 0,
                         expireAt: 0,
                         pause: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         wantOrIds: [],
                         wantAndIds: [],
                         deduct: false,
@@ -494,6 +498,8 @@ describe("Core - Offer", function () {
                         timeToPay: 0,
                         expireAt: 0,
                         pause: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         wantOrIds: [],
                         wantAndIds: [],
                         deduct: false,
@@ -583,6 +589,8 @@ describe("Core - Offer", function () {
                         timeToPay: 0,
                         expireAt: 0,
                         pause: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         wantOrIds: [],
                         wantAndIds: [],
                         deduct: false,
@@ -810,6 +818,8 @@ describe("Core - Offer", function () {
                     wantOrIds: [],
                     wantAndIds: [],
                     deduct: false,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                 };
             });
 
@@ -921,6 +931,8 @@ describe("Core - Offer", function () {
                     wantOrIds: wantOrIds,
                     wantAndIds: [],
                     deduct: false,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                 };
             });
 
@@ -1010,7 +1022,10 @@ describe("Core - Offer", function () {
 
             it("should revert with msg='NOT_TOK_OWNER' when token is not owned by swapper", async () => {
                 await baseAsset.approve(cAddr, "200");
-                await expect(core.updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: wantOrIds, wantAndIds: [], deduct: false})).to.emit(core, "UpdatedFungibleLiquidity");
+                await expect(core.updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: wantOrIds, wantAndIds: [], deduct: false})).to.emit(
+                    core,
+                    "UpdatedFungibleLiquidity",
+                );
                 await expect(
                     core.connect(swapper).createOffer({
                         marketId: mid,
@@ -1028,7 +1043,10 @@ describe("Core - Offer", function () {
 
             it("should revert with msg='OC: NOT_TOK_OWNER' when token does not exist", async () => {
                 await baseAsset.approve(cAddr, "200");
-                await expect(core.updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: wantOrIds, wantAndIds: [], deduct: false})).to.emit(core, "UpdatedFungibleLiquidity");
+                await expect(core.updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: wantOrIds, wantAndIds: [], deduct: false})).to.emit(
+                    core,
+                    "UpdatedFungibleLiquidity",
+                );
                 await expect(
                     core.connect(swapper).createOffer({
                         marketId: mid,
@@ -1046,7 +1064,10 @@ describe("Core - Offer", function () {
 
             it("should create offer successfully", async () => {
                 await baseAsset.approve(cAddr, "200");
-                await expect(core.updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: wantOrIds, wantAndIds: [], deduct: false})).to.emit(core, "UpdatedFungibleLiquidity");
+                await expect(core.updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: wantOrIds, wantAndIds: [], deduct: false})).to.emit(
+                    core,
+                    "UpdatedFungibleLiquidity",
+                );
                 await expect(
                     core.createOffer({
                         marketId: mid,
@@ -1087,6 +1108,8 @@ describe("Core - Offer", function () {
                     wantOrIds: wantOrIds,
                     wantAndIds: [],
                     deduct: false,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                 };
             });
 
@@ -1174,6 +1197,8 @@ describe("Core - Offer", function () {
                             price: 100,
                             timeToPay: 0,
                             expireAt: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             pause: false,
                             ids,
                             wantOrIds: [],
@@ -1205,6 +1230,8 @@ describe("Core - Offer", function () {
                             price: 100,
                             timeToPay: 0,
                             expireAt: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             pause: false,
                             ids,
                             wantOrIds: [],
@@ -1237,6 +1264,8 @@ describe("Core - Offer", function () {
                             price: 100,
                             timeToPay: 0,
                             expireAt: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             pause: false,
                             ids,
                             wantOrIds: [],
@@ -1269,6 +1298,8 @@ describe("Core - Offer", function () {
                             price: 100,
                             timeToPay: 0,
                             expireAt: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             pause: false,
                             ids,
                             wantOrIds: [],
@@ -1301,6 +1332,8 @@ describe("Core - Offer", function () {
                             price: 100,
                             timeToPay: 0,
                             expireAt: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             pause: false,
                             ids,
                             wantOrIds: [],
@@ -1367,6 +1400,8 @@ describe("Core - Offer", function () {
                             price: 100,
                             timeToPay: 0,
                             expireAt: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             ids,
                             wantOrIds: [],
                             wantAndIds: [],
@@ -1398,6 +1433,8 @@ describe("Core - Offer", function () {
                             price: 100,
                             timeToPay: 0,
                             expireAt: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             ids,
                             wantOrIds: [],
                             wantAndIds: [],
@@ -1429,6 +1466,8 @@ describe("Core - Offer", function () {
                             price: 100,
                             timeToPay: 0,
                             expireAt: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             ids,
                             wantOrIds: [],
                             wantAndIds: [],
@@ -1463,6 +1502,8 @@ describe("Core - Offer", function () {
                             price: 100,
                             timeToPay: 0,
                             expireAt: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             ids,
                             wantOrIds: [],
                             wantAndIds: [],
@@ -1510,6 +1551,8 @@ describe("Core - Offer", function () {
                         lid: 0,
                         price: 0,
                         timeToPay: 0,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         expireAt: 0,
                         ids: ids,
                         wantOrIds: [1],
@@ -1542,11 +1585,13 @@ describe("Core - Offer", function () {
                         price: 0,
                         timeToPay: 0,
                         expireAt: 0,
+                        pause: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         ids: ids,
                         wantOrIds: [2],
                         wantAndIds: [],
                         deduct: false,
-                        pause: false,
                     }),
                 ).to.emit(core, "UpdatedNonFungibleLiquidity");
                 await expect(
@@ -1573,11 +1618,13 @@ describe("Core - Offer", function () {
                         price: 0,
                         timeToPay: 0,
                         expireAt: 0,
+                        pause: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         ids: ids,
                         wantOrIds: [2],
                         wantAndIds: [],
                         deduct: false,
-                        pause: false,
                     }),
                 ).to.emit(core, "UpdatedNonFungibleLiquidity");
                 await expect(
@@ -1605,11 +1652,13 @@ describe("Core - Offer", function () {
                         price: 0,
                         timeToPay: 0,
                         expireAt: 0,
+                        pause: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         ids: ids,
                         wantOrIds: [3],
                         wantAndIds: [],
                         deduct: false,
-                        pause: false,
                     }),
                 ).to.emit(core, "UpdatedNonFungibleLiquidity");
                 await expect(
@@ -1637,11 +1686,13 @@ describe("Core - Offer", function () {
                         price: 0,
                         timeToPay: 0,
                         expireAt: 0,
+                        pause: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         ids: ids,
                         wantOrIds: [2],
                         wantAndIds: [],
                         deduct: false,
-                        pause: false,
                     }),
                 ).to.emit(core, "UpdatedNonFungibleLiquidity");
                 await expect(
@@ -1669,11 +1720,13 @@ describe("Core - Offer", function () {
                         price: 0,
                         timeToPay: 0,
                         expireAt: 0,
+                        pause: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         ids: ids,
                         wantOrIds: wantIds,
                         wantAndIds: [],
                         deduct: false,
-                        pause: false,
                     }),
                 ).to.emit(core, "UpdatedNonFungibleLiquidity");
                 await expect(
@@ -2247,6 +2300,8 @@ describe("Core - Offer", function () {
                         timeToPay: 0,
                         expireAt: 0,
                         pause: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         wantOrIds: wantOrIds,
                         wantAndIds: [],
                         deduct: false,
@@ -2288,7 +2343,8 @@ describe("Core - Offer", function () {
                 await testERC1155.connect(swapper).setApprovalForAll(core.address, true);
 
                 const wantOrIds = [1];
-                await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: wantOrIds, wantAndIds: [], deduct: false})).not.to.be.reverted;
+                await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: AddressZero, lid: 0, amount: amountOfBase, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: wantOrIds, wantAndIds: [], deduct: false})).not
+                    .to.be.reverted;
 
                 const ids = [2];
                 await expect(
@@ -2327,6 +2383,8 @@ describe("Core - Offer", function () {
                     timeToPay: 0,
                     expireAt: 0,
                     pause: false,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                     wantOrIds: [],
                     wantAndIds: [],
                     deduct: false,
@@ -2373,6 +2431,8 @@ describe("Core - Offer", function () {
                     timeToPay: 0,
                     expireAt: 0,
                     pause: false,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                     wantOrIds: [],
                     wantAndIds: [],
                     deduct: false,
@@ -2417,6 +2477,8 @@ describe("Core - Offer", function () {
                         timeToPay: 0,
                         expireAt: 0,
                         pause: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         wantOrIds: wantOrIds,
                         wantAndIds: [],
                         deduct: false,
@@ -2464,11 +2526,13 @@ describe("Core - Offer", function () {
                         price: pricePerBase,
                         timeToPay: 0,
                         expireAt: 0,
+                        pause: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         ids: ids,
                         wantOrIds: [],
                         wantAndIds: [],
                         deduct: false,
-                        pause: false,
                     }),
                 ).not.to.be.reverted;
 
@@ -2510,11 +2574,13 @@ describe("Core - Offer", function () {
                         price: pricePerBase,
                         timeToPay: 0,
                         expireAt: 0,
+                        pause: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         ids: ids,
                         wantOrIds: [],
                         wantAndIds: [],
                         deduct: false,
-                        pause: false,
                     }),
                 ).not.to.be.reverted;
                 await expect(
@@ -2557,11 +2623,13 @@ describe("Core - Offer", function () {
                         price: 0,
                         timeToPay: 0,
                         expireAt: 0,
+                        pause: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         ids: ids,
                         wantOrIds: [],
                         wantAndIds: wantAndIds,
                         deduct: false,
-                        pause: false,
                     }),
                 ).not.to.be.reverted;
 

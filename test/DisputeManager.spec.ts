@@ -141,6 +141,8 @@ describe("DisputeManager", function () {
             amount: provLiqBal,
             price: basePrice,
             timeToPay: timeToPay,
+            usePriceFromRegistry: false,
+            priceScaleBps: 0,
             expireAt: 0,
             pause: false,
             wantOrIds: [],

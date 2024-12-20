@@ -30,12 +30,14 @@ library FungibleLiquidityLib {
         address target,
         bool deduct,
         bool paused,
+        bool usePriceFromRegistry,
         uint256 liq,
         uint256 amount,
         uint256 price,
         uint256[] wantOrIds,
         uint256[] wantAndIds,
-        uint256 timeToPay
+        uint256 timeToPay,
+        int256 priceScaleBps
     );
 
     /// @dev Create or update fungible liquidity.
@@ -55,14 +57,20 @@ library FungibleLiquidityLib {
         require(mkt.base.isFungible(), "OC: UNEXP_BASE");
         require(!mkt.isInstantMarket() || slot.timeToPay == 0, "OC: TTP_NREQ");
         require(slot.timeToPay == 0 || slot.timeToPay >= s1.minTimeToPay, "OC: LOW_TTP");
-        require(mkt.quote.isNFT() || slot.price > 0, "OC: PRICE_REQ");
+        require(mkt.quote.isNFT() || slot.usePriceFromRegistry || slot.price > 0, "OC: PRICE_REQ");
         require(!mkt.quote.isNFT() || slot.price == 0, "OC: PRICE_NREQ");
+        require(!mkt.quote.isNFT() || !slot.usePriceFromRegistry, "OC: USE_PRICE_FROM_REG_NREQ");
         require(mkt.quote.isNFT() || (slot.wantOrIds.length == 0 && slot.wantAndIds.length == 0), "OC: WANT_IDS_NREQ");
         require(slot.wantOrIds.isUnique() && slot.wantAndIds.isUnique(), "OC: WANT_IDS_NUNIQ");
         require(slot.wantOrIds.isMaxLen16() && slot.wantAndIds.isMaxLen16(), "OC: WANT_IDS_HSIZE");
 
         // Check if the sender has the required market PUT badges.
         LiqAuxLib.checkMarketPutBadges(s2, slot.marketId);
+
+        // Load price from registry if requested
+        if (slot.usePriceFromRegistry) {
+            slot.price = s2.priceReg.getBasePrice(mkt.base.addr, mkt.quote.addr, slot.priceScaleBps);
+        }
 
         // Get the liquidity. If the liquidity does not exist, create a new one
         Structs.Liquidity storage liq;
@@ -71,7 +79,24 @@ library FungibleLiquidityLib {
         } else {
             uint256[] memory zero = new uint256[](0);
             s1.liquidity[slot.marketId][msg.sender].push(
-                Structs.Liquidity(zero, 0, 0, 0, 0, 0, 0, 0, 0, 0, zero, zero, false, slot.target)
+                Structs.Liquidity(
+                    zero,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    zero,
+                    zero,
+                    slot.priceScaleBps,
+                    false,
+                    slot.usePriceFromRegistry,
+                    slot.target
+                )
             );
             slot.lid = s1.liquidity[slot.marketId][msg.sender].length - 1;
             liq = s1.liquidity[slot.marketId][msg.sender][slot.lid];
@@ -133,6 +158,8 @@ library FungibleLiquidityLib {
         liq.wantOrIds = slot.wantOrIds;
         liq.target = slot.target;
         liq.paused = slot.pause;
+        liq.usePriceFromRegistry = slot.usePriceFromRegistry;
+        liq.priceScaleBps = slot.priceScaleBps;
         s2.marketCore.setCounters(slot.marketId, false, false, true, mkt.numLiquidity);
 
         emit UpdatedFungibleLiquidity(
@@ -141,12 +168,14 @@ library FungibleLiquidityLib {
             slot.target,
             slot.deduct,
             slot.pause,
+            slot.usePriceFromRegistry,
             slot.lid,
             slot.amount,
             slot.price,
             slot.wantOrIds,
             slot.wantAndIds,
-            slot.timeToPay
+            slot.timeToPay,
+            slot.priceScaleBps
         );
     }
 }

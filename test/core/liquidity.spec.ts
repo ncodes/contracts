@@ -3,8 +3,8 @@ import {expect} from "chai";
 import {BigNumber, BigNumberish, constants} from "ethers";
 import {getAddress} from "ethers/lib/utils";
 import {randomAddressString} from "hardhat/internal/hardhat-network/provider/utils/random";
-import {AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MediatorManager, ProviderRegistry, TOKEN} from "../../typechain-types";
-import {AddressZero, AssetType, advanceBlockTime, makeMarketID, pow10str, toBN, toDec} from "../../utils/utils";
+import {AssetRegistry, BadgeManager, Core, ERC1155T, ERC721T, FeePurse, MarketCore, MediatorManager, PriceRegistry, ProviderRegistry, TOKEN} from "../../typechain-types";
+import {AddressZero, AssetType, advanceBlockTime, makeMarketID, pow10str, powOf, toBN, toDec} from "../../utils/utils";
 import {initCoreTestSuite} from "../helpers/helpers";
 
 describe("Core - Liquidity", function () {
@@ -35,7 +35,7 @@ describe("Core - Liquidity", function () {
     let fixedNFTSwapFee: BigNumberish;
     let fixedFee: BigNumber;
     let curRate: BigNumber;
-
+    let priceReg: PriceRegistry;
     let marketCreator: SignerWithAddress, provider: SignerWithAddress, swapper: SignerWithAddress, marketCreator2: SignerWithAddress, inventor: SignerWithAddress;
 
     beforeEach(async () => {
@@ -72,6 +72,7 @@ describe("Core - Liquidity", function () {
         token = vars.token;
         fixedNFTSwapFee = vars.fixedNFTSwapFee;
         medMgr = vars.mediatorMgr;
+        priceReg = vars.priceReg;
 
         fixedFee = toBN("100000000000000000"); // 0.1
         curRate = toBN("100000000000000000"); // 0.1
@@ -95,6 +96,8 @@ describe("Core - Liquidity", function () {
             amount: liquidityAmt,
             price: basePrice,
             timeToPay: timeToPay,
+            usePriceFromRegistry: false,
+            priceScaleBps: 0,
             expireAt: 0,
             pause: false,
             wantOrIds: [],
@@ -126,6 +129,8 @@ describe("Core - Liquidity", function () {
                     lid: 0,
                     price: 0,
                     timeToPay: 0,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                     expireAt: now,
                     pause: false,
                     wantOrIds: [],
@@ -145,6 +150,8 @@ describe("Core - Liquidity", function () {
                     price: 0,
                     timeToPay: 0,
                     expireAt: 0,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                     pause: false,
                     wantOrIds: [],
                     wantAndIds: [],
@@ -165,6 +172,8 @@ describe("Core - Liquidity", function () {
                         price: 0,
                         timeToPay: 0,
                         expireAt: 0,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         pause: false,
                         wantOrIds: [],
                         wantAndIds: [],
@@ -185,6 +194,8 @@ describe("Core - Liquidity", function () {
                     price: 0,
                     timeToPay: 0,
                     expireAt: 0,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                     pause: false,
                     wantOrIds: [],
                     wantAndIds: [],
@@ -206,6 +217,8 @@ describe("Core - Liquidity", function () {
                         price: 0,
                         timeToPay: 1,
                         expireAt: 0,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         pause: false,
                         wantOrIds: [],
                         wantAndIds: [],
@@ -227,6 +240,8 @@ describe("Core - Liquidity", function () {
                     price: 1,
                     timeToPay: 0,
                     expireAt: 0,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                     pause: false,
                     wantOrIds: [],
                     wantAndIds: [],
@@ -246,6 +261,8 @@ describe("Core - Liquidity", function () {
                     price: 1,
                     timeToPay: 0,
                     expireAt: 0,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                     pause: false,
                     wantOrIds: [],
                     wantAndIds: [],
@@ -266,6 +283,8 @@ describe("Core - Liquidity", function () {
                     price: 0,
                     timeToPay: 0,
                     expireAt: 0,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                     pause: false,
                     wantOrIds: [],
                     wantAndIds: [],
@@ -285,6 +304,8 @@ describe("Core - Liquidity", function () {
                     price: 1,
                     timeToPay: 0,
                     expireAt: 0,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                     pause: false,
                     wantOrIds: [1],
                     wantAndIds: [],
@@ -300,6 +321,8 @@ describe("Core - Liquidity", function () {
                     price: 1,
                     timeToPay: 0,
                     expireAt: 0,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                     pause: false,
                     wantOrIds: [],
                     wantAndIds: [1],
@@ -319,6 +342,8 @@ describe("Core - Liquidity", function () {
                     price: 0,
                     timeToPay: 0,
                     expireAt: 0,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                     pause: false,
                     wantOrIds: [1, 1],
                     wantAndIds: [],
@@ -334,6 +359,8 @@ describe("Core - Liquidity", function () {
                     price: 0,
                     timeToPay: 0,
                     expireAt: 0,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                     pause: false,
                     wantOrIds: [],
                     wantAndIds: [1, 1],
@@ -355,6 +382,8 @@ describe("Core - Liquidity", function () {
                     price: 0,
                     timeToPay: 0,
                     expireAt: 0,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                     pause: false,
                     wantOrIds: wantOrIds,
                     wantAndIds: [],
@@ -370,6 +399,8 @@ describe("Core - Liquidity", function () {
                     price: 0,
                     timeToPay: 0,
                     expireAt: 0,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                     pause: false,
                     wantOrIds: [],
                     wantAndIds: wantAndIds,
@@ -389,6 +420,8 @@ describe("Core - Liquidity", function () {
                     price: 0,
                     timeToPay: 0,
                     expireAt: 0,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                     pause: false,
                     wantOrIds: [1],
                     wantAndIds: [],
@@ -409,6 +442,8 @@ describe("Core - Liquidity", function () {
                     price: 0,
                     timeToPay: 0,
                     expireAt: 0,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                     pause: false,
                     wantOrIds: [1],
                     wantAndIds: [],
@@ -428,6 +463,8 @@ describe("Core - Liquidity", function () {
                     price: 0,
                     timeToPay: 0,
                     expireAt: 0,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                     pause: false,
                     wantOrIds: [1],
                     wantAndIds: [],
@@ -447,6 +484,8 @@ describe("Core - Liquidity", function () {
                     price: 0,
                     timeToPay: 1,
                     expireAt: 0,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                     pause: false,
                     wantOrIds: [1],
                     wantAndIds: [],
@@ -454,6 +493,27 @@ describe("Core - Liquidity", function () {
                     ids: [],
                 }),
             ).to.be.revertedWith("OC: TTP_NREQ");
+        });
+
+        it("should revert with msg=USE_PRICE_FROM_REG_NREQ when market quote is NFT and usePriceFromRegistry is true", async () => {
+            mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC721, false, false, 0, 0);
+            await expect(
+                core.updateNonFungibleLiquidity({
+                    marketId: mid,
+                    target: constants.AddressZero,
+                    lid: 0,
+                    price: 0,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    usePriceFromRegistry: true,
+                    priceScaleBps: 0,
+                    pause: false,
+                    wantOrIds: [1],
+                    wantAndIds: [],
+                    deduct: false,
+                    ids: [],
+                }),
+            ).to.be.revertedWith("OC: USE_PRICE_FROM_REG_NREQ");
         });
 
         context("BASE is ERC721/ERC1155 and QUOTE is ERC20", () => {
@@ -477,6 +537,8 @@ describe("Core - Liquidity", function () {
                         price: 1,
                         timeToPay: 0,
                         expireAt: 0,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         pause: false,
                         wantOrIds: [],
                         wantAndIds: [],
@@ -498,6 +560,36 @@ describe("Core - Liquidity", function () {
                 expect(await provReg.getByAddr(deployer.address)).to.eq(1);
             });
 
+            context("when usePriceFromRegistry is true", () => {
+                it("should set price to registry price", async () => {
+                    await priceReg.updatePriceMulti([testERC721.address, quoteAddr], [powOf(0.55), powOf(1.01)]);
+
+                    const ids = [1, 2];
+                    mid = await createMarket(undefined, testERC721.address, quoteAddr, AssetType.ERC721, AssetType.ERC20, false, false, 0, 0);
+                    await expect(
+                        core.updateNonFungibleLiquidity({
+                            marketId: mid,
+                            target: constants.AddressZero,
+                            lid: 0,
+                            price: 1,
+                            timeToPay: 0,
+                            expireAt: 0,
+                            usePriceFromRegistry: true,
+                            priceScaleBps: 0,
+                            pause: false,
+                            wantOrIds: [],
+                            wantAndIds: [],
+                            deduct: false,
+                            ids: ids,
+                        }),
+                    ).not.to.be.reverted;
+
+                    let liq = await core.getLiquidity(mid, marketCreator.address, 0);
+                    expect(liq.ids).to.eql([toBN(1), toBN(2)]);
+                    expect(liq.price).to.eq("544554455445544554");
+                });
+            });
+
             context("BASE = ERC1155", () => {
                 beforeEach(async () => {
                     await testERC1155.mint(1);
@@ -517,6 +609,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: false,
                             wantOrIds: [],
@@ -556,6 +650,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: false,
                             wantOrIds: [],
@@ -576,6 +672,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: false,
                             wantOrIds: [],
@@ -593,6 +691,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: false,
                             wantOrIds: [],
@@ -618,6 +718,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: false,
                             wantOrIds: [],
@@ -641,6 +743,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: false,
                             wantOrIds: [],
@@ -664,6 +768,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: false,
                             wantOrIds: [],
@@ -691,6 +797,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: false,
                             wantOrIds: [],
@@ -713,6 +821,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: false,
                             wantOrIds: [],
@@ -735,6 +845,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: false,
                             wantOrIds: [],
@@ -762,6 +874,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: false,
                             wantOrIds: [],
@@ -786,6 +900,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: true,
                             wantOrIds: [],
@@ -818,6 +934,8 @@ describe("Core - Liquidity", function () {
                         price: 10,
                         timeToPay: 0,
                         expireAt: 0,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         pause: false,
                         wantOrIds: [],
                         wantAndIds: [],
@@ -850,6 +968,8 @@ describe("Core - Liquidity", function () {
                             price: 10,
                             timeToPay: 0,
                             expireAt: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             pause: false,
                             wantOrIds: [],
                             wantAndIds: [],
@@ -887,6 +1007,8 @@ describe("Core - Liquidity", function () {
                             price: 10,
                             timeToPay: 0,
                             expireAt: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             pause: false,
                             wantOrIds: [],
                             wantAndIds: [],
@@ -923,6 +1045,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: false,
                             wantOrIds: [],
@@ -970,6 +1094,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: false,
                             wantOrIds: [],
@@ -994,6 +1120,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: false,
                             wantOrIds: [],
@@ -1018,6 +1146,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: false,
                             wantOrIds: [],
@@ -1047,6 +1177,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: false,
                             wantOrIds: [],
@@ -1069,6 +1201,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: false,
                             wantOrIds: [],
@@ -1090,6 +1224,8 @@ describe("Core - Liquidity", function () {
                             lid: 0,
                             price: 1,
                             timeToPay: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             expireAt: 0,
                             pause: false,
                             wantOrIds: [],
@@ -1131,6 +1267,8 @@ describe("Core - Liquidity", function () {
                         price: 0,
                         timeToPay: 0,
                         expireAt: 0,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         pause: false,
                         wantOrIds: [1],
                         wantAndIds: [2],
@@ -1166,6 +1304,8 @@ describe("Core - Liquidity", function () {
                             price: 0,
                             timeToPay: 0,
                             expireAt: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             pause: false,
                             wantOrIds: [1],
                             wantAndIds: [2],
@@ -1196,6 +1336,8 @@ describe("Core - Liquidity", function () {
                             price: 0,
                             timeToPay: 0,
                             expireAt: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             pause: false,
                             wantOrIds: [1],
                             wantAndIds: [],
@@ -1216,6 +1358,8 @@ describe("Core - Liquidity", function () {
                             price: 0,
                             timeToPay: 0,
                             expireAt: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             pause: false,
                             wantOrIds: [1],
                             wantAndIds: [],
@@ -1237,6 +1381,8 @@ describe("Core - Liquidity", function () {
                             price: 0,
                             timeToPay: 0,
                             expireAt: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             pause: false,
                             wantOrIds: [1],
                             wantAndIds: [],
@@ -1261,6 +1407,8 @@ describe("Core - Liquidity", function () {
                             price: 0,
                             timeToPay: 0,
                             expireAt: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             pause: false,
                             wantOrIds: [1],
                             wantAndIds: [],
@@ -1280,6 +1428,8 @@ describe("Core - Liquidity", function () {
                             price: 0,
                             timeToPay: 0,
                             expireAt: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             pause: false,
                             wantOrIds: [1],
                             wantAndIds: [],
@@ -1299,6 +1449,8 @@ describe("Core - Liquidity", function () {
                             price: 0,
                             timeToPay: 0,
                             expireAt: 0,
+                            usePriceFromRegistry: false,
+                            priceScaleBps: 0,
                             pause: false,
                             wantOrIds: [1],
                             wantAndIds: [],
@@ -1333,6 +1485,8 @@ describe("Core - Liquidity", function () {
                         price: 1,
                         timeToPay: 0,
                         expireAt: 0,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         pause: false,
                         wantOrIds: [],
                         wantAndIds: [],
@@ -1362,6 +1516,8 @@ describe("Core - Liquidity", function () {
                         price: 1,
                         timeToPay: 0,
                         expireAt: 0,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         pause: false,
                         wantOrIds: [],
                         wantAndIds: [],
@@ -1394,6 +1550,8 @@ describe("Core - Liquidity", function () {
                         price: 1,
                         timeToPay: 0,
                         expireAt: 0,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         pause: false,
                         wantOrIds: [],
                         wantAndIds: [],
@@ -1408,41 +1566,61 @@ describe("Core - Liquidity", function () {
     describe(".updateFungibleLiquidity", () => {
         it("should revert with reason='EXPIRED_TX' when transaction has expired", async () => {
             const now = await advanceBlockTime(1);
-            const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: now, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+            const params = {
+                marketId: mid,
+                target: constants.AddressZero,
+                lid: 0,
+                amount: 100,
+                price: 10045,
+                timeToPay: 0,
+                expireAt: now,
+                pause: false,
+                usePriceFromRegistry: false,
+                priceScaleBps: 0,
+                wantOrIds: [],
+                wantAndIds: [],
+                deduct: false,
+            };
             await expect(core.updateFungibleLiquidity(params)).to.be.revertedWith("EXPIRED_TX");
         });
 
         it("should revert with reason='UNKNOWN_MARKET' when market does not exist", async () => {
-            const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+            const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
             await expect(core.updateFungibleLiquidity(params)).to.be.revertedWith("UNKNOWN_MARKET");
         });
 
         context("market is permissioned and sender is not the owner of the market and also no permitted", () => {
             it("should revert with reason='NO_PUT_PERM'", async () => {
                 await mc.createMarket(baseAddr, quoteAddr, 1, 0, true, true, 0, 0);
-                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                 await expect(core.connect(provider).updateFungibleLiquidity(params)).to.be.revertedWith("MC: NO_PUT_PERM");
             });
         });
 
         it("should revert with reason='UNEXP_BASE' when base asset is not fungible", async () => {
             mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC721, AssetType.ERC20, false, false, 0, 0);
-            const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+            const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
             await expect(core.connect(provider).updateFungibleLiquidity(params)).to.be.revertedWith("OC: UNEXP_BASE");
         });
 
         context("market is instant but timeToPay was provided", () => {
             it("should revert with reason='TTP_NREQ'", async () => {
                 mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
-                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 1, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 1, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                 await expect(core.connect(provider).updateFungibleLiquidity(params)).to.be.revertedWith("OC: TTP_NREQ");
             });
         });
 
         it("should revert with reason=LOW_TTP when timeToPay is lesser than default minimum", async () => {
             mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0, 0);
-            const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 0, timeToPay: 1, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+            const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 0, timeToPay: 1, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
             await expect(core.connect(provider).updateFungibleLiquidity(params)).to.be.revertedWith("OC: LOW_TTP");
+        });
+
+        it("should revert with reason=USE_PRICE_FROM_REG_NREQ when quote is NFT and usePriceFromRegistry is true", async () => {
+            mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721, false, false, 0, 0);
+            const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: true, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
+            await expect(core.connect(provider).updateFungibleLiquidity(params)).to.be.revertedWith("OC: USE_PRICE_FROM_REG_NREQ");
         });
 
         context("base asset is ERC20", () => {
@@ -1450,14 +1628,14 @@ describe("Core - Liquidity", function () {
                 it("should revert with reason='OC: PRICE_REQ' when quote is ERC20", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
                     await baseAsset.connect(provider).approve(core.address, "100");
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.connect(provider).updateFungibleLiquidity(params)).to.be.revertedWith("OC: PRICE_REQ");
                 });
 
                 it("should revert with reason='OC: PRICE_REQ' when quote is SYNTH", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.SYNTH, false, false, 0, 0);
                     await baseAsset.connect(provider).approve(core.address, "100");
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.connect(provider).updateFungibleLiquidity(params)).to.be.revertedWith("OC: PRICE_REQ");
                 });
             });
@@ -1466,7 +1644,7 @@ describe("Core - Liquidity", function () {
                 it("should revert with reason='ERC20: transfer amount exceeds balance'", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, 0, false, false, 0, 0);
                     await baseAsset.connect(provider).approve(core.address, "100");
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.connect(provider).updateFungibleLiquidity(params)).to.be.revertedWith("ERC20: transfer amount exceeds balance");
                 });
             });
@@ -1475,7 +1653,7 @@ describe("Core - Liquidity", function () {
                 it("should revert with reason='ERC20: transfer amount exceeds balance'", async () => {
                     await baseAsset.approve(cAddr, "99");
                     mid = await createMarket(undefined, baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.connect(marketCreator).updateFungibleLiquidity(params)).to.be.revertedWith("ERC20: insufficient allowance");
                 });
             });
@@ -1484,7 +1662,7 @@ describe("Core - Liquidity", function () {
                 it("should update sender's liquidity correctly", async () => {
                     await baseAsset.approve(cAddr, "200");
                     mid = await createMarket(undefined, baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 100, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 100, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.connect(marketCreator).updateFungibleLiquidity(params)).to.emit(core, "UpdatedFungibleLiquidity").to.emit(provReg, "ProviderRegistered");
                     let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.amount.toNumber()).to.equal(100);
@@ -1515,7 +1693,7 @@ describe("Core - Liquidity", function () {
                     it("should set target", async () => {
                         await baseAsset.approve(cAddr, "200");
                         mid = await createMarket(undefined, baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                        const params = {marketId: mid, target: swapper.address, lid: 0, amount: 100, price: 100, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                        const params = {marketId: mid, target: swapper.address, lid: 0, amount: 100, price: 100, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                         await expect(core.connect(marketCreator).updateFungibleLiquidity(params)).to.emit(core, "UpdatedFungibleLiquidity");
                         let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                         expect(liq.target).to.eql(swapper.address);
@@ -1529,7 +1707,7 @@ describe("Core - Liquidity", function () {
                     const wantAndIds = [toBN(2), toBN(3)];
                     await baseAsset.approve(cAddr, "200");
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721, false, false, 0, 0);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds, wantAndIds, deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds, wantAndIds, deduct: false};
                     await expect(core.connect(marketCreator).updateFungibleLiquidity(params)).to.emit(core, "UpdatedFungibleLiquidity");
                     let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.wantOrIds).to.eql(wantOrIds);
@@ -1546,7 +1724,7 @@ describe("Core - Liquidity", function () {
                     await baseAsset.connect(provider).approve(core.address, "200");
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, true, false, 0, 0);
                     await mc.permitPut(mid, provider.address);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 100, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 100, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.connect(provider).updateFungibleLiquidity(params)).not.to.be.reverted;
                     let liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount.toNumber()).to.equal(100);
@@ -1567,7 +1745,7 @@ describe("Core - Liquidity", function () {
                     await baseAsset.approve(cAddr, "200");
                     await mc.createMarket(baseAddr, quoteAddr, 1, 0, true, false, 0, 0);
                     await mc.permitPut(mid, marketCreator.address);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 100, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 100, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.connect(marketCreator).updateFungibleLiquidity(params)).to.emit(core, "UpdatedFungibleLiquidity");
                     let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.amount.toNumber()).to.equal(100);
@@ -1584,14 +1762,14 @@ describe("Core - Liquidity", function () {
             context("sender has no existing liquidity, amount=0", () => {
                 it("should revert with message='AMOUNT_REQ'", async () => {
                     await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 100, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 100, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.updateFungibleLiquidity(params)).to.be.revertedWith("OC: AMOUNT_REQ");
                 });
 
                 it("should update price only when sender previously had liquidity", async () => {
                     await baseAsset.approve(cAddr, 100);
                     await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 100, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 100, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.updateFungibleLiquidity(params)).to.emit(core, "UpdatedFungibleLiquidity");
                     await expect(core.updateFungibleLiquidity({...params, amount: 0, price: 120})).to.emit(core, "UpdatedFungibleLiquidity");
                     let liq = await core.getLiquidity(mid, marketCreator.address, 0);
@@ -1608,14 +1786,14 @@ describe("Core - Liquidity", function () {
                 it("should revert with msg= when value is non-zero but less than minimum time to pay", async () => {
                     await baseAsset.approve(cAddr, 100);
                     await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 50, price: 15, timeToPay: 1, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 50, price: 15, timeToPay: 1, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.updateFungibleLiquidity(params)).to.be.revertedWith("OC: LOW_TTP");
                 });
 
                 it("should set the liquidity timeToPay", async () => {
                     await baseAsset.approve(cAddr, 100);
                     await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 50, price: 15, timeToPay: 120, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 50, price: 15, timeToPay: 120, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await core.updateFungibleLiquidity(params);
                     const liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.timeToPay.toNumber()).to.eql(120);
@@ -1627,7 +1805,7 @@ describe("Core - Liquidity", function () {
                     await core.setMinTimeToPay(2);
                     await baseAsset.approve(cAddr, 100);
                     await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 50, price: 15, timeToPay: 120, expireAt: 0, pause: true, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 50, price: 15, timeToPay: 120, expireAt: 0, pause: true, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await core.updateFungibleLiquidity(params);
                     const liq = await core.getLiquidity(mid, marketCreator.address, 0);
                     expect(liq.paused).to.be.true;
@@ -1638,7 +1816,7 @@ describe("Core - Liquidity", function () {
                 it("should revert with reason=UNEXP_BASE", async () => {
                     mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 2, 0);
                     await mc.createMarket(baseAddr, quoteAddr, 2, 0, false, false, 0, 0);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 1, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 1, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.updateFungibleLiquidity(params)).to.be.revertedWith("OC: UNEXP_BASE");
                 });
             });
@@ -1646,7 +1824,7 @@ describe("Core - Liquidity", function () {
             context("quote asset is NFT and price was provided", () => {
                 it("should revert with reason=OC: PRICE_NREQ", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721, false, false, 0, 0);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 1, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 1, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.updateFungibleLiquidity(params)).to.be.revertedWith("OC: PRICE_NREQ");
                 });
             });
@@ -1654,7 +1832,7 @@ describe("Core - Liquidity", function () {
             context("quote asset is not NFT and want IDs was provided", () => {
                 it("should revert with reason=OC: WANT_IDS_NREQ", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 1, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [0], wantAndIds: [1], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 1, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [0], wantAndIds: [1], deduct: false};
                     await expect(core.updateFungibleLiquidity(params)).to.be.revertedWith("OC: WANT_IDS_NREQ");
                 });
             });
@@ -1664,10 +1842,10 @@ describe("Core - Liquidity", function () {
                     await baseAsset.approve(cAddr, "100");
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721, false, false, 0, 0);
                     const wantOrIds = [1, 1];
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds, wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds, wantAndIds: [], deduct: false};
                     await expect(core.connect(marketCreator).updateFungibleLiquidity(params)).to.be.revertedWith("OC: WANT_IDS_NUNIQ");
                     const wantAndIds = [1, 1];
-                    const params2 = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds, deduct: false};
+                    const params2 = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds, deduct: false};
                     await expect(core.connect(marketCreator).updateFungibleLiquidity(params2)).to.be.revertedWith("OC: WANT_IDS_NUNIQ");
                 });
             });
@@ -1682,9 +1860,9 @@ describe("Core - Liquidity", function () {
                         wantAndIds.push(i);
                     }
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721, false, false, 0, 0);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds, wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds, wantAndIds: [], deduct: false};
                     await expect(core.connect(marketCreator).updateFungibleLiquidity(params)).to.be.revertedWith("OC: WANT_IDS_HSIZE");
-                    const params2 = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds, deduct: false};
+                    const params2 = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds, deduct: false};
                     await expect(core.connect(marketCreator).updateFungibleLiquidity(params2)).to.be.revertedWith("OC: WANT_IDS_HSIZE");
                 });
             });
@@ -1693,14 +1871,14 @@ describe("Core - Liquidity", function () {
                 it("should be successful when wantOrIds is set", async () => {
                     await baseAsset.approve(cAddr, "100");
                     mid = await createMarket(marketCreator, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721, false, false, 0, 0);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [1], wantAndIds: [], deduct: false};
                     await expect(core.updateFungibleLiquidity(params)).not.to.be.reverted;
                 });
 
                 it("should be successful when wantAndIds is set", async () => {
                     await baseAsset.approve(cAddr, "100");
                     mid = await createMarket(marketCreator, baseAddr, quoteAddr, AssetType.ERC20, AssetType.ERC721, false, false, 0, 0);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [1], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [1], deduct: false};
                     await expect(core.updateFungibleLiquidity(params)).not.to.be.reverted;
                 });
             });
@@ -1710,21 +1888,21 @@ describe("Core - Liquidity", function () {
                 beforeEach(async () => {
                     await baseAsset.approve(cAddr, liqAmt);
                     await mc.createMarket(baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt, price: 1, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt, price: 1, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.updateFungibleLiquidity(params)).to.emit(core, "UpdatedFungibleLiquidity");
                     const mkt = await mc.getMarket(mid);
                     expect(mkt.numLiquidity).to.eq(liqAmt);
                 });
 
                 it("should revert with reason=LOW_LIQ when amount is greater than available liquidity", async () => {
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt + 1, price: 1, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: true};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt + 1, price: 1, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: true};
                     await expect(core.updateFungibleLiquidity(params)).to.be.revertedWith("OC: LOW_LIQ");
                 });
 
                 it("should deduct liquidity", async () => {
                     const baseBal = await baseAsset.balanceOf(deployer.address);
 
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 50, price: 1, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: true};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 50, price: 1, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: true};
                     await expect(core.updateFungibleLiquidity(params)).not.to.be.reverted;
                     expect(await baseAsset.balanceOf(deployer.address)).to.eql(baseBal.add(50));
                     const liqBal = await core.getLiquidity(mid, deployer.address, 0);
@@ -1740,7 +1918,7 @@ describe("Core - Liquidity", function () {
             context("sender sent insufficient native value", () => {
                 it("should revert with reason='OC: INV_DEPOSIT'", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.connect(provider).updateFungibleLiquidity(params)).to.be.revertedWith("OC: INV_DEPOSIT");
                 });
             });
@@ -1748,7 +1926,7 @@ describe("Core - Liquidity", function () {
             context("sender too much native value is sent (more than amount)", () => {
                 it("should revert with reason='OC: INV_DEPOSIT'", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.connect(provider).updateFungibleLiquidity(params, {value: 101})).to.be.revertedWith("OC: INV_DEPOSIT");
                 });
             });
@@ -1756,7 +1934,7 @@ describe("Core - Liquidity", function () {
             context("sender sent sufficient native value", () => {
                 it("should create liquidity successfully", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.connect(provider).updateFungibleLiquidity(params, {value: "100"})).not.to.be.reverted;
                     expect(await core.provider.getBalance(core.address)).to.eq(100);
 
@@ -1768,12 +1946,18 @@ describe("Core - Liquidity", function () {
             context("sender has existing liquidity", () => {
                 it("should update sender's liquidity correctly", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
-                    await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false}, {value: "100"});
+                    await core
+                        .connect(provider)
+                        .updateFungibleLiquidity({marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false}, {value: "100"});
 
                     let liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount.toNumber()).to.equal(100);
 
-                    await expect(core.connect(provider).updateFungibleLiquidity({marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false}, {value: "100"})).not.to.be.reverted;
+                    await expect(
+                        core
+                            .connect(provider)
+                            .updateFungibleLiquidity({marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false}, {value: "100"}),
+                    ).not.to.be.reverted;
                     expect(await core.provider.getBalance(core.address)).to.eq(200);
 
                     liq = await core.getLiquidity(mid, provider.address, 0);
@@ -1784,7 +1968,9 @@ describe("Core - Liquidity", function () {
             context("deduct=true", () => {
                 it("should remove liquidity correctly", async () => {
                     mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.NATIVE, 0, false, false, 0, 0);
-                    await core.connect(provider).updateFungibleLiquidity({marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false}, {value: "100"});
+                    await core
+                        .connect(provider)
+                        .updateFungibleLiquidity({marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10045, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false}, {value: "100"});
 
                     let liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount.toNumber()).to.equal(100);
@@ -1792,7 +1978,7 @@ describe("Core - Liquidity", function () {
                     // get provider balance
                     const providerBalance = await core.provider.getBalance(provider.address);
 
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 50, price: 10045, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: true};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 50, price: 10045, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: true};
                     const tx = await core.connect(provider).updateFungibleLiquidity(params);
                     liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount.toNumber()).to.equal(50);
@@ -1814,7 +2000,7 @@ describe("Core - Liquidity", function () {
         context("base asset is SYNTH and quote is ERC20", () => {
             it("should successfully add liquidity", async () => {
                 mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.ERC20, false, false, 0, 0);
-                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                 await expect(core.connect(provider).updateFungibleLiquidity(params)).not.to.be.reverted;
                 let liq = await core.getLiquidity(mid, provider.address, 0);
                 expect(liq.amount.toNumber()).to.equal(100);
@@ -1823,7 +2009,7 @@ describe("Core - Liquidity", function () {
 
             it("should successfully remove liquidity", async () => {
                 mid = await createMarket(undefined, baseAddr, quoteAddr, AssetType.SYNTH, AssetType.ERC20, false, false, 0, 0);
-                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 10, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                 await expect(core.connect(provider).updateFungibleLiquidity(params)).not.to.be.reverted;
                 let liq = await core.getLiquidity(mid, provider.address, 0);
                 expect(liq.amount.toNumber()).to.equal(100);
@@ -1847,18 +2033,18 @@ describe("Core - Liquidity", function () {
             });
 
             it("should revert with reason=PRICE_REQ when price was not provided", async () => {
-                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                 await expect(core.connect(provider).updateFungibleLiquidity(params)).to.be.revertedWith("OC: PRICE_REQ");
             });
 
             it("should revert with reason=AMOUNT_REQ when price was not provided", async () => {
-                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 1, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 1, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                 await expect(core.connect(provider).updateFungibleLiquidity(params)).to.be.revertedWith("OC: AMOUNT_REQ");
             });
 
             context("deduct = false", () => {
                 it("should revert with msg='LOW_BAL' when unable to lock fee", async () => {
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: tokenDec.mul(1), price: 1, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: tokenDec.mul(1), price: 1, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.connect(provider).updateFungibleLiquidity(params)).to.be.revertedWith("FP: LOW_BAL");
                 });
 
@@ -1871,7 +2057,7 @@ describe("Core - Liquidity", function () {
                     await token.approve(feePurse.address, toBN(fee));
                     await feePurse.deposit(toBN(fee));
 
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt, price: 1, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt, price: 1, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.updateFungibleLiquidity(params)).not.to.be.reverted;
                     let liq = await core.getLiquidity(mid, deployer.address, 0);
                     expect(liq.protoFeePurseId).to.eq(1);
@@ -1908,7 +2094,7 @@ describe("Core - Liquidity", function () {
                         await token.approve(feePurse.address, fee);
                         await feePurse.deposit(fee);
 
-                        const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt, price: 1, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                        const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt, price: 1, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                         await expect(core.updateFungibleLiquidity(params)).not.to.be.reverted;
                         let liq = await core.getLiquidity(mid, deployer.address, 0);
                         expect(liq.amount).to.eql(liqAmt);
@@ -1929,7 +2115,7 @@ describe("Core - Liquidity", function () {
                         await token.approve(feePurse.address, fee);
                         await feePurse.deposit(fee);
 
-                        const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt, price: 1, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                        const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt, price: 1, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                         await expect(core.updateFungibleLiquidity(params)).not.to.be.reverted;
                         let liq = await core.getLiquidity(mid, deployer.address, 0);
                         expect(liq.amount).to.eq(toBN("1000000000000000000"));
@@ -1950,7 +2136,7 @@ describe("Core - Liquidity", function () {
                         // Add liquidity
                         await token.approve(feePurse.address, fee);
                         await feePurse.deposit(fee);
-                        const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt, price: 1, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                        const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt, price: 1, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                         await expect(core.updateFungibleLiquidity(params)).not.to.be.reverted;
 
                         let liq = await core.getLiquidity(mid, deployer.address, 0);
@@ -1991,7 +2177,7 @@ describe("Core - Liquidity", function () {
                     await token.connect(provider).approve(feePurse.address, fee);
                     await feePurse.connect(provider).deposit(fee);
 
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt, price: 1, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt, price: 1, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                     await expect(core.connect(provider).updateFungibleLiquidity(params)).not.to.be.reverted;
                     let liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount).to.eq(liqAmt);
@@ -2003,7 +2189,7 @@ describe("Core - Liquidity", function () {
                     expect(await feePurse.balanceOf(provider.address)).to.eql(toBN(0));
 
                     // deduct
-                    const deductParams = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt.div(2), price: 1, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: true};
+                    const deductParams = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt.div(2), price: 1, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: true};
                     await expect(core.connect(provider).updateFungibleLiquidity(deductParams)).not.to.be.reverted;
                     liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount).to.eq(liqAmt.div(2));
@@ -2039,27 +2225,27 @@ describe("Core - Liquidity", function () {
 
             it("should revert with reason='WANT_IDS_HSIZE' when wantOrId or wantAndId exceed length limit", async () => {
                 const ids = Array(17).fill(0).map((_, i) => i); // prettier-ignore
-                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: ids, wantAndIds: [], deduct: false};
+                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: ids, wantAndIds: [], deduct: false};
                 await expect(core.connect(provider).updateFungibleLiquidity(params)).to.be.revertedWith("OC: WANT_IDS_HSIZE");
-                const params2 = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: ids, deduct: false};
+                const params2 = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: ids, deduct: false};
                 await expect(core.connect(provider).updateFungibleLiquidity(params2)).to.be.revertedWith("OC: WANT_IDS_HSIZE");
             });
 
             it("should revert with reason='WANT_IDS_NUNIQ' when wantOrId or wantAndId contain duplicates", async () => {
                 const ids = [1, 1];
-                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: ids, wantAndIds: [], deduct: false};
+                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: ids, wantAndIds: [], deduct: false};
                 await expect(core.connect(provider).updateFungibleLiquidity(params)).to.be.revertedWith("OC: WANT_IDS_NUNIQ");
-                const params2 = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: ids, deduct: false};
+                const params2 = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: ids, deduct: false};
                 await expect(core.connect(provider).updateFungibleLiquidity(params2)).to.be.revertedWith("OC: WANT_IDS_NUNIQ");
             });
 
             it("should revert with reason='AMOUNT_REQ' when a new liquidity is created and amount was not provided", async () => {
-                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false};
+                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 0, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [1], wantAndIds: [], deduct: false};
                 await expect(core.connect(provider).updateFungibleLiquidity(params)).to.be.revertedWith("OC: AMOUNT_REQ");
             });
 
             it("should revert with reason='PRICE_NREQ' when price was provided", async () => {
-                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 1, price: 1, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false};
+                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 1, price: 1, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [1], wantAndIds: [], deduct: false};
                 await expect(core.connect(provider).updateFungibleLiquidity(params)).to.be.revertedWith("OC: PRICE_NREQ");
             });
 
@@ -2070,7 +2256,7 @@ describe("Core - Liquidity", function () {
                 await token.connect(provider).approve(feePurse.address, fee);
                 await feePurse.connect(provider).deposit(fee);
 
-                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false};
+                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [1], wantAndIds: [], deduct: false};
                 await expect(core.connect(provider).updateFungibleLiquidity(params)).not.to.be.reverted;
 
                 let liq = await core.getLiquidity(mid, provider.address, 0);
@@ -2083,7 +2269,7 @@ describe("Core - Liquidity", function () {
                 await token.transfer(provider.address, fee);
                 await token.connect(provider).approve(feePurse.address, fee);
                 await feePurse.connect(provider).deposit(fee);
-                const params2 = {marketId: mid, target: constants.AddressZero, lid: 1, amount: liqAmt2, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false};
+                const params2 = {marketId: mid, target: constants.AddressZero, lid: 1, amount: liqAmt2, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [1], wantAndIds: [], deduct: false};
                 await expect(core.connect(provider).updateFungibleLiquidity(params2)).not.to.be.reverted;
                 liq = await core.getLiquidity(mid, provider.address, 1);
                 expect(liq.amount).to.eq(liqAmt2);
@@ -2095,7 +2281,7 @@ describe("Core - Liquidity", function () {
                 await token.transfer(provider.address, fee);
                 await token.connect(provider).approve(feePurse.address, fee);
                 await feePurse.connect(provider).deposit(fee);
-                const params3 = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt3, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false};
+                const params3 = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt3, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [1], wantAndIds: [], deduct: false};
                 await expect(core.connect(provider).updateFungibleLiquidity(params3)).not.to.be.reverted;
                 liq = await core.getLiquidity(mid, provider.address, 0);
                 expect(liq.amount).to.eq(liqAmt.add(liqAmt3));
@@ -2104,7 +2290,7 @@ describe("Core - Liquidity", function () {
 
             context("deduct = true", () => {
                 it("should revert with reason='LOW_LIQ' when amount is less than available liquidity", async () => {
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 1, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: true};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 1, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [1], wantAndIds: [], deduct: true};
                     await expect(core.connect(provider).updateFungibleLiquidity(params)).to.be.revertedWith("OC: LOW_LIQ");
                 });
 
@@ -2115,7 +2301,7 @@ describe("Core - Liquidity", function () {
                     await token.connect(provider).approve(feePurse.address, fee);
                     await feePurse.connect(provider).deposit(fee);
 
-                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: false};
+                    const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [1], wantAndIds: [], deduct: false};
                     await expect(core.connect(provider).updateFungibleLiquidity(params)).not.to.be.reverted;
                     let liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount).to.eq(liqAmt);
@@ -2123,7 +2309,7 @@ describe("Core - Liquidity", function () {
 
                     // deduct
                     const liqAmt2 = tokenDec.mul(1);
-                    const deductParams = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt2, price: 0, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [1], wantAndIds: [], deduct: true};
+                    const deductParams = {marketId: mid, target: constants.AddressZero, lid: 0, amount: liqAmt2, price: 0, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [1], wantAndIds: [], deduct: true};
                     await expect(core.connect(provider).updateFungibleLiquidity(deductParams)).not.to.be.reverted;
                     liq = await core.getLiquidity(mid, provider.address, 0);
                     expect(liq.amount).to.eq(liqAmt.div(2));
@@ -2144,7 +2330,7 @@ describe("Core - Liquidity", function () {
                 mid = await createMarket(undefined, baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
                 const badges: [string, string][] = [["verified", ""]];
                 await mc.setRequiredBadges(mid, badges, []);
-                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 100, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 100, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                 await expect(core.connect(marketCreator).updateFungibleLiquidity(params)).to.be.revertedWith("OC: MKT_BADGE_REQ");
             });
 
@@ -2160,7 +2346,7 @@ describe("Core - Liquidity", function () {
                 ];
                 await mc.setRequiredBadges(mid, badges, []);
 
-                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 100, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 100, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                 await expect(core.updateFungibleLiquidity(params)).to.be.revertedWith("OC: MKT_BADGE_REQ");
             });
 
@@ -2179,11 +2365,73 @@ describe("Core - Liquidity", function () {
                 ];
                 await mc.setRequiredBadges(mid, badges, []);
 
-                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 100, timeToPay: 0, expireAt: 0, pause: false, wantOrIds: [], wantAndIds: [], deduct: false};
+                const params = {marketId: mid, target: constants.AddressZero, lid: 0, amount: 100, price: 100, timeToPay: 0, expireAt: 0, pause: false, usePriceFromRegistry: false, priceScaleBps: 0, wantOrIds: [], wantAndIds: [], deduct: false};
                 await expect(core.updateFungibleLiquidity(params)).not.to.be.reverted;
                 let liq = await core.getLiquidity(mid, marketCreator.address, 0);
                 expect(liq.amount.toNumber()).to.equal(100);
                 expect(liq.price.toNumber()).to.equal(100);
+            });
+        });
+
+        context("when usePriceFromRegistry is true", () => {
+            let params: any;
+
+            beforeEach(async () => {
+                params = {
+                    marketId: mid,
+                    target: constants.AddressZero,
+                    lid: 0,
+                    amount: 100,
+                    price: 0,
+                    timeToPay: 0,
+                    expireAt: 0,
+                    pause: false,
+                    usePriceFromRegistry: true,
+                    priceScaleBps: 0,
+                    wantOrIds: [],
+                    wantAndIds: [],
+                    deduct: false,
+                };
+            });
+            it("should not revert with msg='PRICE_REQ' when usePriceFromRegistry is true", async () => {
+                mid = await createMarket(undefined, baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
+                await expect(core.connect(marketCreator).updateFungibleLiquidity(params)).not.to.be.revertedWith("OC: PRICE_REQ");
+            });
+
+            it("should revert with msg='PR: BASE_PRICE_ZERO' when usePriceFromRegistry is true but base asset price is not set in the price registry", async () => {
+                mid = await createMarket(undefined, baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
+                await expect(core.connect(marketCreator).updateFungibleLiquidity(params)).to.be.revertedWith("PR: BASE_PRICE_ZERO");
+            });
+
+            it("should revert with msg='PR: QUOTE_PRICE_ZERO' when usePriceFromRegistry is true but quote asset price is not set in the price registry", async () => {
+                mid = await createMarket(undefined, baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
+                await priceReg.updatePrice(baseAddr, powOf(1));
+                await expect(core.connect(marketCreator).updateFungibleLiquidity(params)).to.be.revertedWith("PR: QUOTE_PRICE_ZERO");
+            });
+
+            it("should successfully add liquidity when usePriceFromRegistry is true and base asset price is set in the price registry", async () => {
+                await baseAsset.approve(cAddr, 100);
+                await priceReg.updatePriceMulti([baseAddr, quoteAddr], [powOf(1), powOf(2)]);
+                mid = await createMarket(undefined, baseAddr, quoteAddr, 1, 0, false, false, 0, 0);
+                await expect(core.connect(marketCreator).updateFungibleLiquidity(params)).to.emit(core, "UpdatedFungibleLiquidity").withArgs(marketCreator.address, getAddress(mid), constants.AddressZero, false, false, true, 0, 100, powOf(0.5), [], [], 0, 0);
+                const liq = await core.getLiquidity(mid, marketCreator.address, 0);
+                expect(liq.price).to.eq(powOf(0.5));
+
+                // Update price scale bps to positive value
+                await expect(core.connect(marketCreator).updateFungibleLiquidity({...params, amount: 0, priceScaleBps: 1000}))
+                    .to.emit(core, "UpdatedFungibleLiquidity")
+                    .withArgs(marketCreator.address, getAddress(mid), constants.AddressZero, false, false, true, 0, 0, powOf(0.55), [], [], 0, 1000);
+                const liq2 = await core.getLiquidity(mid, marketCreator.address, 0);
+                expect(liq2.price).to.eq(powOf(0.55));
+                expect(liq2.amount).to.eq(100);
+
+                // Update price scale bps to negative value
+                await expect(core.connect(marketCreator).updateFungibleLiquidity({...params, amount: 0, priceScaleBps: -1000}))
+                    .to.emit(core, "UpdatedFungibleLiquidity")
+                    .withArgs(marketCreator.address, getAddress(mid), constants.AddressZero, false, false, true, 0, 0, powOf(0.45), [], [], 0, -1000);
+                const liq3 = await core.getLiquidity(mid, marketCreator.address, 0);
+                expect(liq3.price).to.eq(powOf(0.45));
+                expect(liq3.amount).to.eq(100);
             });
         });
     });
@@ -2206,6 +2454,8 @@ describe("Core - Liquidity", function () {
                 timeToPay: 0,
                 expireAt: 0,
                 pause: false,
+                usePriceFromRegistry: false,
+                priceScaleBps: 0,
                 wantOrIds: [],
                 wantAndIds: [],
                 deduct: false,
@@ -2239,6 +2489,8 @@ describe("Core - Liquidity", function () {
                 timeToPay: 0,
                 expireAt: 0,
                 pause: false,
+                usePriceFromRegistry: false,
+                priceScaleBps: 0,
                 wantOrIds: [],
                 wantAndIds: [],
                 deduct: false,
@@ -2291,6 +2543,8 @@ describe("Core - Liquidity", function () {
                         price: 0,
                         timeToPay: 0,
                         expireAt: 0,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         pause: false,
                         ids: [1],
                         wantOrIds: [1],
@@ -2317,6 +2571,8 @@ describe("Core - Liquidity", function () {
                         price: 1,
                         timeToPay: 0,
                         expireAt: 0,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                         pause: false,
                         ids: [1],
                         wantOrIds: [],

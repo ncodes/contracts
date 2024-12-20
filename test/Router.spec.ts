@@ -13,11 +13,7 @@ describe("Router", function () {
     let mc: MarketCore;
     let provReg: ProviderRegistry;
     let router: Router;
-    let deployer: SignerWithAddress,
-        user: SignerWithAddress,
-        user2: SignerWithAddress,
-        user3: SignerWithAddress,
-        user4: SignerWithAddress;
+    let deployer: SignerWithAddress, user: SignerWithAddress, user2: SignerWithAddress, user3: SignerWithAddress, user4: SignerWithAddress;
     let accts: SignerWithAddress[];
     let mid: string, mid2: string, mid3: string;
     let tokenA_addr: string;
@@ -58,21 +54,9 @@ describe("Router", function () {
         tokenD_addr = tokenD.address;
     });
 
-    async function createMarket(
-        creator: SignerWithAddress = deployer,
-        base: string,
-        quote: string,
-        baseType: number,
-        quoteType: number,
-        permPut: boolean,
-        permSwap: boolean,
-        commission: BigNumberish,
-        mediatorPoolId: BigNumberish,
-    ) {
+    async function createMarket(creator: SignerWithAddress = deployer, base: string, quote: string, baseType: number, quoteType: number, permPut: boolean, permSwap: boolean, commission: BigNumberish, mediatorPoolId: BigNumberish) {
         const mid = makeMarketID(creator.address, base, quote, baseType, quoteType);
-        await mc
-            .connect(creator)
-            .createMarket(base, quote, baseType, quoteType, permPut, permSwap, commission, mediatorPoolId);
+        await mc.connect(creator).createMarket(base, quote, baseType, quoteType, permPut, permSwap, commission, mediatorPoolId);
         return Promise.resolve(mid);
     }
 
@@ -89,9 +73,7 @@ describe("Router", function () {
 
     describe(".setProviderRegistry", () => {
         it('should revert with msg="OWNABLE: NOT_OWNER" when sender is not owner', async () => {
-            await expect(router.connect(user).setProviderRegistry(provReg.address)).to.be.revertedWith(
-                "OWNABLE: NOT_OWNER",
-            );
+            await expect(router.connect(user).setProviderRegistry(provReg.address)).to.be.revertedWith("OWNABLE: NOT_OWNER");
         });
 
         it("should successfully set provider registry", async () => {
@@ -102,9 +84,7 @@ describe("Router", function () {
 
     describe(".route", () => {
         it("should revert with msg='MC: NO_ROUTES' when no routes are provided", async () => {
-            await expect(router.route({routes: [], target: AddressZero, deadline: 0, operator: 0})).to.be.revertedWith(
-                "ROUTER: NO_ROUTES",
-            );
+            await expect(router.route({routes: [], target: AddressZero, deadline: 0, operator: 0})).to.be.revertedWith("ROUTER: NO_ROUTES");
         });
 
         it("should revert with msg='MC: UNKNOWN_MARKET' when market does not exist", async () => {
@@ -119,53 +99,19 @@ describe("Router", function () {
         });
 
         it("should revert with msg='ROUTER: INV_PAIR' when market is not an ERC20/ERC20 or ERC20/NATIVE pair", async () => {
-            mid = await createMarket(
-                undefined,
-                tokenA_addr,
-                tokenB_addr,
-                AssetType.ERC20,
-                AssetType.ERC721,
-                false,
-                false,
-                0,
-                0,
-            );
-            await expect(
-                router.route({routes: [{market: mid, liqs: []}], target: AddressZero, deadline: 0, operator: 0}),
-            ).to.be.revertedWith("ROUTER: INV_PAIR");
+            mid = await createMarket(undefined, tokenA_addr, tokenB_addr, AssetType.ERC20, AssetType.ERC721, false, false, 0, 0);
+            await expect(router.route({routes: [{market: mid, liqs: []}], target: AddressZero, deadline: 0, operator: 0})).to.be.revertedWith("ROUTER: INV_PAIR");
         });
 
         it("should revert with msg='ROUTER: NO_LIQ' when no liquidity is provided", async () => {
             await core.setProtoFee(1000, 0, 0, 0, 0, 0);
-            mid = await createMarket(
-                undefined,
-                tokenA_addr,
-                tokenB_addr,
-                AssetType.ERC20,
-                AssetType.ERC20,
-                false,
-                false,
-                0,
-                0,
-            );
-            await expect(
-                router.route({routes: [{market: mid, liqs: []}], target: AddressZero, deadline: 0, operator: 0}),
-            ).to.be.revertedWith("ROUTER: NO_LIQ");
+            mid = await createMarket(undefined, tokenA_addr, tokenB_addr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
+            await expect(router.route({routes: [{market: mid, liqs: []}], target: AddressZero, deadline: 0, operator: 0})).to.be.revertedWith("ROUTER: NO_LIQ");
         });
 
         it("should revert with msg='ROUTER: UNKNOWN_PROVIDER' when provider does not exist", async () => {
             await core.setProtoFee(1000, 0, 0, 0, 0, 0);
-            mid = await createMarket(
-                undefined,
-                tokenA_addr,
-                tokenB_addr,
-                AssetType.ERC20,
-                AssetType.ERC20,
-                false,
-                false,
-                0,
-                0,
-            );
+            mid = await createMarket(undefined, tokenA_addr, tokenB_addr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
             await expect(
                 router.route({
                     routes: [{market: mid, liqs: [{provider: 1, lid: 0, amount: powOf(100), maxPrice: powOf(10)}]}],
@@ -189,21 +135,13 @@ describe("Router", function () {
                 wantOrIds: [],
                 wantAndIds: [],
                 deduct: false,
+                usePriceFromRegistry: false,
+                priceScaleBps: 0,
             };
 
             beforeEach(async () => {
                 await core.setProtoFee(1000, 0, 0, 0, 0, 0);
-                mid = await createMarket(
-                    undefined,
-                    tokenA_addr,
-                    tokenB_addr,
-                    AssetType.ERC20,
-                    AssetType.ERC20,
-                    false,
-                    false,
-                    0,
-                    0,
-                );
+                mid = await createMarket(undefined, tokenA_addr, tokenB_addr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
                 baseLiqParams = {
                     marketId: mid,
                     target: AddressZero,
@@ -216,6 +154,8 @@ describe("Router", function () {
                     wantOrIds: [],
                     wantAndIds: [],
                     deduct: false,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                 };
             });
 
@@ -259,10 +199,8 @@ describe("Router", function () {
 
                 // add liquidity
                 await expect(core.updateFungibleLiquidity(baseLiqParams)).not.to.be.reverted;
-                await expect(core.connect(user).updateFungibleLiquidity({...baseLiqParams, amount: user1Liq})).not.to.be
-                    .reverted;
-                await expect(core.connect(user2).updateFungibleLiquidity({...baseLiqParams, amount: user2Liq})).not.to
-                    .be.reverted;
+                await expect(core.connect(user).updateFungibleLiquidity({...baseLiqParams, amount: user1Liq})).not.to.be.reverted;
+                await expect(core.connect(user2).updateFungibleLiquidity({...baseLiqParams, amount: user2Liq})).not.to.be.reverted;
 
                 // approve router to spend total quote asset
                 await tokenB.approve(router.address, powOf(1150));
@@ -307,6 +245,8 @@ describe("Router", function () {
                 wantOrIds: [],
                 wantAndIds: [],
                 deduct: false,
+                usePriceFromRegistry: false,
+                priceScaleBps: 0,
             };
 
             beforeEach(async () => {
@@ -322,44 +262,16 @@ describe("Router", function () {
                     wantOrIds: [],
                     wantAndIds: [],
                     deduct: false,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                 };
             });
 
             it("should successfully route", async () => {
                 await core.setProtoFee(1000, 0, 0, 0, 0, 0);
-                mid = await createMarket(
-                    undefined,
-                    tokenA_addr,
-                    tokenB_addr,
-                    AssetType.ERC20,
-                    AssetType.ERC20,
-                    false,
-                    false,
-                    0,
-                    0,
-                );
-                mid2 = await createMarket(
-                    undefined,
-                    tokenC_addr,
-                    tokenA_addr,
-                    AssetType.ERC20,
-                    AssetType.ERC20,
-                    false,
-                    false,
-                    0,
-                    0,
-                );
-                mid3 = await createMarket(
-                    undefined,
-                    tokenD_addr,
-                    tokenC_addr,
-                    AssetType.ERC20,
-                    AssetType.ERC20,
-                    false,
-                    false,
-                    0,
-                    0,
-                );
+                mid = await createMarket(undefined, tokenA_addr, tokenB_addr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
+                mid2 = await createMarket(undefined, tokenC_addr, tokenA_addr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
+                mid3 = await createMarket(undefined, tokenD_addr, tokenC_addr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
 
                 // Market 1
                 const userLiq = powOf(100);
@@ -510,28 +422,8 @@ describe("Router", function () {
 
             it("should successfully route and return excess base or quote assets", async () => {
                 await core.setProtoFee(1000, 0, 0, 0, 0, 0);
-                mid = await createMarket(
-                    undefined,
-                    tokenA_addr,
-                    tokenB_addr,
-                    AssetType.ERC20,
-                    AssetType.ERC20,
-                    false,
-                    false,
-                    0,
-                    0,
-                );
-                mid2 = await createMarket(
-                    undefined,
-                    tokenC_addr,
-                    tokenA_addr,
-                    AssetType.ERC20,
-                    AssetType.ERC20,
-                    false,
-                    false,
-                    0,
-                    0,
-                );
+                mid = await createMarket(undefined, tokenA_addr, tokenB_addr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
+                mid2 = await createMarket(undefined, tokenC_addr, tokenA_addr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
 
                 // Market 1
                 const userLiq = powOf(100);
@@ -654,22 +546,14 @@ describe("Router", function () {
                     wantOrIds: [],
                     wantAndIds: [],
                     deduct: false,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                 };
             });
 
             it("should revert with msg= when quote transferred is insufficient", async () => {
                 await core.setProtoFee(1000, 0, 0, 0, 0, 0);
-                mid = await createMarket(
-                    undefined,
-                    tokenA_addr,
-                    tokenB_addr,
-                    AssetType.ERC20,
-                    AssetType.NATIVE,
-                    false,
-                    false,
-                    0,
-                    0,
-                );
+                mid = await createMarket(undefined, tokenA_addr, tokenB_addr, AssetType.ERC20, AssetType.NATIVE, false, false, 0, 0);
 
                 const userLiq = powOf(100);
                 const user1Liq = powOf(100);
@@ -721,32 +605,16 @@ describe("Router", function () {
                     },
                 ];
 
-                await expect(
-                    router.route({routes, target: AddressZero, deadline: 0, operator: 0}, {value: powOf(100)}),
-                ).to.be.revertedWith("ROUTER: INSUFFICIENT_BALANCE");
+                await expect(router.route({routes, target: AddressZero, deadline: 0, operator: 0}, {value: powOf(100)})).to.be.revertedWith("ROUTER: INSUFFICIENT_BALANCE");
 
-                await expect(
-                    router.route({routes, target: AddressZero, deadline: 0, operator: 0}, {value: powOf(1000)}),
-                ).to.be.revertedWith("ROUTER: INSUFFICIENT_BALANCE");
+                await expect(router.route({routes, target: AddressZero, deadline: 0, operator: 0}, {value: powOf(1000)})).to.be.revertedWith("ROUTER: INSUFFICIENT_BALANCE");
 
-                await expect(
-                    router.route({routes, target: AddressZero, deadline: 0, operator: 0}, {value: powOf(1100)}),
-                ).to.be.revertedWith("ROUTER: INSUFFICIENT_BALANCE");
+                await expect(router.route({routes, target: AddressZero, deadline: 0, operator: 0}, {value: powOf(1100)})).to.be.revertedWith("ROUTER: INSUFFICIENT_BALANCE");
             });
 
             it("should successfully route", async () => {
                 await core.setProtoFee(1000, 0, 0, 0, 0, 0);
-                mid = await createMarket(
-                    undefined,
-                    tokenA_addr,
-                    tokenB_addr,
-                    AssetType.ERC20,
-                    AssetType.NATIVE,
-                    false,
-                    false,
-                    0,
-                    0,
-                );
+                mid = await createMarket(undefined, tokenA_addr, tokenB_addr, AssetType.ERC20, AssetType.NATIVE, false, false, 0, 0);
 
                 const userLiq = powOf(100);
                 const user1Liq = powOf(100);
@@ -816,17 +684,7 @@ describe("Router", function () {
 
             it("should return excess native quote asset", async () => {
                 await core.setProtoFee(1000, 0, 0, 0, 0, 0);
-                mid = await createMarket(
-                    undefined,
-                    tokenA_addr,
-                    tokenB_addr,
-                    AssetType.ERC20,
-                    AssetType.NATIVE,
-                    false,
-                    false,
-                    0,
-                    0,
-                );
+                mid = await createMarket(undefined, tokenA_addr, tokenB_addr, AssetType.ERC20, AssetType.NATIVE, false, false, 0, 0);
 
                 const userLiq = powOf(100);
                 const user1Liq = powOf(100);
@@ -895,9 +753,7 @@ describe("Router", function () {
                 expect(await tokenA.balanceOf(router.address)).to.eq(0);
                 expect(await ethers.provider.getBalance(router.address)).to.eq(0);
                 expect(await tokenA.balanceOf(user3.address)).to.eq(beforeBaseBal.add(powOf(103.5)));
-                expect(await ethers.provider.getBalance(user3.address)).to.eq(
-                    beforeQuoteBal.sub(powOf(650)).sub(gasFee),
-                );
+                expect(await ethers.provider.getBalance(user3.address)).to.eq(beforeQuoteBal.sub(powOf(650)).sub(gasFee));
             });
         });
 
@@ -915,44 +771,16 @@ describe("Router", function () {
                     wantOrIds: [],
                     wantAndIds: [],
                     deduct: false,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                 };
             });
 
             it("should successfully route", async () => {
                 await core.setProtoFee(1000, 0, 0, 0, 0, 0);
-                mid = await createMarket(
-                    undefined,
-                    tokenA_addr,
-                    tokenB_addr,
-                    AssetType.ERC20,
-                    AssetType.NATIVE,
-                    false,
-                    false,
-                    0,
-                    0,
-                );
-                mid2 = await createMarket(
-                    undefined,
-                    tokenC_addr,
-                    tokenA_addr,
-                    AssetType.NATIVE,
-                    AssetType.ERC20,
-                    false,
-                    false,
-                    0,
-                    0,
-                );
-                mid3 = await createMarket(
-                    undefined,
-                    tokenD_addr,
-                    tokenC_addr,
-                    AssetType.ERC20,
-                    AssetType.NATIVE,
-                    false,
-                    false,
-                    0,
-                    0,
-                );
+                mid = await createMarket(undefined, tokenA_addr, tokenB_addr, AssetType.ERC20, AssetType.NATIVE, false, false, 0, 0);
+                mid2 = await createMarket(undefined, tokenC_addr, tokenA_addr, AssetType.NATIVE, AssetType.ERC20, false, false, 0, 0);
+                mid3 = await createMarket(undefined, tokenD_addr, tokenC_addr, AssetType.ERC20, AssetType.NATIVE, false, false, 0, 0);
 
                 // Market 1
                 const userLiq = powOf(100);
@@ -1080,17 +908,7 @@ describe("Router", function () {
 
             beforeEach(async () => {
                 await core.setProtoFee(1000, 0, 0, 0, 0, 0);
-                mid = await createMarket(
-                    undefined,
-                    tokenA_addr,
-                    tokenB_addr,
-                    AssetType.NATIVE,
-                    AssetType.ERC20,
-                    false,
-                    false,
-                    0,
-                    0,
-                );
+                mid = await createMarket(undefined, tokenA_addr, tokenB_addr, AssetType.NATIVE, AssetType.ERC20, false, false, 0, 0);
                 commonUpdateParams = {
                     marketId: mid,
                     target: AddressZero,
@@ -1102,6 +920,8 @@ describe("Router", function () {
                     wantOrIds: [],
                     wantAndIds: [],
                     deduct: false,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                 };
             });
 
@@ -1111,18 +931,9 @@ describe("Router", function () {
                 const user2Liq = powOf(100);
 
                 // add liquidity
-                await expect(core.updateFungibleLiquidity({...commonUpdateParams, amount: userLiq}, {value: userLiq}))
-                    .not.to.be.reverted;
-                await expect(
-                    core
-                        .connect(user)
-                        .updateFungibleLiquidity({...commonUpdateParams, amount: user1Liq}, {value: user1Liq}),
-                ).not.to.be.reverted;
-                await expect(
-                    core
-                        .connect(user2)
-                        .updateFungibleLiquidity({...commonUpdateParams, amount: user2Liq}, {value: user2Liq}),
-                ).not.to.be.reverted;
+                await expect(core.updateFungibleLiquidity({...commonUpdateParams, amount: userLiq}, {value: userLiq})).not.to.be.reverted;
+                await expect(core.connect(user).updateFungibleLiquidity({...commonUpdateParams, amount: user1Liq}, {value: user1Liq})).not.to.be.reverted;
+                await expect(core.connect(user2).updateFungibleLiquidity({...commonUpdateParams, amount: user2Liq}, {value: user2Liq})).not.to.be.reverted;
 
                 // approve router to spend total quote asset
                 await tokenB.approve(router.address, powOf(1150));
@@ -1150,9 +961,7 @@ describe("Router", function () {
 
                 expect(await ethers.provider.getBalance(router.address)).to.eq(0);
                 expect(await tokenB.balanceOf(router.address)).to.eq(0);
-                expect(await ethers.provider.getBalance(deployer.address)).to.eq(
-                    beforeBaseBal.add(powOf(103.5).sub(gasFee)),
-                );
+                expect(await ethers.provider.getBalance(deployer.address)).to.eq(beforeBaseBal.add(powOf(103.5).sub(gasFee)));
             });
         });
 
@@ -1161,17 +970,7 @@ describe("Router", function () {
 
             beforeEach(async () => {
                 await core.setProtoFee(1000, 0, 0, 0, 0, 0);
-                mid = await createMarket(
-                    undefined,
-                    tokenA_addr,
-                    tokenB_addr,
-                    AssetType.NATIVE,
-                    AssetType.NATIVE,
-                    false,
-                    false,
-                    0,
-                    0,
-                );
+                mid = await createMarket(undefined, tokenA_addr, tokenB_addr, AssetType.NATIVE, AssetType.NATIVE, false, false, 0, 0);
 
                 commonLiquidityParams = {
                     marketId: mid,
@@ -1184,6 +983,8 @@ describe("Router", function () {
                     wantOrIds: [],
                     wantAndIds: [],
                     deduct: false,
+                    usePriceFromRegistry: false,
+                    priceScaleBps: 0,
                 };
             });
 
@@ -1193,21 +994,11 @@ describe("Router", function () {
                 const user2Liq = powOf(100);
 
                 // add liquidity
-                await expect(
-                    core.updateFungibleLiquidity({...commonLiquidityParams, amount: userLiq}, {value: userLiq}),
-                ).not.to.be.reverted;
+                await expect(core.updateFungibleLiquidity({...commonLiquidityParams, amount: userLiq}, {value: userLiq})).not.to.be.reverted;
 
-                await expect(
-                    core
-                        .connect(user)
-                        .updateFungibleLiquidity({...commonLiquidityParams, amount: user1Liq}, {value: user1Liq}),
-                ).not.to.be.reverted;
+                await expect(core.connect(user).updateFungibleLiquidity({...commonLiquidityParams, amount: user1Liq}, {value: user1Liq})).not.to.be.reverted;
 
-                await expect(
-                    core
-                        .connect(user2)
-                        .updateFungibleLiquidity({...commonLiquidityParams, amount: user2Liq}, {value: user2Liq}),
-                ).not.to.be.reverted;
+                await expect(core.connect(user2).updateFungibleLiquidity({...commonLiquidityParams, amount: user2Liq}, {value: user2Liq})).not.to.be.reverted;
 
                 const beforeBaseBal = await ethers.provider.getBalance(user3.address);
                 const tx = await router.connect(user3).route(
@@ -1234,26 +1025,14 @@ describe("Router", function () {
                 const gasFee = toBN(gasUsed).mul(tx.gasPrice as BigNumber);
 
                 expect(await ethers.provider.getBalance(router.address)).to.eq(0);
-                expect(await ethers.provider.getBalance(user3.address)).to.eq(
-                    beforeBaseBal.add(powOf(103.5).sub(powOf(1150)).sub(gasFee)),
-                );
+                expect(await ethers.provider.getBalance(user3.address)).to.eq(beforeBaseBal.add(powOf(103.5).sub(powOf(1150)).sub(gasFee)));
             });
         });
 
         describe("when target is set", () => {
             it("should transfer output to recipient", async () => {
                 await core.setProtoFee(1000, 0, 0, 0, 0, 0);
-                mid = await createMarket(
-                    undefined,
-                    tokenA_addr,
-                    tokenB_addr,
-                    AssetType.ERC20,
-                    AssetType.ERC20,
-                    false,
-                    false,
-                    0,
-                    0,
-                );
+                mid = await createMarket(undefined, tokenA_addr, tokenB_addr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
 
                 const userLiq = powOf(100);
                 const user1Liq = powOf(100);
@@ -1282,6 +1061,8 @@ describe("Router", function () {
                         wantOrIds: [],
                         wantAndIds: [],
                         deduct: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                     }),
                 ).not.to.be.reverted;
                 await expect(
@@ -1297,6 +1078,8 @@ describe("Router", function () {
                         wantOrIds: [],
                         wantAndIds: [],
                         deduct: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                     }),
                 ).not.to.be.reverted;
                 await expect(
@@ -1312,6 +1095,8 @@ describe("Router", function () {
                         wantOrIds: [],
                         wantAndIds: [],
                         deduct: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                     }),
                 ).not.to.be.reverted;
 
@@ -1344,28 +1129,8 @@ describe("Router", function () {
 
             it("should return excess to sender but output to target", async () => {
                 await core.setProtoFee(1000, 0, 0, 0, 0, 0);
-                mid = await createMarket(
-                    undefined,
-                    tokenA_addr,
-                    tokenB_addr,
-                    AssetType.ERC20,
-                    AssetType.ERC20,
-                    false,
-                    false,
-                    0,
-                    0,
-                );
-                mid2 = await createMarket(
-                    undefined,
-                    tokenC_addr,
-                    tokenA_addr,
-                    AssetType.ERC20,
-                    AssetType.ERC20,
-                    false,
-                    false,
-                    0,
-                    0,
-                );
+                mid = await createMarket(undefined, tokenA_addr, tokenB_addr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
+                mid2 = await createMarket(undefined, tokenC_addr, tokenA_addr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
 
                 // Market 1
                 const userLiq = powOf(100);
@@ -1389,6 +1154,8 @@ describe("Router", function () {
                         wantOrIds: [],
                         wantAndIds: [],
                         deduct: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                     }),
                 ).not.to.be.reverted;
                 await expect(
@@ -1404,6 +1171,8 @@ describe("Router", function () {
                         wantOrIds: [],
                         wantAndIds: [],
                         deduct: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                     }),
                 ).not.to.be.reverted;
                 await expect(
@@ -1419,6 +1188,8 @@ describe("Router", function () {
                         wantOrIds: [],
                         wantAndIds: [],
                         deduct: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                     }),
                 ).not.to.be.reverted;
 
@@ -1444,6 +1215,8 @@ describe("Router", function () {
                         wantOrIds: [],
                         wantAndIds: [],
                         deduct: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                     }),
                 ).not.to.be.reverted;
                 await expect(
@@ -1459,6 +1232,8 @@ describe("Router", function () {
                         wantOrIds: [],
                         wantAndIds: [],
                         deduct: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                     }),
                 ).not.to.be.reverted;
                 await expect(
@@ -1474,6 +1249,8 @@ describe("Router", function () {
                         wantOrIds: [],
                         wantAndIds: [],
                         deduct: false,
+                        usePriceFromRegistry: false,
+                        priceScaleBps: 0,
                     }),
                 ).not.to.be.reverted;
 
@@ -1520,17 +1297,7 @@ describe("Router", function () {
         describe("deadline is set", () => {
             it("should transfer output to recipient", async () => {
                 await core.setProtoFee(1000, 0, 0, 0, 0, 0);
-                mid = await createMarket(
-                    undefined,
-                    tokenA_addr,
-                    tokenB_addr,
-                    AssetType.ERC20,
-                    AssetType.ERC20,
-                    false,
-                    false,
-                    0,
-                    0,
-                );
+                mid = await createMarket(undefined, tokenA_addr, tokenB_addr, AssetType.ERC20, AssetType.ERC20, false, false, 0, 0);
 
                 const now = await advanceBlockTime(1);
                 await expect(

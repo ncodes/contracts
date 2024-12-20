@@ -94,8 +94,12 @@ library Structs {
         uint256[] wantOrIds;
         // All IDs must match
         uint256[] wantAndIds;
+        // The price scale in basis points (applied to the price from the price registry)
+        int256 priceScaleBps;
         // Indicates whether new trades can be created
         bool paused;
+        // Indicate whether to use the price from the price registry
+        bool usePriceFromRegistry;
         // Indicate the address that is permitted to take the liquidity.
         // Used when the liquidity provider wants to limit who can take the liquidity.
         address target;

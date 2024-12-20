@@ -20,6 +20,7 @@ import "./NonFungibleLiquidityLib.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import "../marketmanagers/interfaces/IMarketManager.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "./interfaces/IPriceRegistry.sol";
 
 /// Core manages market orders
 contract Core is Ownable, ERC1155Holder {
@@ -65,12 +66,14 @@ contract Core is Ownable, ERC1155Holder {
         address target,
         bool deduct,
         bool paused,
+        bool usePriceFromRegistry,
         uint256 liq,
         uint256 amount,
         uint256 price,
         uint256[] wantOrIds,
         uint256[] wantAndIds,
-        uint256 timeToPay
+        uint256 timeToPay,
+        int256 priceScaleBps
     );
     event UpdatedNonFungibleLiquidity(
         address indexed provider,
@@ -78,12 +81,14 @@ contract Core is Ownable, ERC1155Holder {
         address target,
         bool deduct,
         bool paused,
+        bool usePriceFromRegistry,
         uint256 lid,
         uint256[] ids,
         uint256 price,
         uint256[] wantOrIds,
         uint256[] wantAndIds,
-        uint256 timeToPay
+        uint256 timeToPay,
+        int256 priceScaleBps
     );
     event UpdatedPrice(address indexed marketId, address indexed provider, address indexed manager, uint256 lid, uint256 price);
     event TogglePause(address indexed marketId, address indexed provider, uint256 lid, bool paused);
@@ -128,7 +133,7 @@ contract Core is Ownable, ERC1155Holder {
     event UpdatedOperator(address addr);
     event UpdatedMinerRegistry(address addr);
     event TransferredToFeePool(address indexed token, uint256 amount);
-
+    event UpdatedPriceRegistry(address addr);
     /// @dev Modifier to ensure a market exist
     /// @param id The market ID
     modifier marketMustExist(address id) {
@@ -187,14 +192,21 @@ contract Core is Ownable, ERC1155Holder {
 
     /// @notice Set asset registry
     /// @param addr The address of the asset registry contract
-    function setAssetRegistry(address addr) external onlyOwner onlyOwner {
+    function setAssetRegistry(address addr) external onlyOwner {
         state2.assetReg = IAssetRegistry(addr);
         emit UpdatedAssetRegistry(addr);
     }
 
+    /// @notice Set price registry
+    /// @param addr The address of the price registry contract
+    function setPriceRegistry(address addr) external onlyOwner {
+        state2.priceReg = IPriceRegistry(addr);
+        emit UpdatedPriceRegistry(addr);
+    }
+
     /// @notice Set provider registry
     /// @param addr The address of the provider registry contract
-    function setProviderRegistry(address addr) external onlyOwner onlyOwner {
+    function setProviderRegistry(address addr) external onlyOwner {
         state2.provReg = IProviderRegistry(addr);
         emit UpdatedProviderRegistry(addr);
     }
@@ -588,12 +600,14 @@ contract Core is Ownable, ERC1155Holder {
             params.lid,
             params.deduct,
             params.pause,
+            params.usePriceFromRegistry,
             params.amount,
             new uint256[](0),
             params.wantOrIds,
             params.wantAndIds,
             params.price,
             params.timeToPay,
+            params.priceScaleBps,
             params.target
         );
         FungibleLiquidityLib.updateFungibleLiquidity(state, state2, slot);
@@ -610,12 +624,14 @@ contract Core is Ownable, ERC1155Holder {
             params.lid,
             params.deduct,
             params.pause,
+            params.usePriceFromRegistry,
             0,
             params.ids,
             params.wantOrIds,
             params.wantAndIds,
             params.price,
             params.timeToPay,
+            params.priceScaleBps,
             params.target
         );
         NonFungibleLiquidityLib.updateNonFungibleLiquidity(state, state2, slot);

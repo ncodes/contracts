@@ -9,7 +9,7 @@ contract PriceRegistry is Ownable {
     mapping(address => bool) public oracles;
     mapping(address => uint256) public lastAssetUpdateTime;
     uint256 public lastPriceUpdateAt; // last time a price was updated
-    uint256 public priceStaleDuration; // duration after which a price is considered stale
+    uint256 public priceStaleDuration = 3600; // duration after which a price is considered stale
     uint256 public constant MAX_PRICE = type(uint128).max; // Reasonable upper limit
     uint256 public constant MIN_PRICE = 1; // Prevent zero prices
     uint16 public constant MAX_PRICE_CHANGE_BPS = 3000; // 30% max change

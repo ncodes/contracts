@@ -42,8 +42,15 @@ library SwapNonFungibleLib {
     ) public {
         require(msg.sender != sp.addrs.provider, "OC: NO_SELF_SWAP");
         require(AuxLib.hasNonZeroLiquidity(s1, sp.addrs.marketId, sp.addrs.provider, sp.lid), "OC: ZERO_LIQ");
+
         Structs.Liquidity storage liq = s1.liquidity[sp.addrs.marketId][sp.addrs.provider][sp.lid];
         require(liq.target.isZero() || liq.target == msg.sender, "OC: NOT_TARGET");
+
+        // Load price from registry if requested
+        if (liq.usePriceFromRegistry) {
+            liq.price = s2.priceReg.getBasePrice(market.base.addr, market.quote.addr, liq.priceScaleBps);
+        }
+
         AuxLib.checkNonFungibleSwapParams(sp, market, liq);
         require(sp.operator == 0 || s2.operatorMgr.isOperator(sp.operator), "OC: UNKNOWN_OPERATOR");
 

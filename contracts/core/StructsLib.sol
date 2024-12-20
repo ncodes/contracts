@@ -11,6 +11,7 @@ import "../feepurse/interfaces/IFeePurse.sol";
 import "../badge/interfaces/IBadge.sol";
 import "../operator/interfaces/IOperator.sol";
 import "../minerregisty/interfaces/IMinerRegistry.sol";
+import "./interfaces/IPriceRegistry.sol";
 
 library StructsLib {
     struct UserRewardLog {
@@ -86,6 +87,8 @@ library StructsLib {
         IProviderRegistry provReg;
         // Registry for asset information
         IAssetRegistry assetReg;
+        // Price registry contract address
+        IPriceRegistry priceReg;
         // App token contract
         IERC20 token;
         // Market core contract
@@ -142,12 +145,14 @@ library StructsLib {
         uint256 lid;
         bool deduct;
         bool pause;
+        bool usePriceFromRegistry;
         uint256 amount;
         uint256[] ids;
         uint256[] wantOrIds;
         uint256[] wantAndIds;
         uint256 price;
         uint256 timeToPay;
+        int256 priceScaleBps;
         address target;
     }
 
@@ -173,10 +178,14 @@ library StructsLib {
         /// @dev List of tokens IDs where all tokens must match.
         /// Required when quote is non-fungible.
         uint256[] wantAndIds;
+        /// @dev The price scale in basis points (applied to the price from the price registry)
+        int256 priceScaleBps;
         /// @dev Indicate whether the liquidity should be deducted
         bool deduct;
         /// @dev Indicate whether to pause the liquidity
         bool pause;
+        /// @dev Indicate whether to use the price from the price registry
+        bool usePriceFromRegistry;
     }
 
     struct UpdateNonFungibleLiquidityParams {
@@ -201,10 +210,14 @@ library StructsLib {
         /// @dev List of tokens IDs where all tokens must match.
         /// Required when quote is non-fungible.
         uint256[] wantAndIds;
+        /// @dev The price scale in basis points (applied to the price from the price registry)
+        int256 priceScaleBps;
         /// @dev Indicate whether the liquidity should be deducted
         bool deduct;
         /// @dev Indicate whether to pause the liquidity
         bool pause;
+        /// @dev Indicate whether to use the price from the price registry
+        bool usePriceFromRegistry;
     }
 
     struct SwapQuoteForBaseParams {

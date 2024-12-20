@@ -21,6 +21,7 @@ import {
     OfferLib,
     Operator,
     OrderLib,
+    PriceRegistry,
     ProviderRegistry,
     SwapFungibleLib,
     SwapNonFungibleLib,
@@ -272,6 +273,7 @@ export async function initCoreTestSuite() {
     let nft: NFT;
     let badgeMgr: BadgeManager;
     let mediatorMgr: MediatorManager;
+    let priceReg: PriceRegistry;
     let randomness: MockContract;
     let testERC721: ERC721T;
     let testERC1155: ERC1155T;
@@ -423,6 +425,11 @@ export async function initCoreTestSuite() {
 
     mid = makeMarketID(marketCreator.address, baseAddr, quoteAddr, 1, 0);
 
+    let factory4 = await getContractFactory("PriceRegistry");
+    priceReg = (await factory4.deploy()) as PriceRegistry;
+    await priceReg.addOracle(deployer.address);
+    await core.setPriceRegistry(priceReg.address);
+
     return Promise.resolve({
         libs,
         baseAddr,
@@ -453,6 +460,7 @@ export async function initCoreTestSuite() {
         tokenDec,
         baseDec,
         quoteDec,
+        priceReg,
         wethAddr,
         weth,
         minTimeToPay,
