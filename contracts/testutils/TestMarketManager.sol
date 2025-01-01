@@ -21,7 +21,7 @@ contract MarketManagerBase is IMarketManager, ERC165 {
         beforeSwapCalled = true;
     }
 
-    function afterSwap(StructsLib.SwapQuoteForBaseParams memory, uint256) external virtual {
+    function afterSwap(StructsLib.SwapQuoteForBaseParams memory, StructsLib.SwapResult memory) external virtual {
         afterSwapCalled = true;
     }
 
@@ -33,7 +33,7 @@ contract MarketManagerBase is IMarketManager, ERC165 {
         onPaidCalled = true;
     }
 
-    function onRelease(uint256) external virtual {
+    function onRelease(StructsLib.SwapResult memory) external virtual {
         onReleaseCalled = true;
     }
 }
@@ -41,7 +41,7 @@ contract MarketManagerBase is IMarketManager, ERC165 {
 contract TestMarketManager is IMarketManager, ERC165, MarketManagerBase {
     uint256 public orderId;
     StructsLib.SwapQuoteForBaseParams public params;
-
+    StructsLib.SwapResult public swapResult;
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, MarketManagerBase) returns (bool) {
         return interfaceId == type(IMarketManager).interfaceId || super.supportsInterface(interfaceId);
     }
@@ -53,10 +53,11 @@ contract TestMarketManager is IMarketManager, ERC165, MarketManagerBase {
 
     function afterSwap(
         StructsLib.SwapQuoteForBaseParams memory _params,
-        uint256 _orderId
+        StructsLib.SwapResult memory _swapResult
     ) external override(IMarketManager, MarketManagerBase) {
         params = _params;
-        orderId = _orderId;
+        orderId = _swapResult.orderId;
+        swapResult = _swapResult;
         afterSwapCalled = true;
     }
 }
@@ -78,7 +79,10 @@ contract MarketManagerRevertsFromAfterSwap is IMarketManager, ERC165, MarketMana
         return interfaceId == type(IMarketManager).interfaceId || super.supportsInterface(interfaceId);
     }
 
-    function afterSwap(StructsLib.SwapQuoteForBaseParams memory, uint256) external pure override(IMarketManager, MarketManagerBase) {
+    function afterSwap(
+        StructsLib.SwapQuoteForBaseParams memory,
+        StructsLib.SwapResult memory
+    ) external pure override(IMarketManager, MarketManagerBase) {
         revert("MKT: AFTER_REVERTED");
     }
 }
@@ -90,5 +94,5 @@ contract MarketManagerDidNotImplMktMgrIface {
 
     function beforeSwap(StructsLib.SwapQuoteForBaseParams memory, address) external pure {}
 
-    function afterSwap(StructsLib.SwapQuoteForBaseParams memory, uint256, address) external pure {}
+    function afterSwap(StructsLib.SwapQuoteForBaseParams memory, StructsLib.SwapResult memory) external pure {}
 }

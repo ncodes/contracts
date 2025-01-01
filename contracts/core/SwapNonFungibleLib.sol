@@ -39,7 +39,7 @@ library SwapNonFungibleLib {
         StructsLib.State2 storage s2,
         StructsLib.SwapSlot memory sp,
         Structs.Market memory market
-    ) public {
+    ) public returns (StructsLib.SwapResult memory) {
         require(msg.sender != sp.addrs.provider, "OC: NO_SELF_SWAP");
         require(AuxLib.hasNonZeroLiquidity(s1, sp.addrs.marketId, sp.addrs.provider, sp.lid), "OC: ZERO_LIQ");
 
@@ -65,7 +65,9 @@ library SwapNonFungibleLib {
         }
 
         // Create a swap order (NFT/SYNTH)
-        OrderLib.createOrder(s1, s2, sp, market, liq);
+        uint256 orderId = OrderLib.createOrder(s1, s2, sp, market, liq);
+
+        return StructsLib.SwapResult(0, 0, 0, false, orderId);
     }
 
     struct BoolSlot {
@@ -85,7 +87,7 @@ library SwapNonFungibleLib {
         StructsLib.SwapSlot memory sp,
         Structs.Market memory mkt,
         Structs.Liquidity storage liq
-    ) public {
+    ) public returns (StructsLib.SwapResult memory) {
         address sdr = msg.sender;
 
         // Find the IDs that match the wants request
@@ -170,6 +172,8 @@ library SwapNonFungibleLib {
         );
 
         delete liq.ids;
+
+        return StructsLib.SwapResult(0, 0, 0, true, 0);
     }
 
     /// @dev Handle NFT/ERC20, NFT/NATIVE swap (Instant)
@@ -184,7 +188,7 @@ library SwapNonFungibleLib {
         StructsLib.SwapSlot memory sp,
         Structs.Market memory mkt,
         Structs.Liquidity storage liq
-    ) public {
+    ) public returns (StructsLib.SwapResult memory) {
         uint256 price = (sp.offerId > 0) ? sp.maxPrice : liq.price;
 
         // Compute fee
@@ -263,5 +267,7 @@ library SwapNonFungibleLib {
         );
 
         delete liq.ids;
+
+        return StructsLib.SwapResult(price - feeInfo.totalFees, 0, feeInfo.totalFees, true, 0);
     }
 }

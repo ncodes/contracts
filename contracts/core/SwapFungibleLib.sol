@@ -45,7 +45,7 @@ library SwapFungibleLib {
         StructsLib.State2 storage state2,
         StructsLib.SwapSlot memory sp,
         Structs.Market memory mkt
-    ) public {
+    ) public returns (StructsLib.SwapResult memory) {
         require(msg.sender != sp.addrs.provider, "OC: NO_SELF_SWAP");
         require(AuxLib.hasNonZeroLiquidity(state, sp.addrs.marketId, sp.addrs.provider, sp.lid), "OC: ZERO_LIQ");
 
@@ -74,7 +74,9 @@ library SwapFungibleLib {
         }
 
         // Create order for ERC20/SYNTH, SYNTH/ERC20, SYNTH/SYNTH, SYNTH/NFT, NATIVE/SYNTH, SYNTH/NATIVE
-        OrderLib.createOrder(state, state2, sp, mkt, liq);
+        uint256 orderId = OrderLib.createOrder(state, state2, sp, mkt, liq);
+
+        return StructsLib.SwapResult(0, 0, 0, false, orderId);
     }
 
     struct BoolSlot {
@@ -94,7 +96,7 @@ library SwapFungibleLib {
         StructsLib.SwapSlot memory sp,
         Structs.Market memory mkt,
         Structs.Liquidity storage liq
-    ) public {
+    ) public returns (StructsLib.SwapResult memory) {
         // If swap was initiated via an offer, use price from offer instead of liquidity
         uint256 price = (sp.offerId > 0) ? sp.maxPrice : liq.price;
 
@@ -178,6 +180,8 @@ library SwapFungibleLib {
             new uint256[](0),
             new uint256[](0)
         );
+
+        return StructsLib.SwapResult(cost, sp.amount - feeInfo.totalFees, feeInfo.totalFees, true, 0);
     }
 
     /// @dev Handle ERC20/NFT, NATIVE/NFT swap (Instant Swap)
@@ -192,7 +196,7 @@ library SwapFungibleLib {
         StructsLib.SwapSlot memory sp,
         Structs.Market memory mkt,
         Structs.Liquidity storage liq
-    ) public {
+    ) public returns (StructsLib.SwapResult memory) {
         // Find the IDs that match the wants request.
         // If swap was initiated via offer, use offer supplied ids.
         uint256[] memory matchIds = (sp.offerId > 0)
@@ -241,11 +245,13 @@ library SwapFungibleLib {
         // Disburse fee to inventor
         s1.inventorBalance[mkt.base.addr] += (feeInfo.protoFee * totalFeeBps) / 10000;
 
+        uint256 amount = liq.amount;
+
         // Transfer base asset to recipient
         if (mkt.base.isERC20()) {
-            IERC20(mkt.base.addr).safeTransfer(sp.addrs.recipient.setOrDef(msg.sender), liq.amount - feeInfo.totalFees);
+            IERC20(mkt.base.addr).safeTransfer(sp.addrs.recipient.setOrDef(msg.sender), amount - feeInfo.totalFees);
         } else if (mkt.base.isNative()) {
-            payable(sp.addrs.recipient.setOrDef(msg.sender)).transfer(liq.amount - feeInfo.totalFees);
+            payable(sp.addrs.recipient.setOrDef(msg.sender)).transfer(amount - feeInfo.totalFees);
         }
 
         // Transfer quote asset to liquidity provider
@@ -256,7 +262,7 @@ library SwapFungibleLib {
         }
 
         // Update liquidity
-        s2.marketCore.setCounters(sp.addrs.marketId, false, false, true, mkt.numLiquidity - liq.amount);
+        s2.marketCore.setCounters(sp.addrs.marketId, false, false, true, mkt.numLiquidity - amount);
         liq.amount = 0;
 
         emit Swap(
@@ -270,5 +276,7 @@ library SwapFungibleLib {
             new uint256[](0),
             matchIds
         );
+
+        return StructsLib.SwapResult(0, amount - feeInfo.totalFees, feeInfo.totalFees, true, 0);
     }
 }

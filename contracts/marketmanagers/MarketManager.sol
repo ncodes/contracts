@@ -111,8 +111,11 @@ contract MarketManager is Ownable, IMarketManager, ERC165 {
 
     /// @notice After swap hook
     /// @param params The swap params
-    /// @param orderId The order ID
-    function afterSwap(StructsLib.SwapQuoteForBaseParams memory params, uint256 orderId) external override onlyCore {
+    /// @param swapResult The swap result
+    function afterSwap(
+        StructsLib.SwapQuoteForBaseParams memory params,
+        StructsLib.SwapResult memory swapResult
+    ) external override onlyCore {
         // Get the routeIds and bonds from params
         (uint256[] memory routeIds, uint256[] memory bonds) = abi.decode(params.marketMgrData, (uint256[], uint256[]));
         if (routeIds.length == 0) return;
@@ -124,9 +127,9 @@ contract MarketManager is Ownable, IMarketManager, ERC165 {
         payRouter.createRequest(routeIds, bonds, 0, getHighestValueLockDuration(routeIds));
         uint256 requestId = payRouter.numRequests() - 1;
 
-        requestInfo[orderId - 1] = RequestInfo(true, requestId, orderId - 1);
+        requestInfo[swapResult.orderId] = RequestInfo(true, requestId, swapResult.orderId);
 
-        emit RequestCreated(requestId, orderId - 1);
+        emit RequestCreated(requestId, swapResult.orderId);
     }
 
     /// @notice On cancel hook
@@ -146,11 +149,11 @@ contract MarketManager is Ownable, IMarketManager, ERC165 {
     }
 
     /// @notice On release hook
-    /// @param orderId The order ID
-    function onRelease(uint256 orderId) external override onlyCore {
-        if (!requestInfo[orderId].exists) return;
-        payRouter.closeRequest(requestInfo[orderId].requestId);
-        emit RequestReleased(requestInfo[orderId].requestId, orderId);
+    /// @param swapResult The swap result
+    function onRelease(StructsLib.SwapResult memory swapResult) external override onlyCore {
+        if (!requestInfo[swapResult.orderId].exists) return;
+        payRouter.closeRequest(requestInfo[swapResult.orderId].requestId);
+        emit RequestReleased(requestInfo[swapResult.orderId].requestId, swapResult.orderId);
     }
 
     /// @notice Set the requester fee bp

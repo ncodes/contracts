@@ -48,7 +48,7 @@ library NonFungibleLiquidityLib {
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
         StructsLib.UpdateLiquiditySlot memory slot
-    ) external {
+    ) external returns (uint256) {
         require(slot.deduct || s2.marketCore.isPutPermitted(slot.marketId, msg.sender));
         Structs.Market memory mkt = s2.marketCore.getMarket(slot.marketId);
         require(mkt.base.isNFT(), "OC: UNEXP_BASE");
@@ -138,19 +138,16 @@ library NonFungibleLiquidityLib {
                 liq.ids[slot.ids[i] - popped] = liq.ids[liq.ids.length - 1];
                 liq.ids.pop();
                 popped++;
-
                 if (mkt.base.isERC721()) {
                     IERC721(mkt.base.addr).transferFrom(address(this), msg.sender, id);
                 } else {
                     IERC1155(mkt.base.addr).safeTransferFrom(address(this), msg.sender, id, 1, "");
                 }
             }
-
             if (!mkt.hasERC20OrNative()) {
                 LiqAuxLib.unlockFeeForProtocol(s2, mkt, liq);
                 LiqAuxLib.unlockFeeForMarketCreator(s2, mkt, liq);
             }
-
             mkt.numLiquidity -= popped;
         }
 
@@ -179,5 +176,7 @@ library NonFungibleLiquidityLib {
             slot.timeToPay,
             slot.priceScaleBps
         );
+
+        return slot.lid;
     }
 }

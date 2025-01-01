@@ -51,7 +51,7 @@ library FungibleLiquidityLib {
         StructsLib.State storage s1,
         StructsLib.State2 storage s2,
         StructsLib.UpdateLiquiditySlot memory slot
-    ) external {
+    ) external returns (uint256) {
         require(slot.deduct || s2.marketCore.isPutPermitted(slot.marketId, msg.sender));
         Structs.Market memory mkt = s2.marketCore.getMarket(slot.marketId);
         require(mkt.base.isFungible(), "OC: UNEXP_BASE");
@@ -105,10 +105,7 @@ library FungibleLiquidityLib {
         // For new liquidity, ensure amount is provided.
         require(!liq.isLiquidityEmpty() || slot.amount > 0, "OC: AMOUNT_REQ");
 
-        // Handle increment
-        // - Increment listing pool balance if BASE asset is verified and market is not permissioned
-        // - Transfer BASE if it is an ERC20
-        // - If market does not involve an ERC20, lock fee in FeePurse
+        // Handle amount increment
         if (!slot.deduct && slot.amount > 0) {
             liq.amount += slot.amount;
             mkt.numLiquidity += slot.amount;
@@ -177,5 +174,7 @@ library FungibleLiquidityLib {
             slot.timeToPay,
             slot.priceScaleBps
         );
+
+        return slot.lid;
     }
 }

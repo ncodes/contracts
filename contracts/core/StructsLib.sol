@@ -244,4 +244,12 @@ library StructsLib {
         uint256 deadline;
         uint256 operator;
     }
+
+    struct SwapResult {
+        uint256 quoteReceived;
+        uint256 baseReceived;
+        uint256 totalFees;
+        bool instant;
+        uint256 orderId;
+    }
 }

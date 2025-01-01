@@ -10,9 +10,9 @@ interface IMarketManager {
 
     /// @notice Called after a swap is executed
     /// @param params The swap parameters
-    /// @param orderId The ID of the order that was created (if swap is interactive). When order ID is 0,
-    /// it means the swap is not interactive.
-    function afterSwap(StructsLib.SwapQuoteForBaseParams memory params, uint256 orderId) external;
+    /// @param swapResult The swap result. If swap is interactive, swap result will
+    /// contain partial swap result including order type and ID.
+    function afterSwap(StructsLib.SwapQuoteForBaseParams memory params, StructsLib.SwapResult memory swapResult) external;
 
     /// @notice Called when a swap is cancelled
     /// @param orderId The ID of the order that was cancelled
@@ -23,6 +23,6 @@ interface IMarketManager {
     function onPaid(uint256 orderId) external;
 
     /// @notice Called when a swap order is released
-    /// @param orderId The ID of the order that was released
-    function onRelease(uint256 orderId) external;
+    /// @param result The swap result
+    function onRelease(StructsLib.SwapResult memory result) external;
 }

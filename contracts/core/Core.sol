@@ -21,6 +21,7 @@ import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import "../marketmanagers/interfaces/IMarketManager.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "./interfaces/IPriceRegistry.sol";
+import "./interfaces/IProviderHook.sol";
 
 /// Core manages market orders
 contract Core is Ownable, ERC1155Holder {
@@ -411,17 +412,18 @@ contract Core is Ownable, ERC1155Holder {
             IMarketManager(mkt.manager).beforeSwap(params);
         }
 
-        uint256 numOrders = state.numOrders;
-
-        SwapLib.swapQuoteForBase(state, state2, slot);
-
-        uint256 orderId;
-        if (state.numOrders > numOrders) {
-            orderId = state.numOrders;
+        if (Address.isContract(params.provider) && ERC165Checker.supportsInterface(params.provider, type(IProviderHook).interfaceId)) {
+            IProviderHook(params.provider).beforeSwap(params);
         }
 
+        StructsLib.SwapResult memory swapResult = SwapLib.swapQuoteForBase(state, state2, slot);
+
         if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
-            IMarketManager(mkt.manager).afterSwap(params, orderId);
+            IMarketManager(mkt.manager).afterSwap(params, swapResult);
+        }
+
+        if (Address.isContract(params.provider) && ERC165Checker.supportsInterface(params.provider, type(IProviderHook).interfaceId)) {
+            IProviderHook(params.provider).afterSwap(params, swapResult);
         }
     }
 
@@ -576,6 +578,13 @@ contract Core is Ownable, ERC1155Holder {
         return AuxLib.isLiquidityExist(state, _mid, _owner, _lid);
     }
 
+    /// @notice Count the number of liquidity owned by an address in a market
+    /// @param _mid The market ID
+    /// @param _owner The address of the owner of the liquidity
+    function countLiquidity(address _mid, address _owner) external view returns (uint256) {
+        return state.liquidity[_mid][_owner].length;
+    }
+
     /// @notice Allow an address to manage sender's liquidity
     /// @param marketId The market ID
     /// @param manager The address of the manager
@@ -594,7 +603,7 @@ contract Core is Ownable, ERC1155Holder {
     /// @param params The liquidity parameters
     function updateFungibleLiquidity(
         StructsLib.UpdateFungibleLiquidityParams memory params
-    ) external payable notExpired(params.expireAt) marketMustExist(params.marketId) {
+    ) external payable notExpired(params.expireAt) marketMustExist(params.marketId) returns (uint256) {
         StructsLib.UpdateLiquiditySlot memory slot = StructsLib.UpdateLiquiditySlot(
             params.marketId,
             params.lid,
@@ -610,15 +619,16 @@ contract Core is Ownable, ERC1155Holder {
             params.priceScaleBps,
             params.target
         );
-        FungibleLiquidityLib.updateFungibleLiquidity(state, state2, slot);
+        uint256 lid = FungibleLiquidityLib.updateFungibleLiquidity(state, state2, slot);
         state2.provReg.register(msg.sender);
+        return lid;
     }
 
     /// @notice Update non-fungible market (ERC721, ERC1155) liquidity
     /// @param params The liquidity parameters
     function updateNonFungibleLiquidity(
         StructsLib.UpdateNonFungibleLiquidityParams memory params
-    ) external notExpired(params.expireAt) marketMustExist(params.marketId) {
+    ) external notExpired(params.expireAt) marketMustExist(params.marketId) returns (uint256) {
         StructsLib.UpdateLiquiditySlot memory slot = StructsLib.UpdateLiquiditySlot(
             params.marketId,
             params.lid,
@@ -634,8 +644,9 @@ contract Core is Ownable, ERC1155Holder {
             params.priceScaleBps,
             params.target
         );
-        NonFungibleLiquidityLib.updateNonFungibleLiquidity(state, state2, slot);
+        uint256 lid = NonFungibleLiquidityLib.updateNonFungibleLiquidity(state, state2, slot);
         state2.provReg.register(msg.sender);
+        return lid;
     }
 
     /// @notice Set required swap badges

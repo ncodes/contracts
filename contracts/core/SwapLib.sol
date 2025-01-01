@@ -14,6 +14,7 @@ import "./SwapFungibleLib.sol";
 import "./SwapNonFungibleLib.sol";
 import "../marketmanagers/interfaces/IMarketManager.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import "./interfaces/IProviderHook.sol";
 
 library SwapLib {
     using MarketAuxLib for Structs.Asset;
@@ -22,7 +23,11 @@ library SwapLib {
     /// @param state The State object
     /// @param state2 The State2 object
     /// @param sp The swap parameters
-    function swapQuoteForBase(StructsLib.State storage state, StructsLib.State2 storage state2, StructsLib.SwapSlot memory sp) public {
+    function swapQuoteForBase(
+        StructsLib.State storage state,
+        StructsLib.State2 storage state2,
+        StructsLib.SwapSlot memory sp
+    ) public returns (StructsLib.SwapResult memory) {
         require(state2.marketCore.isPutPermitted(sp.addrs.marketId, sp.addrs.provider));
         require(state2.marketCore.isSwapPermitted(sp.addrs.marketId, msg.sender));
         Structs.Market memory market = state2.marketCore.getMarket(sp.addrs.marketId);
@@ -31,8 +36,8 @@ library SwapLib {
         checkMarketSwapBadges(state2, sp.addrs.marketId);
         checkProviderSwapBadges(state2, sp.addrs.marketId, sp.lid, sp.addrs.provider);
 
-        if (market.base.isFungible()) SwapFungibleLib.swap(state, state2, sp, market);
-        else SwapNonFungibleLib.swap(state, state2, sp, market);
+        if (market.base.isFungible()) return SwapFungibleLib.swap(state, state2, sp, market);
+        else return SwapNonFungibleLib.swap(state, state2, sp, market);
     }
 
     /// @dev Create order for ERC20/SYNTH, SYNTH/ERC20, SYNTH/SYNTH & SYNTH/NFT
@@ -66,10 +71,15 @@ library SwapLib {
     ) public {
         Structs.Market memory mkt = state2.marketCore.getMarket(state.orders[id].marketId);
 
-        OrderReleaseLib.releaseOrder(state, state2, owner, id, byDispute, mkt.manager == msg.sender);
+        StructsLib.SwapResult memory result = OrderReleaseLib.releaseOrder(state, state2, owner, id, byDispute, mkt.manager == msg.sender);
 
         if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
-            IMarketManager(mkt.manager).onRelease(id);
+            IMarketManager(mkt.manager).onRelease(result);
+        }
+
+        address provider = state.orders[id].provider;
+        if (Address.isContract(provider) && ERC165Checker.supportsInterface(provider, type(IProviderHook).interfaceId)) {
+            IProviderHook(provider).onRelease(result);
         }
     }
 
@@ -94,6 +104,11 @@ library SwapLib {
         if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
             IMarketManager(mkt.manager).onCancel(id);
         }
+
+        address provider = state.orders[id].provider;
+        if (Address.isContract(provider) && ERC165Checker.supportsInterface(provider, type(IProviderHook).interfaceId)) {
+            IProviderHook(provider).onCancel(id);
+        }
     }
 
     /// @dev Mark a swap order as paid.
@@ -109,6 +124,11 @@ library SwapLib {
         Structs.Market memory mkt = marketCore.getMarket(state.orders[id].marketId);
         if (Address.isContract(mkt.manager) && ERC165Checker.supportsInterface(mkt.manager, type(IMarketManager).interfaceId)) {
             IMarketManager(mkt.manager).onPaid(id);
+        }
+
+        address provider = state.orders[id].provider;
+        if (Address.isContract(provider) && ERC165Checker.supportsInterface(provider, type(IProviderHook).interfaceId)) {
+            IProviderHook(provider).onPaid(id);
         }
     }
 

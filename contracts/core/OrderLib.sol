@@ -41,7 +41,7 @@ library OrderLib {
         StructsLib.SwapSlot memory sp,
         Structs.Market memory mkt,
         Structs.Liquidity storage liq
-    ) public {
+    ) public returns (uint256) {
         // Ensure number of open orders and disputes are below limit
         require(liq.openOrders < s1.ints.maxOpenOrders, "OC: MAX_OPEN_ORDERS");
         require(liq.openDisputes < s1.ints.maxOpenDisputes, "OC: MAX_OPEN_DISPUTES");
@@ -119,6 +119,8 @@ library OrderLib {
             o.providerIds,
             o.takerIds
         );
+
+        return s1.numOrders - 1;
     }
 
     /// @notice Cancel an inactive order. An inactive order is one where:

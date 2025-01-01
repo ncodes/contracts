@@ -44,7 +44,7 @@ library OrderReleaseLib {
         uint256 oid,
         bool byDispute,
         bool byManager
-    ) public {
+    ) public returns (StructsLib.SwapResult memory) {
         Structs.Order storage o = s1.orders[oid];
         require(!o.cancelled && !o.released, "OC: ALREADY_FINALIZED");
         Structs.Market memory mkt = s2.marketCore.getMarket(o.marketId);
@@ -59,26 +59,29 @@ library OrderReleaseLib {
         require(o.paid, "OC: ORDER_UNPAID");
 
         Structs.Asset memory asset;
+        StructsLib.SwapResult memory swapResult;
 
         // Handle ERC20/SYNTH, SYNTH/ERC20, SYNTH/NATIVE, NATIVE/SYNTH
         if (mkt.isFungible() && mkt.hasERC20OrNative()) {
-            asset = releaseForFungibles(s1, s2, o, mkt);
+            (asset, swapResult) = releaseForFungibles(s1, s2, o, mkt);
         }
 
         // Handle SYNTH/SYNTH
         if (mkt.base.isSynth() && mkt.quote.isSynth()) {
-            asset = releaseForSynthToSynthOrNFT(s1, s2, o, mkt);
+            (asset, swapResult) = releaseForSynthToSynthOrNFT(s1, s2, o, mkt);
         }
 
         // Handle SYNTH/NFT
         if (mkt.base.isSynth() && mkt.quote.isNFT()) {
-            asset = releaseForSynthToNFT(s1, s2, o, mkt);
+            (asset, swapResult) = releaseForSynthToNFT(s1, s2, o, mkt);
         }
 
         // Handle NFT/SYNTH
         if (mkt.base.isNFT() && mkt.quote.isSynth()) {
-            asset = releaseForNFTToSynth(s1, s2, o, mkt);
+            (asset, swapResult) = releaseForNFTToSynth(s1, s2, o, mkt);
         }
+
+        swapResult.orderId = oid;
 
         // Mark as released.
         o.released = true;
@@ -99,6 +102,8 @@ library OrderReleaseLib {
             o.providerIds,
             o.takerIds
         );
+
+        return swapResult;
     }
 
     /// @dev Release asset for SYNTH/NFT
@@ -111,8 +116,8 @@ library OrderReleaseLib {
         StructsLib.State2 storage s2,
         Structs.Order storage o,
         Structs.Market memory mkt
-    ) internal returns (Structs.Asset memory asset) {
-        asset = releaseForSynthToSynthOrNFT(s1, s2, o, mkt);
+    ) internal returns (Structs.Asset memory asset, StructsLib.SwapResult memory swapResult) {
+        (asset, swapResult) = releaseForSynthToSynthOrNFT(s1, s2, o, mkt);
 
         // Transfer locked NFT to provider
         for (uint256 i = 0; i < o.takerIds.length; i++) {
@@ -120,7 +125,7 @@ library OrderReleaseLib {
             else IERC1155Strip(mkt.quote.addr).safeTransferFrom(address(this), o.provider, o.takerIds[i], 1, "");
         }
 
-        return asset;
+        return (asset, swapResult);
     }
 
     struct BoolSlot {
@@ -138,7 +143,7 @@ library OrderReleaseLib {
         StructsLib.State2 storage s2,
         Structs.Order storage o,
         Structs.Market memory mkt
-    ) internal returns (Structs.Asset memory asset) {
+    ) internal returns (Structs.Asset memory asset, StructsLib.SwapResult memory swapResult) {
         Structs.Liquidity storage liq = s1.liquidity[o.marketId][o.provider][o.lid];
 
         // Compute fee
@@ -194,7 +199,7 @@ library OrderReleaseLib {
                 IERC721Strip(mkt.base.addr).transferFrom(address(this), o.recipient.setOrDef(o.taker), o.providerIds[i]);
             else IERC1155Strip(mkt.base.addr).safeTransferFrom(address(this), o.recipient.setOrDef(o.taker), o.providerIds[i], 1, "");
 
-        return mkt.base;
+        return (mkt.base, StructsLib.SwapResult(0, 0, feeInfo.totalFees, false, 0));
     }
 
     struct IntSlot {
@@ -215,7 +220,7 @@ library OrderReleaseLib {
         StructsLib.State2 storage s2,
         Structs.Order memory o,
         Structs.Market memory mkt
-    ) internal returns (Structs.Asset memory asset) {
+    ) internal returns (Structs.Asset memory asset, StructsLib.SwapResult memory swapResult) {
         Structs.Liquidity storage liq = s1.liquidity[o.marketId][o.provider][o.lid];
 
         // Compute fee
@@ -267,7 +272,7 @@ library OrderReleaseLib {
         liq.protoFeePurseId = s2.feePurse.lock(o.provider, (feeInfo.protoFeeRate * feeInfo.remaining) / 10 ** 18);
         liq.mktCreatorFeePurseId = s2.feePurse.lock(o.provider, (feeInfo.mktCreatorFeeRate * feeInfo.remaining) / 10 ** 18);
 
-        return mkt.base;
+        return (mkt.base, StructsLib.SwapResult(0, 0, feeInfo.totalFees, false, 0));
     }
 
     function releaseForFungibles(
@@ -275,7 +280,7 @@ library OrderReleaseLib {
         StructsLib.State2 storage s2,
         Structs.Order storage o,
         Structs.Market memory mkt
-    ) internal returns (Structs.Asset memory asset) {
+    ) internal returns (Structs.Asset memory asset, StructsLib.SwapResult memory result) {
         asset = mkt.base.isOnchain() ? mkt.base : mkt.quote;
 
         // Compute fee
@@ -321,13 +326,23 @@ library OrderReleaseLib {
 
         // Transfer the order amount
         address receiver = (!mkt.base.isSynth()) ? o.taker : o.provider;
+        uint256 amtToTransfer = feeInfo.amtToCharge - feeInfo.totalFees;
         if (asset.isERC20()) {
-            IERC20(asset.addr).transfer(o.recipient.setOrDef(receiver), feeInfo.amtToCharge - feeInfo.totalFees);
+            IERC20(asset.addr).transfer(o.recipient.setOrDef(receiver), amtToTransfer);
         } else if (asset.isNative()) {
-            payable(o.recipient.setOrDef(receiver)).transfer(feeInfo.amtToCharge - feeInfo.totalFees);
+            payable(o.recipient.setOrDef(receiver)).transfer(amtToTransfer);
         }
 
-        return asset;
+        return (
+            asset,
+            StructsLib.SwapResult(
+                mkt.base.isOnchain() ? 0 : amtToTransfer,
+                mkt.base.isOnchain() ? amtToTransfer : 0,
+                feeInfo.totalFees,
+                false,
+                0
+            )
+        );
     }
 
     /// @notice Verify a market manager's signature

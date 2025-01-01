@@ -2445,7 +2445,7 @@ describe("Core - Swap", function () {
 
                     expect(await testMarketManager.beforeSwapCalled()).to.be.true;
                     expect(await testMarketManager.afterSwapCalled()).to.be.true;
-                    expect(await testMarketManager.orderId()).to.be.eq(1);
+                    expect(await testMarketManager.orderId()).to.be.eq(0);
                 });
             });
         });
