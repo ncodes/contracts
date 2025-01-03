@@ -8,6 +8,7 @@
     "run-fork": "npx hardhat node --network hardhat",
     "deploy-fork": "npx hardhat run scripts/deploy-script.ts --network hardhat",
     "deploy-local": "npx hardhat run scripts/deploy-script.ts --network localhost",
+    "deploy-docker": "npx hardhat run scripts/deploy-script.ts --network docker",
     "deploy-goerli": "npx hardhat run scripts/deploy-script.ts --network goerli",
     "deploy-sepolia": "npx hardhat run scripts/deploy-script.ts --network sepolia",
     "deploy-ethereum": "npx hardhat run scripts/deploy-script.ts --network ethereum",

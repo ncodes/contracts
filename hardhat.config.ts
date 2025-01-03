@@ -14,6 +14,7 @@ import "./tasks";
 
 // Get network (default to localhost)
 const net = process.env.HARDHAT_NETWORK || "localhost";
+const host = process.env.HARDHAT_HOST || "127.0.0.1";
 
 // Load environment variables for the network
 dotenv.config({path: path.join(__dirname, `scripts/${net}/.env`)});
@@ -27,6 +28,9 @@ module.exports = {
         eachLine: removeConsoleLog((hre) => hre.network.name !== "hardhat" && hre.network.name !== "localhost"),
     },
     networks: {
+        docker: {
+            url: "http://0.0.0.0:8545",
+        },
         hardhat: {
             // forking: {
             //     url: `https://mainnet.infura.io/v3/${process.env.API_KEY}`,

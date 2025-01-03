@@ -19,6 +19,7 @@ import {
     NFT,
     PayRouter,
     ProviderRegistry,
+    ProxyLP,
     Randomness,
     Router,
     TokenPool,
@@ -70,6 +71,7 @@ let accts: SignerWithAddress[];
 let joinToken: TOKEN;
 let tokenPool: TokenPool;
 let feePool: FeePool;
+let proxyLP: ProxyLP;
 let nft: NFT;
 let inventor: SignerWithAddress;
 let energonAddr: ENERGON;
@@ -134,6 +136,7 @@ async function deployLocal() {
     await deployRouter();
     await deployPayRouter();
     await deployMarketManager();
+    await deployProxyLP();
 }
 
 async function main() {
@@ -402,6 +405,19 @@ async function deployMarketManager() {
     );
 }
 
+async function deployProxyLP() {
+    await deployOrAttach<ProxyLP>(
+        "ProxyLP",
+        {
+            MarketAuxLib: libs.MarketAuxLib.address,
+        },
+        [core.address],
+        async (contract) => {
+            proxyLP = contract;
+        },
+    );
+}
+
 async function deployRandomness() {
     await deployOrAttach<Randomness>(
         "Randomness",
@@ -587,12 +603,6 @@ async function deployTokenPoolAndFeePool() {
             });
         },
     );
-}
-
-async function deployLPPool() {
-    await deployOrAttach<LPPool>("LPPool", undefined, [AddressZero, joinToken.address], async (contract) => {
-        lpPool = contract;
-    });
 }
 
 async function deployNFT() {
