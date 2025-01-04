@@ -8,7 +8,6 @@
     "run-fork": "npx hardhat node --network hardhat",
     "deploy-fork": "npx hardhat run scripts/deploy-script.ts --network hardhat",
     "deploy-local": "npx hardhat run scripts/deploy-script.ts --network localhost",
-    "deploy-docker": "npx hardhat run scripts/deploy-script.ts --network docker",
     "deploy-goerli": "npx hardhat run scripts/deploy-script.ts --network goerli",
     "deploy-sepolia": "npx hardhat run scripts/deploy-script.ts --network sepolia",
     "deploy-ethereum": "npx hardhat run scripts/deploy-script.ts --network ethereum",
@@ -17,8 +16,8 @@
     "deploy-nft": "npx hardhat run scripts/deploy-nft.ts",
     "gen-key": "npx hardhat run tasks/genkey.ts",
     "play": "npx hardhat run scripts/_play/play.ts --network localhost",
-    "docker:build:latest": "docker build . -t network-latest",
-    "docker:run:latest": "docker run -it -d -p 8545:8545 --name network-latest network-latest"
+    "docker:build": "docker build . -t network-latest",
+    "docker:run": "docker run -it -d -p 8545:8545 --name network-latest network-latest"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.2.3",
