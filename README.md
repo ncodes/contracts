@@ -63,8 +63,19 @@ yarn run-local-node
 env STEP=1 REDEPLOY=true yarn deploy-local
 ```
 
-where `STEP` is the step number and `REDEPLOY=true` forces previously deployed contracts to be ignored.
-Steps are used to configure contracts in a specific order, as some calls depend on others.
+where `STEP` is the step number and `REDEPLOY=true` forces previously deployed contracts to be ignored. If REDEPLOY is not set, the deployment will skip contracts that have already been deployed.
+Steps are used to classify and configure contract calls in a specific order. Calls with same step number are grouped together and executed in the order they are defined.
 
-## Documentation
-You can learn more about the Joint project by reading our [Docs](https://docs.joint.exchange).
+## Docker
+
+To build and run a local hardhat chain with the contracts deployed in a docker container using the following command:
+
+```shell
+yarn docker:build
+```
+
+To run the docker container, you can use the following command:
+
+```shell
+yarn docker:run
+```
