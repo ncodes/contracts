@@ -21,12 +21,20 @@ describe("AssetRegistry - Ownable", async () => {
     });
 
     describe("transferOwnership", () => {
-        
+
         it("should revert if not called by owner", async () => {
             await expect(
                 assetReg.connect(user2).transferOwnership(user3.address)
             ).to.be.revertedWith("OWNABLE: NOT_OWNER")
         });
+
+        it("should revert if transferring ownership to zero address", async () => {
+            await expect(
+                assetReg.connect(deployer).transferOwnership(ethers.constants.AddressZero)
+            ).to.be.revertedWith("INVALID_ADDRESS")
+        });
+
+        
     });
 
 
