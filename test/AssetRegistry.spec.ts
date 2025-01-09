@@ -34,7 +34,7 @@ describe("AssetRegistry", function () {
             expect(await assetReg.toCur(user2.address, 100)).to.eq(0);
         });
 
-        it("should return empty info if asset was not registered", async () => {
+        it("should return correct info after asset is registered", async () => {
             await assetReg.set(user2.address, 100, 101, 102, true, true, true);
 
             const info = await assetReg.get(user2.address);
@@ -55,7 +55,7 @@ describe("AssetRegistry", function () {
             await expect(assetReg.connect(user2).setRate(user2.address, 100)).to.be.revertedWith("OWNABLE: NOT_OWNER");
         });
 
-        it("should set correcnt", async () => {
+        it("should set correct", async () => {
             const info = await assetReg.get(user2.address);
             expect(info.curRate).to.eq(0);
             await assetReg.setRate(user2.address, 100);
