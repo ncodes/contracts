@@ -21,7 +21,7 @@ describe("AssetRegistry - Ownable", async () => {
     });
 
     describe("transferOwnership", () => {
-
+        
         it("should revert if not called by owner", async () => {
             await expect(
                 assetReg.connect(user2).transferOwnership(user3.address)
@@ -34,8 +34,29 @@ describe("AssetRegistry - Ownable", async () => {
             ).to.be.revertedWith("INVALID_ADDRESS")
         });
 
-        
+        it("should emit event on ownership transfer", async () => {
+            await expect(
+                assetReg.connect(deployer).transferOwnership(user2.address)
+            ).to.emit(assetReg, "OwnershipTransferred")
+                .withArgs(deployer.address, user2.address);
+        });
     });
 
+    describe("renounceOwnership", async () => {
+
+        it("should revert if not called by owner", async () => {
+            await expect(
+                assetReg.connect(user2).renounceOwnership()
+            ).to.be.revertedWith("OWNABLE: NOT_OWNER")
+        });
+
+        it("should emit event on renouncing ownership", async () => {
+            await expect(
+                assetReg.connect(deployer).renounceOwnership()
+            ).to.emit(assetReg, "OwnershipTransferred")
+                .withArgs(deployer.address, ethers.constants.AddressZero);
+        })
+
+    })
 
 })
