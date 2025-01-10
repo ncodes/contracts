@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import "../common/Ownable.sol";
 import "../common/Writable.sol";
 
 /// @dev AssetRegistry stores useful information about assets
-contract ProviderRegistry is Ownable, Writable {
+contract ProviderRegistry is Writable {
     uint256 public nextId = 1;
     mapping(uint256 => address) public providers;
     mapping(address => uint256) public providerIdx;

@@ -6,7 +6,7 @@ import "../common/Structs.sol";
 import "../mediator/interfaces/IMediatorManager.sol";
 import "../market/interfaces/IMarketCore.sol";
 import "../token/interfaces/IERC20.sol";
-import "../common/Ownable.sol";
+import "../vendor/@openzeppelin/contracts/access/Ownable.sol";
 import "../market/MarketAuxLib.sol";
 import "../minerregisty/interfaces/IMinerRegistry.sol";
 import "hardhat/console.sol";

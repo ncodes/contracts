@@ -2,7 +2,7 @@
 pragma solidity ^0.8.27;
 
 import "../token/interfaces/IERC20.sol";
-import "../common/Ownable.sol";
+import "../vendor/@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IFeePool.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";

@@ -7,6 +7,7 @@ import "../common/SafeERC20.sol";
 import "../market/MarketAuxLib.sol";
 import "hardhat/console.sol";
 import "../core/interfaces/IProviderHook.sol";
+import "../vendor/@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 /// @title ProxyLP

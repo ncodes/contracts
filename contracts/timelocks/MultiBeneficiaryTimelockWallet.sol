@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/finance/VestingWallet.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../common/SigLib.sol";
-import "../common/Ownable.sol";
+import "../vendor/@openzeppelin/contracts/access/Ownable.sol";
 
 contract MultiBeneficiaryTimelockWallet is Ownable {
     uint64 public startTimestamp;

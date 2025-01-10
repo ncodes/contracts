@@ -109,6 +109,7 @@ describe("AssetRegistry", function () {
         });
     });
 
+    
     describe(".setStable", () => {
         it("should revert if not owner", async () => {
             await expect(assetReg.connect(user2).setStable(user2.address, true)).to.be.revertedWith("OWNABLE: NOT_OWNER");
