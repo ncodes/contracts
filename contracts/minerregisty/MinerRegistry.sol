@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import "../common/Ownable.sol";
 import "../common/Writable.sol";
 import "../token/interfaces/IERC20.sol";
 
@@ -22,7 +21,7 @@ enum MinerOperation {
 
 /// @title MinerRegistry
 /// @notice The MinerRegistry contract is a registry of miners that are permitted to execute protocol tasks.
-contract MinerRegistry is Ownable, Writable {
+contract MinerRegistry is Writable {
     mapping(address => Miner) public miners;
     mapping(address => uint256) public rewards;
     mapping(MinerOperation => uint256) public opRewards;

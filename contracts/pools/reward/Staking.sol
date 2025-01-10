@@ -2,14 +2,12 @@
 pragma solidity ^0.8.0;
 
 import "../../token/interfaces/IERC20.sol";
-import "../../common/Ownable.sol";
 import "../../common/Writable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../../common/MathLib.sol";
-import "../../common/Ownable.sol";
 
-contract Staking is Ownable, Pausable, ReentrancyGuard, Writable {
+contract Staking is Pausable, ReentrancyGuard, Writable {
     IERC20 public rewardsToken;
     address public core;
 

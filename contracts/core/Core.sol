@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import "../common/Ownable.sol";
+import "../vendor/@openzeppelin/contracts/access/Ownable.sol";
 import "../common/Structs.sol";
 import "./StructsLib.sol";
 import "../market/interfaces/IMarketCore.sol";
