@@ -3,7 +3,7 @@ pragma solidity ^0.8.27;
 
 import "../token/interfaces/IERC20.sol";
 import "../randomness/interfaces/IRandomness.sol";
-import "../common/Ownable.sol";
+import "../vendor/@openzeppelin/contracts/access/Ownable.sol";
 import "../common/MathLib.sol";
 import "../common/Structs.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
