@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/common/ERC2981.sol";
-import "../common/Ownable.sol";
+import "../vendor/@openzeppelin/contracts/access/Ownable.sol";
 import "../pools/interfaces/IFeePool.sol";
 import "../token/interfaces/IERC20.sol";
 import "operator-filter-registry/src/DefaultOperatorFilterer.sol";

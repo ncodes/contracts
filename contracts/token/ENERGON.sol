@@ -2,7 +2,7 @@
 pragma solidity ^0.8.27;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "../common/Ownable.sol";
+import "../vendor/@openzeppelin/contracts/access/Ownable.sol";
 
 contract ENERGON is ERC20, ERC20Burnable, Ownable {
     uint8 _tokenDecimals;

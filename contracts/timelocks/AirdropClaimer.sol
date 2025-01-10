@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "../common/Ownable.sol";
+import "../vendor/@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "./WrappedVestingWallet.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
