@@ -180,32 +180,34 @@ contract PayRouter is Ownable {
         routes[numRoutes] = route;
         emit RouteCreated(numRoutes, msg.sender, src, route.sourceToken, route.sourceOrgId, route.destOrgId, route.bond);
 
-        for (uint256 i = 0; i < route.requesters.length; i++) {
-            approveRequester(numRoutes, route.requesters[i]);
-        }
+        approveRequesters(numRoutes, route.requesters);
 
         route.requesters = new address[](0);
 
         numRoutes++;
     }
 
-    /// @notice Approve a requester to use a route
+    /// @notice Approve multiple requesters to use a route
     /// @dev Only the owner of the route can approve a requester
     /// @param routeId The route ID
-    /// @param requester The requester address
-    function approveRequester(uint256 routeId, address requester) public onlyRouteOwner(routeId) {
-        approvedRouteRequesters[routeId][requester] = true;
-        emit ApprovedRequester(routeId, requester);
+    /// @param requesters The requesters address
+    function approveRequesters(uint256 routeId, address[] memory requesters) public onlyRouteOwner(routeId) {
+        for (uint256 i = 0; i < requesters.length; i++) {
+            approvedRouteRequesters[routeId][requesters[i]] = true;
+            emit ApprovedRequester(routeId, requesters[i]);
+        }
     }
 
-    /// @notice Unapprove a requester to use a route
+    /// @notice Unapprove multiple requesters to use a route
     /// @dev Only the owner of the route can unapprove a requester
     /// @param routeId The route ID
-    /// @param requester The requester address
-    function unapproveRequester(uint256 routeId, address requester) external onlyRouteOwner(routeId) {
-        require(approvedRouteRequesters[routeId][requester], "PR: NOT_APPROVED");
-        approvedRouteRequesters[routeId][requester] = false;
-        emit UnapprovedRequester(routeId, requester);
+    /// @param requesters The requesters address
+    function unapproveRequesters(uint256 routeId, address[] memory requesters) external onlyRouteOwner(routeId) {
+        for (uint256 i = 0; i < requesters.length; i++) {
+            require(approvedRouteRequesters[routeId][requesters[i]], "PR: NOT_APPROVED");
+            approvedRouteRequesters[routeId][requesters[i]] = false;
+            emit UnapprovedRequester(routeId, requesters[i]);
+        }
     }
 
     /// @notice Check if a requester is approved to use a route
